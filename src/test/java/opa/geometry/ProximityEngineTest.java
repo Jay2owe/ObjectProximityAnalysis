@@ -138,6 +138,20 @@ public class ProximityEngineTest {
         LabelGeometryExtractor.extract(image);
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void rejectsNegativeLabels() {
+        ImagePlus image = new ImagePlus("bad-negative", new FloatProcessor(3, 3));
+        image.getProcessor().setf(1, 1, -1.0f);
+        LabelGeometryExtractor.extract(image);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void rejectsNonFiniteLabels() {
+        ImagePlus image = new ImagePlus("bad-infinite", new FloatProcessor(3, 3));
+        image.getProcessor().setf(1, 1, Float.POSITIVE_INFINITY);
+        LabelGeometryExtractor.extract(image);
+    }
+
     @Test
     public void flagsObjectsTouchingTheObservationWindow() {
         ImagePlus image = labels("edge", 5, 5, 1);

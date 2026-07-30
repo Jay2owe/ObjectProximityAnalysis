@@ -20,7 +20,7 @@ public final class SpatialStatistics {
         validateInputs(points, window, radii, correction);
         double[] values = new double[radii.length];
         int count = points.length;
-        if (count < 2) return values;
+        if (count < 2) return nanArray(radii.length);
 
         for (int radiusIndex = 0; radiusIndex < radii.length; radiusIndex++) {
             double radius = radii[radiusIndex];
@@ -43,7 +43,9 @@ public final class SpatialStatistics {
         validateInputs(source, window, radii, correction);
         validatePoints(target, window, "target");
         double[] values = new double[radii.length];
-        if (source.length == 0 || target.length == 0) return values;
+        if (source.length == 0 || target.length == 0) {
+            return nanArray(radii.length);
+        }
 
         for (int radiusIndex = 0; radiusIndex < radii.length; radiusIndex++) {
             double radius = radii[radiusIndex];
@@ -89,7 +91,7 @@ public final class SpatialStatistics {
     public static double[] computeG(double[][] points, double[] radii) {
         validateRadii(radii);
         validateFinitePoints(points, "points");
-        if (points.length < 2) return new double[radii.length];
+        if (points.length < 2) return nanArray(radii.length);
         double[] nearest = nearestDistances(points, points, true);
         return empiricalCdf(nearest, radii);
     }
@@ -101,7 +103,7 @@ public final class SpatialStatistics {
         validateFinitePoints(source, "source");
         validateFinitePoints(target, "target");
         if (source.length == 0 || target.length == 0) {
-            return new double[radii.length];
+            return nanArray(radii.length);
         }
         return empiricalCdf(nearestDistances(source, target, false), radii);
     }
@@ -302,6 +304,12 @@ public final class SpatialStatistics {
 
     private static double squaredDistance(double dx, double dy) {
         return dx * dx + dy * dy;
+    }
+
+    private static double[] nanArray(int length) {
+        double[] values = new double[length];
+        java.util.Arrays.fill(values, Double.NaN);
+        return values;
     }
 
     private static void validateInputs(double[][] points,

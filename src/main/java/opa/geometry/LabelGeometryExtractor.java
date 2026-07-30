@@ -204,7 +204,10 @@ public final class LabelGeometryExtractor {
     }
 
     private static int parseLabel(float value, int x, int y, int z) {
-        if (!Float.isFinite(value) || value <= 0.0f) return 0;
+        if (value == 0.0f) return 0;
+        if (!Float.isFinite(value) || value < 0.0f) {
+            throw invalidLabel(value, x, y, z);
+        }
         if (value > Integer.MAX_VALUE) {
             throw invalidLabel(value, x, y, z);
         }

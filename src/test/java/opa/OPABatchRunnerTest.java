@@ -8,6 +8,7 @@ package opa;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.process.ByteProcessor;
+import ij.measure.Calibration;
 import opa.spatial.PatternFunction;
 import org.junit.Test;
 
@@ -84,9 +85,73 @@ public class OPABatchRunnerTest {
         }
     }
 
+    @Test
+    public void keepsIncompatibleBatchUnitsInSeparateAggregates()
+            throws Exception {
+        File directory = Files.createTempDirectory("opa-batch-units").toFile();
+        try {
+            saveTwoLabels(
+                    new File(directory, "sample1_A.tif"),
+                    "pixel");
+            saveTwoLabels(
+                    new File(directory, "sample2_A.tif"),
+                    "um");
+
+            OPAParameters options = OPAParameters.builder()
+                    .distanceModes(EnumSet.of(DistanceMode.CENTRE_TO_CENTRE))
+                    .patternFunctions(EnumSet.of(PatternFunction.K))
+                    .radii(new double[]{1.0, 2.0})
+                    .simulations(2)
+                    .build();
+            OPABatchParameters parameters = OPABatchParameters.builder(
+                            directory,
+                            "(sample\\d+)_([A])\\.tif",
+                            2)
+                    .recursive(false)
+                    .analysisTemplate(options)
+                    .autoSave(false)
+                    .build();
+
+            OPABatchResult result = OPABatchRunner.run(parameters);
+            assertEquals(2, result.getProcessedGroups());
+            assertEquals(2, result.getMeanCurveTables().size());
+            assertEquals(2, result.getMeanEcdfTables().size());
+            boolean sawPixels = false;
+            boolean sawMicrometres = false;
+            for (ij.measure.ResultsTable table
+                    : result.getMeanCurveTables().values()) {
+                String unit = table.getStringValue("Radius_Unit", 0);
+                sawPixels |= "pixel".equals(unit);
+                sawMicrometres |= "\u00b5m".equals(unit);
+                assertTrue(table.getStringValue("Value_Unit", 0)
+                        .endsWith("^2"));
+            }
+            assertTrue(sawPixels);
+            assertTrue(sawMicrometres);
+        } finally {
+            deleteChildren(directory);
+        }
+    }
+
     private static void saveLabel(File file, int x, int y) {
         ImagePlus image = new ImagePlus("labels", new ByteProcessor(8, 8));
         image.getProcessor().set(x, y, 1);
+        IJ.saveAsTiff(image, file.getAbsolutePath());
+        image.close();
+    }
+
+    private static void saveTwoLabels(File file, String unit) {
+        ImagePlus image = new ImagePlus("labels", new ByteProcessor(8, 8));
+        image.getProcessor().set(2, 2, 1);
+        image.getProcessor().set(5, 5, 2);
+        if (!"pixel".equals(unit)) {
+            Calibration calibration = new Calibration();
+            calibration.pixelWidth = 1.0;
+            calibration.pixelHeight = 1.0;
+            calibration.pixelDepth = 1.0;
+            calibration.setUnit(unit);
+            image.setCalibration(calibration);
+        }
         IJ.saveAsTiff(image, file.getAbsolutePath());
         image.close();
     }

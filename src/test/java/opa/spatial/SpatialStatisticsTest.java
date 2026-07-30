@@ -138,8 +138,14 @@ public class SpatialStatisticsTest {
         assertEquals(first.getGlobalPValue(), second.getGlobalPValue(), 0.0);
         assertEquals(1234L, first.getSeed());
         assertEquals(19, first.getSimulations());
+        assertEquals(20, first.getRankSampleCount());
+        assertEquals(1.0 / 20.0, first.getMinimumAchievablePValue(), 0.0);
         assertTrue(first.getGlobalPValue() >= 1.0 / 20.0);
         assertTrue(first.getGlobalPValue() <= 1.0);
+        assertEquals(
+                Math.rint(first.getGlobalPValue() * 20.0),
+                first.getGlobalPValue() * 20.0,
+                1.0e-12);
     }
 
     @Test
@@ -197,5 +203,49 @@ public class SpatialStatisticsTest {
                 EdgeCorrection.NONE);
 
         assertEquals(50.0, crossK[0], 1.0e-12);
+    }
+
+    @Test
+    public void insufficientPointPatternsAreExplicitlyUndefined() {
+        double[][] onePoint = {{5.0, 5.0}};
+        double[] radii = {1.0, 2.0};
+        double[] k = SpatialStatistics.computeK(
+                onePoint, WINDOW, radii, EdgeCorrection.TRANSLATION);
+        double[] g = SpatialStatistics.computeG(onePoint, radii);
+        assertTrue(Double.isNaN(k[0]));
+        assertTrue(Double.isNaN(k[1]));
+        assertTrue(Double.isNaN(g[0]));
+        assertTrue(Double.isNaN(g[1]));
+
+        MonteCarloResult result = MonteCarloAnalyzer.analyzeUnivariate(
+                PatternFunction.K,
+                onePoint,
+                WINDOW,
+                radii,
+                EdgeCorrection.TRANSLATION,
+                99,
+                7L);
+        assertEquals(PatternStatus.INSUFFICIENT_POINTS, result.getStatus());
+        assertTrue(Double.isNaN(result.getGlobalPValue()));
+        assertTrue(Double.isNaN(result.getMinimumAchievablePValue()));
+        assertEquals(0, result.getRankSampleCount());
+    }
+
+    @Test
+    public void entirelyUndefinedBorderCurveDoesNotReportSignificance() {
+        double[][] points = {{1.0, 1.0}, {9.0, 9.0}};
+        MonteCarloResult result = MonteCarloAnalyzer.analyzeUnivariate(
+                PatternFunction.K,
+                points,
+                WINDOW,
+                new double[]{6.0, 7.0},
+                EdgeCorrection.BORDER,
+                99,
+                11L);
+
+        assertEquals(PatternStatus.NO_VALID_RADII, result.getStatus());
+        assertTrue(Double.isNaN(result.getGlobalPValue()));
+        assertTrue(Double.isNaN(result.getMaximumDeviation()));
+        assertEquals(0, result.getRankSampleCount());
     }
 }

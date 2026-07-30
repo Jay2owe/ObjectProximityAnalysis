@@ -58,6 +58,10 @@ public class OPATest {
         assertTrue(result.getDistanceSummaryTable().size() > 0);
         assertEquals(4, result.getPatternSummaryTable().size());
         assertTrue(result.hasPhysicalCalibration());
+        ResultsTableAssertions.assertColumnEquals(
+                result.getCurveTables().values().iterator().next(),
+                "Value_Unit",
+                "\u00b5m^2");
     }
 
     @Test
@@ -81,6 +85,22 @@ public class OPATest {
         OPA.run(OPAParameters.builder(image)
                 .runPattern(false)
                 .requirePhysicalCalibration(true)
+                .build());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void invalidPhysicalCalibrationIsRejectedRatherThanNormalized() {
+        ImagePlus image = labels("invalid-calibration", 5, 5, 1);
+        image.getProcessor().set(2, 2, 1);
+        Calibration calibration = new Calibration();
+        calibration.pixelWidth = 0.0;
+        calibration.pixelHeight = 1.0;
+        calibration.pixelDepth = 1.0;
+        calibration.setUnit("um");
+        image.setCalibration(calibration);
+
+        OPA.run(OPAParameters.builder(image)
+                .runPattern(false)
                 .build());
     }
 
@@ -111,6 +131,25 @@ public class OPATest {
         assertEquals(1, result.getChannels().get(0).getObjects().get(0).getLabel());
     }
 
+    @Test
+    public void distanceSummaryIncludesEveryRequestedNeighborRank() {
+        ImagePlus image = labels("ranked", 10, 3, 1);
+        image.getProcessor().set(1, 1, 1);
+        image.getProcessor().set(4, 1, 2);
+        image.getProcessor().set(8, 1, 3);
+        OPAResult result = OPA.run(OPAParameters.builder(image)
+                .runPattern(false)
+                .distanceModes(EnumSet.of(DistanceMode.CENTRE_TO_CENTRE))
+                .neighborCount(2)
+                .build());
+
+        assertEquals(2, result.getDistanceSummaryTable().size());
+        assertEquals(1.0, result.getDistanceSummaryTable()
+                .getValue("Rank", 0), 0.0);
+        assertEquals(2.0, result.getDistanceSummaryTable()
+                .getValue("Rank", 1), 0.0);
+    }
+
     private static ImagePlus labels(String title, int width, int height, int depth) {
         ImageStack stack = new ImageStack(width, height);
         for (int z = 0; z < depth; z++) {
@@ -126,5 +165,16 @@ public class OPATest {
         calibration.pixelDepth = 1.0;
         calibration.setUnit("um");
         image.setCalibration(calibration);
+    }
+
+    private static final class ResultsTableAssertions {
+        private ResultsTableAssertions() {
+        }
+
+        private static void assertColumnEquals(ij.measure.ResultsTable table,
+                                               String heading,
+                                               String expected) {
+            assertEquals(expected, table.getStringValue(heading, 0));
+        }
     }
 }

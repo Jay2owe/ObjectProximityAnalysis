@@ -6,6 +6,7 @@
 package opa;
 
 import opa.spatial.MonteCarloResult;
+import opa.spatial.PatternFunction;
 
 /**
  * One channel or directed channel-pair point-pattern result.
@@ -45,5 +46,25 @@ public final class PatternResult {
 
     public MonteCarloResult getStatistics() {
         return statistics;
+    }
+
+    public String getValueUnit() {
+        PatternFunction function = statistics.getFunction();
+        switch (function) {
+            case K:
+            case CROSS_K:
+                return unit + "^2";
+            case L:
+            case L_MINUS_R:
+            case CROSS_L:
+                return unit;
+            case G:
+            case CROSS_G:
+            case PAIR_CORRELATION:
+                return "dimensionless";
+            default:
+                throw new IllegalArgumentException(
+                        "Unsupported pattern function: " + function);
+        }
     }
 }

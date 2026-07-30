@@ -33,6 +33,8 @@ import java.util.regex.PatternSyntaxException;
  */
 public final class OPABatchRunner {
 
+    private static final char UNIT_SEPARATOR = '\u001f';
+
     private OPABatchRunner() {
     }
 
@@ -326,7 +328,9 @@ public final class OPABatchRunner {
                         || "Mode".equals(heading)
                         || "Unit".equals(heading)
                         || "Function".equals(heading)
-                        || "Radius_Unit".equals(heading)) {
+                        || "Radius_Unit".equals(heading)
+                        || "Value_Unit".equals(heading)
+                        || "Status".equals(heading)) {
                     target.addValue(heading, value);
                     continue;
                 }
@@ -390,6 +394,30 @@ public final class OPABatchRunner {
         return value.replaceAll("[^A-Za-z0-9._-]+", "_");
     }
 
+    private static String aggregateKey(String base,
+                                       String firstUnit,
+                                       String secondUnit) {
+        return base + UNIT_SEPARATOR + firstUnit
+                + UNIT_SEPARATOR + secondUnit;
+    }
+
+    private static String[] unitsFromAggregateKey(String key) {
+        int last = key.lastIndexOf(UNIT_SEPARATOR);
+        int first = last < 0 ? -1 : key.lastIndexOf(UNIT_SEPARATOR, last - 1);
+        if (first < 0 || last < 0) return new String[]{"", ""};
+        return new String[]{
+                key.substring(first + 1, last),
+                key.substring(last + 1)
+        };
+    }
+
+    private static String displayAggregateKey(String key) {
+        int first = key.indexOf(UNIT_SEPARATOR);
+        String base = first < 0 ? key : key.substring(0, first);
+        String[] units = unitsFromAggregateKey(key);
+        return base + "__" + units[0] + "__" + units[1];
+    }
+
     private static final class Compiled {
         private final Pattern pattern;
 
@@ -450,12 +478,17 @@ public final class OPABatchRunner {
 
         private void add(Map<String, ResultsTable> tables) {
             for (Map.Entry<String, ResultsTable> entry : tables.entrySet()) {
-                TreeMap<Double, List<Double>> byRadius = values.get(entry.getKey());
+                ResultsTable table = entry.getValue();
+                if (table.size() == 0) continue;
+                String radiusUnit = table.getStringValue("Radius_Unit", 0);
+                String valueUnit = table.getStringValue("Value_Unit", 0);
+                String aggregateKey = aggregateKey(
+                        entry.getKey(), radiusUnit, valueUnit);
+                TreeMap<Double, List<Double>> byRadius = values.get(aggregateKey);
                 if (byRadius == null) {
                     byRadius = new TreeMap<Double, List<Double>>();
-                    values.put(entry.getKey(), byRadius);
+                    values.put(aggregateKey, byRadius);
                 }
-                ResultsTable table = entry.getValue();
                 for (int row = 0; row < table.size(); row++) {
                     double radius = table.getValue("Radius", row);
                     double observed = table.getValue("Observed", row);
@@ -486,8 +519,11 @@ public final class OPABatchRunner {
                     table.addValue("Mean_Minus_SD", stats.mean - stats.sd);
                     table.addValue("Mean_Plus_SD", stats.mean + stats.sd);
                     table.addValue("Group_N", stats.count);
+                    String[] units = unitsFromAggregateKey(entry.getKey());
+                    table.addValue("Radius_Unit", units[0]);
+                    table.addValue("Value_Unit", units[1]);
                 }
-                result.put(entry.getKey(), table);
+                result.put(displayAggregateKey(entry.getKey()), table);
             }
             return result;
         }
@@ -499,15 +535,19 @@ public final class OPABatchRunner {
 
         private void add(Map<String, ResultsTable> tables) {
             for (Map.Entry<String, ResultsTable> entry : tables.entrySet()) {
+                if (entry.getValue().size() == 0) continue;
                 double[] values = new double[entry.getValue().size()];
                 for (int row = 0; row < values.length; row++) {
                     values[row] = entry.getValue().getValue("Value", row);
                 }
                 Arrays.sort(values);
-                List<double[]> groups = samples.get(entry.getKey());
+                String unit = entry.getValue().getStringValue("Unit", 0);
+                String aggregateKey = aggregateKey(
+                        entry.getKey(), unit, "ECDF");
+                List<double[]> groups = samples.get(aggregateKey);
                 if (groups == null) {
                     groups = new ArrayList<double[]>();
-                    samples.put(entry.getKey(), groups);
+                    samples.put(aggregateKey, groups);
                 }
                 groups.add(values);
             }
@@ -527,7 +567,7 @@ public final class OPABatchRunner {
                 }
                 ResultsTable table = new ResultsTable();
                 if (!Double.isFinite(minimum) || !Double.isFinite(maximum)) {
-                    result.put(entry.getKey(), table);
+                    result.put(displayAggregateKey(entry.getKey()), table);
                     continue;
                 }
                 int gridCount = minimum == maximum ? 1 : 101;
@@ -551,8 +591,11 @@ public final class OPABatchRunner {
                     table.addValue("Mean_Plus_SD",
                             Math.min(1.0, stats.mean + stats.sd));
                     table.addValue("Group_N", stats.count);
+                    String[] units = unitsFromAggregateKey(entry.getKey());
+                    table.addValue("Value_Unit", units[0]);
+                    table.addValue("ECDF_Unit", "dimensionless");
                 }
-                result.put(entry.getKey(), table);
+                result.put(displayAggregateKey(entry.getKey()), table);
             }
             return result;
         }

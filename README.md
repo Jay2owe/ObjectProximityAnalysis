@@ -20,7 +20,8 @@ scientific release.
   cross-L, and cross-G.
 - Translation or border edge correction for K and its derived curves.
 - Reproducible complete-spatial-randomness Monte Carlo envelopes with recorded
-  seed, pointwise 95% bounds, and a global maximum-deviation p-value.
+  seed, pointwise 95% bounds, and an exchangeable global maximum-deviation
+  Monte Carlo p-value.
 - Per-object, summary, histogram, empirical cumulative distribution (ECDF), and
   curve tables.
 - Folder batch grouping by regular expression, with preview, recursive scanning,
@@ -81,6 +82,12 @@ Object Proximity Analysis/
 ```
 
 Every subfolder contains a `README.txt`.
+
+Pattern outputs carry separate radius and curve-value units: K is area, L is
+length, and G/pair-correlation are dimensionless. Requests with too few points
+are marked `INSUFFICIENT_POINTS` and return undefined values rather than
+apparently valid zero curves. Batch aggregates keep incompatible units in
+separate tables.
 
 ## Java API
 

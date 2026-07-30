@@ -24,6 +24,8 @@ public final class MonteCarloResult {
     private final double maximumDeviationRadius;
     private final int simulations;
     private final long seed;
+    private final PatternStatus status;
+    private final int rankSampleCount;
 
     MonteCarloResult(PatternFunction function,
                      double[] radii,
@@ -35,7 +37,9 @@ public final class MonteCarloResult {
                      double maximumDeviation,
                      double maximumDeviationRadius,
                      int simulations,
-                     long seed) {
+                     long seed,
+                     PatternStatus status,
+                     int rankSampleCount) {
         this.function = function;
         this.radii = copy(radii);
         this.observed = copy(observed);
@@ -47,6 +51,8 @@ public final class MonteCarloResult {
         this.maximumDeviationRadius = maximumDeviationRadius;
         this.simulations = simulations;
         this.seed = seed;
+        this.status = status;
+        this.rankSampleCount = rankSampleCount;
     }
 
     public PatternFunction getFunction() {
@@ -91,6 +97,21 @@ public final class MonteCarloResult {
 
     public long getSeed() {
         return seed;
+    }
+
+    public PatternStatus getStatus() {
+        return status;
+    }
+
+    /**
+     * Number of observed/simulated curves participating in the global rank.
+     */
+    public int getRankSampleCount() {
+        return rankSampleCount;
+    }
+
+    public double getMinimumAchievablePValue() {
+        return rankSampleCount > 0 ? 1.0 / rankSampleCount : Double.NaN;
     }
 
     private static double[] copy(double[] values) {

@@ -63,25 +63,27 @@ final class ResultTables {
         ResultsTable table = new ResultsTable();
         for (DirectionResult direction : directions) {
             for (DistanceMode mode : DistanceMode.values()) {
-                List<Double> values = values(direction, mode, 1);
-                if (values.isEmpty()) continue;
-                double[] sorted = sorted(values);
-                table.incrementCounter();
-                table.addValue("Source_Channel", direction.getSourceChannel());
-                table.addValue("Target_Channel", direction.getTargetChannel());
-                table.addValue("Self_Comparison",
-                        direction.isSelfComparison() ? 1 : 0);
-                table.addValue("Mode", mode.getColumnName());
-                table.addValue("Rank", 1);
-                table.addValue("Unit", measurementUnit(direction, mode));
-                table.addValue("N", sorted.length);
-                table.addValue("Mean", mean(sorted));
-                table.addValue("Median", median(sorted));
-                table.addValue("SD", standardDeviation(sorted));
-                table.addValue("Min", sorted[0]);
-                table.addValue("Max", sorted[sorted.length - 1]);
-                table.addValue("Fraction_Within_Contact",
-                        fractionWithinContact(direction, mode, 1));
+                for (int rank = 1; ; rank++) {
+                    List<Double> values = values(direction, mode, rank);
+                    if (values.isEmpty()) break;
+                    double[] sorted = sorted(values);
+                    table.incrementCounter();
+                    table.addValue("Source_Channel", direction.getSourceChannel());
+                    table.addValue("Target_Channel", direction.getTargetChannel());
+                    table.addValue("Self_Comparison",
+                            direction.isSelfComparison() ? 1 : 0);
+                    table.addValue("Mode", mode.getColumnName());
+                    table.addValue("Rank", rank);
+                    table.addValue("Unit", measurementUnit(direction, mode));
+                    table.addValue("N", sorted.length);
+                    table.addValue("Mean", mean(sorted));
+                    table.addValue("Median", median(sorted));
+                    table.addValue("SD", standardDeviation(sorted));
+                    table.addValue("Min", sorted[0]);
+                    table.addValue("Max", sorted[sorted.length - 1]);
+                    table.addValue("Fraction_Within_Contact",
+                            fractionWithinContact(direction, mode, rank));
+                }
             }
         }
         return table;
@@ -148,9 +150,12 @@ final class ResultTables {
                 table.addValue("Envelope_Lower", lower[i]);
                 table.addValue("Envelope_Upper", upper[i]);
                 table.addValue("Radius_Unit", pattern.getUnit());
+                table.addValue("Value_Unit", pattern.getValueUnit());
                 table.addValue("Simulations", result.getSimulations());
                 table.addValue("Seed", Long.toString(result.getSeed()));
                 table.addValue("Global_P", result.getGlobalPValue());
+                table.addValue("Status", result.getStatus().name());
+                table.addValue("Global_Rank_N", result.getRankSampleCount());
             }
             tables.put(patternKey(pattern), table);
         }
@@ -166,6 +171,7 @@ final class ResultTables {
             table.addValue("Target_Channel",
                     pattern.isBivariate() ? pattern.getTargetChannel() : "");
             table.addValue("Function", result.getFunction().name());
+            table.addValue("Status", result.getStatus().name());
             table.addValue("Maximum_Absolute_Deviation",
                     result.getMaximumDeviation());
             table.addValue("Radius_At_Maximum_Deviation",
@@ -173,9 +179,11 @@ final class ResultTables {
             table.addValue("Global_P", result.getGlobalPValue());
             table.addValue("Simulations", result.getSimulations());
             table.addValue("Minimum_Achievable_P",
-                    1.0 / (result.getSimulations() + 1.0));
+                    result.getMinimumAchievablePValue());
+            table.addValue("Global_Rank_N", result.getRankSampleCount());
             table.addValue("Seed", Long.toString(result.getSeed()));
             table.addValue("Radius_Unit", pattern.getUnit());
+            table.addValue("Value_Unit", pattern.getValueUnit());
         }
         return table;
     }

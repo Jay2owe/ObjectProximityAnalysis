@@ -32,6 +32,16 @@ public final class MonteCarloAnalyzer {
                 function, points, null, window, radii, correction);
         double intensity = points.length / window.area();
         double[] expected = SpatialStatistics.expected(function, radii, intensity);
+        if (points.length < 2) {
+            return undefined(
+                    function,
+                    radii,
+                    observed,
+                    expected,
+                    simulations,
+                    seed,
+                    PatternStatus.INSUFFICIENT_POINTS);
+        }
 
         Random random = new Random(seed);
         double[][] samples = new double[simulations][radii.length];
@@ -63,6 +73,16 @@ public final class MonteCarloAnalyzer {
         double targetIntensity = target.length / window.area();
         double[] expected = SpatialStatistics.expected(
                 function, radii, targetIntensity);
+        if (source.length == 0 || target.length == 0) {
+            return undefined(
+                    function,
+                    radii,
+                    observed,
+                    expected,
+                    simulations,
+                    seed,
+                    PatternStatus.INSUFFICIENT_POINTS);
+        }
 
         Random random = new Random(seed);
         double[][] samples = new double[simulations][radii.length];
@@ -91,35 +111,38 @@ public final class MonteCarloAnalyzer {
         int radiusCount = radii.length;
         double[] lower = new double[radiusCount];
         double[] upper = new double[radiusCount];
-        double[] means = new double[radiusCount];
-        double[] standardDeviations = new double[radiusCount];
 
         for (int radiusIndex = 0; radiusIndex < radiusCount; radiusIndex++) {
             double[] finite = finiteColumn(samples, radiusIndex);
             if (finite.length == 0) {
                 lower[radiusIndex] = Double.NaN;
                 upper[radiusIndex] = Double.NaN;
-                means[radiusIndex] = Double.NaN;
-                standardDeviations[radiusIndex] = Double.NaN;
                 continue;
             }
             Arrays.sort(finite);
             lower[radiusIndex] = percentile(finite, 0.025);
             upper[radiusIndex] = percentile(finite, 0.975);
-            means[radiusIndex] = mean(finite);
-            standardDeviations[radiusIndex] = standardDeviation(
-                    finite, means[radiusIndex]);
         }
 
+        double[] exchangeableScales = exchangeableScales(observed, samples);
         double observedMaximum = standardizedMaximum(
-                observed, means, standardDeviations);
+                observed, expected, exchangeableScales);
+        int rankSampleCount = 0;
         int asOrMoreExtreme = 0;
-        for (double[] sample : samples) {
-            double simulatedMaximum = standardizedMaximum(
-                    sample, means, standardDeviations);
-            if (simulatedMaximum >= observedMaximum) asOrMoreExtreme++;
+        if (!Double.isNaN(observedMaximum)) {
+            rankSampleCount++;
+            asOrMoreExtreme++;
+            for (double[] sample : samples) {
+                double simulatedMaximum = standardizedMaximum(
+                        sample, expected, exchangeableScales);
+                if (Double.isNaN(simulatedMaximum)) continue;
+                rankSampleCount++;
+                if (simulatedMaximum >= observedMaximum) asOrMoreExtreme++;
+            }
         }
-        double globalP = (1.0 + asOrMoreExtreme) / (simulations + 1.0);
+        double globalP = rankSampleCount == 0
+                ? Double.NaN
+                : asOrMoreExtreme / (double) rankSampleCount;
 
         int maximumIndex = -1;
         double maximumDeviation = Double.NaN;
@@ -146,7 +169,36 @@ public final class MonteCarloAnalyzer {
                 maximumDeviation,
                 maximumRadius,
                 simulations,
-                seed);
+                seed,
+                rankSampleCount == 0
+                        ? PatternStatus.NO_VALID_RADII
+                        : PatternStatus.OK,
+                rankSampleCount);
+    }
+
+    private static MonteCarloResult undefined(PatternFunction function,
+                                              double[] radii,
+                                              double[] observed,
+                                              double[] expected,
+                                              int simulations,
+                                              long seed,
+                                              PatternStatus status) {
+        double[] undefined = new double[radii.length];
+        Arrays.fill(undefined, Double.NaN);
+        return new MonteCarloResult(
+                function,
+                radii,
+                observed,
+                expected,
+                undefined,
+                undefined,
+                Double.NaN,
+                Double.NaN,
+                Double.NaN,
+                simulations,
+                seed,
+                status,
+                0);
     }
 
     private static double[][] generate(int count,
@@ -173,14 +225,42 @@ public final class MonteCarloAnalyzer {
         return finite;
     }
 
+    private static double[] exchangeableScales(double[] observed,
+                                               double[][] samples) {
+        double[] scales = new double[observed.length];
+        for (int column = 0; column < scales.length; column++) {
+            int count = Double.isFinite(observed[column]) ? 1 : 0;
+            for (double[] sample : samples) {
+                if (Double.isFinite(sample[column])) count++;
+            }
+            if (count < 2) {
+                scales[column] = count == 1 ? 0.0 : Double.NaN;
+                continue;
+            }
+            double[] values = new double[count];
+            int index = 0;
+            if (Double.isFinite(observed[column])) {
+                values[index++] = observed[column];
+            }
+            for (double[] sample : samples) {
+                if (Double.isFinite(sample[column])) {
+                    values[index++] = sample[column];
+                }
+            }
+            double centre = mean(values);
+            scales[column] = standardDeviation(values, centre);
+        }
+        return scales;
+    }
+
     private static double standardizedMaximum(double[] values,
-                                              double[] means,
+                                              double[] expected,
                                               double[] standardDeviations) {
         double maximum = 0.0;
         boolean found = false;
         for (int i = 0; i < values.length; i++) {
-            if (!Double.isFinite(values[i]) || !Double.isFinite(means[i])) continue;
-            double deviation = Math.abs(values[i] - means[i]);
+            if (!Double.isFinite(values[i]) || !Double.isFinite(expected[i])) continue;
+            double deviation = Math.abs(values[i] - expected[i]);
             double standardDeviation = standardDeviations[i];
             double standardized = standardDeviation > 0.0
                     ? deviation / standardDeviation

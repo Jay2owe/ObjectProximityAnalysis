@@ -38,9 +38,15 @@ public final class CalibrationInfo {
             throw new IllegalArgumentException("Image must not be null.");
         }
         Calibration calibration = image.getCalibration();
-        double width = positiveOrOne(calibration == null ? 1.0 : calibration.pixelWidth);
-        double height = positiveOrOne(calibration == null ? 1.0 : calibration.pixelHeight);
-        double depth = positiveOrOne(calibration == null ? 1.0 : calibration.pixelDepth);
+        double width = calibration == null
+                ? 1.0
+                : validatedDimension(calibration.pixelWidth, "pixel width");
+        double height = calibration == null
+                ? 1.0
+                : validatedDimension(calibration.pixelHeight, "pixel height");
+        double depth = calibration == null
+                ? 1.0
+                : validatedDimension(calibration.pixelDepth, "pixel depth");
         String rawUnit = calibration == null ? null : calibration.getUnit();
         String unit = normalizeUnit(rawUnit);
         boolean physical = !isPixelUnit(unit);
@@ -102,8 +108,13 @@ public final class CalibrationInfo {
         return (int) Math.floor(calibratedZ / pixelDepth);
     }
 
-    private static double positiveOrOne(double value) {
-        return Double.isFinite(value) && value > 0.0 ? value : 1.0;
+    private static double validatedDimension(double value, String name) {
+        if (!Double.isFinite(value) || value <= 0.0) {
+            throw new IllegalArgumentException(
+                    "Image calibration " + name
+                            + " must be a finite positive value; found " + value + ".");
+        }
+        return value;
     }
 
     private static String normalizeUnit(String value) {
