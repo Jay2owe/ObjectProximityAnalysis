@@ -55,7 +55,8 @@ channel names receive distinct effective names in every output.
 
 The plugin displays detected voxel size in the dialog. An uncalibrated image is
 reported in `pixel`, never silently in micrometres. The Java API can require
-physical calibration with `requirePhysicalCalibration(true)`.
+physical calibration with `requirePhysicalCalibration(true)`. Batch runs also
+log a warning for every uncalibrated group and record it in the group manifest.
 
 Point-pattern statistics require an observation window. The default is the full
 XY image rectangle. An optional region ROI set supplies a calibrated rectangular
@@ -97,6 +98,11 @@ separate tables. A global rank is marked `INCOMPLETE_MONTE_CARLO` and its
 p-value is undefined unless every requested simulation contributes a valid
 curve.
 
+Distance summaries always contain every requested mode and neighbour rank.
+Empty or undersized inputs retain object counts and are marked
+`NO_SOURCE_OBJECTS`, `NO_TARGET_OBJECTS`, `INSUFFICIENT_NEIGHBOURS`, or
+`UNDEFINED_MEASUREMENTS` rather than disappearing from the output.
+
 A one-channel run cannot request distances with self-distances disabled or
 request only cross-pattern functions; the API rejects both configurations
 instead of returning empty output.
@@ -122,7 +128,9 @@ OPAResult result = OPA.run(parameters);
 `OPAResult.getCentroidTables()` returns the filtered centroid lists actually
 used by pattern analysis. `getProvenanceTable()` records calibration, effective
 observation-window bounds, edge correction, projection, seed, contact
-threshold, and the requested analysis settings.
+threshold, requested analysis settings, and the radii actually used after
+automatic or maximum-radius resolution. The provenance table is shown for both
+distance and pattern runs.
 
 ROI conversion is also dialog-free:
 
@@ -175,6 +183,10 @@ text and input filenames remain in the saved group manifest. Long output names
 use bounded readable stems plus SHA-256 identity digests. Pressing Escape stops
 Monte Carlo work, sets `OPABatchResult.isCancelled()`, marks unprocessed groups
 as `CANCELLED`, and writes `Status: CANCELLED` into partial batch output.
+User-supplied save prefixes also gain an identity digest when filename
+sanitisation changes them, so distinct raw prefixes cannot overwrite each
+other. The group manifest records non-OK distance or pattern statuses in
+`Analysis_Warnings`.
 
 ## Macro use
 

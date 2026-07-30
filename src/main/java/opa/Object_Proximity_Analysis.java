@@ -252,8 +252,8 @@ public final class Object_Proximity_Analysis implements PlugIn {
                     : result.getCentroidTables().entrySet()) {
                 entry.getValue().show("OPA Centroids - " + entry.getKey());
             }
-            result.getProvenanceTable().show("OPA Analysis Provenance");
         }
+        result.getProvenanceTable().show("OPA Analysis Provenance");
         for (Map.Entry<String, ij.measure.ResultsTable> entry
                 : result.getPerObjectTables().entrySet()) {
             entry.getValue().show("OPA Objects - " + entry.getKey());

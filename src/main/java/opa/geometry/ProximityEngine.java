@@ -81,6 +81,8 @@ public final class ProximityEngine {
                 source.getDepth() > 1
                         ? source.getCalibration().getUnit() + "^2"
                         : source.getCalibration().getUnit(),
+                source.getObjects().size(),
+                target.getObjects().size(),
                 output);
     }
 

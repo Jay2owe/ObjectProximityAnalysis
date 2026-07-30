@@ -155,6 +155,89 @@ public class OPATest {
     }
 
     @Test
+    public void emptyDistanceChannelProducesExplicitSummaryRows() {
+        ImagePlus image = labels("empty", 6, 6, 1);
+        OPAResult result = OPA.run(OPAParameters.builder(image)
+                .runPattern(false)
+                .distanceModes(EnumSet.of(DistanceMode.CENTRE_TO_CENTRE))
+                .neighborCount(2)
+                .build());
+
+        assertEquals(2, result.getDistanceSummaryTable().size());
+        for (int row = 0; row < result.getDistanceSummaryTable().size(); row++) {
+            assertEquals("NO_SOURCE_OBJECTS", result.getDistanceSummaryTable()
+                    .getStringValue("Status", row));
+            assertEquals(0.0, result.getDistanceSummaryTable()
+                    .getValue("Source_Object_Count", row), 0.0);
+            assertEquals(0.0, result.getDistanceSummaryTable()
+                    .getValue("N", row), 0.0);
+            assertTrue(Double.isNaN(result.getDistanceSummaryTable()
+                    .getValue("Mean", row)));
+        }
+    }
+
+    @Test
+    public void emptyCrossTargetIsDistinguishedFromEmptySource() {
+        ImagePlus source = labels("source", 6, 6, 1);
+        ImagePlus target = labels("target", 6, 6, 1);
+        source.getProcessor().set(2, 2, 1);
+        OPAResult result = OPA.run(OPAParameters.builder(source, target)
+                .runPattern(false)
+                .includeSelfDistances(false)
+                .distanceModes(EnumSet.of(DistanceMode.CENTRE_TO_CENTRE))
+                .build());
+
+        assertEquals(2, result.getDistanceSummaryTable().size());
+        for (int row = 0; row < result.getDistanceSummaryTable().size(); row++) {
+            String sourceName = result.getDistanceSummaryTable()
+                    .getStringValue("Source_Channel", row);
+            String status = result.getDistanceSummaryTable()
+                    .getStringValue("Status", row);
+            assertEquals("source".equals(sourceName)
+                    ? "NO_TARGET_OBJECTS"
+                    : "NO_SOURCE_OBJECTS", status);
+        }
+    }
+
+    @Test
+    public void provenanceRecordsResolvedAutomaticMaximumAndExplicitRadii() {
+        ImagePlus image = labels("radii", 8, 8, 1);
+        image.getProcessor().set(2, 2, 1);
+        image.getProcessor().set(6, 6, 2);
+
+        OPAResult automatic = OPA.run(OPAParameters.builder(image)
+                .runDistances(false)
+                .patternFunctions(EnumSet.of(PatternFunction.K))
+                .radiusBins(2)
+                .simulations(1)
+                .build());
+        OPAResult requestedMaximum = OPA.run(OPAParameters.builder(image)
+                .runDistances(false)
+                .patternFunctions(EnumSet.of(PatternFunction.K))
+                .maximumRadius(4.0)
+                .radiusBins(2)
+                .simulations(1)
+                .build());
+        OPAResult explicit = OPA.run(OPAParameters.builder(image)
+                .runDistances(false)
+                .patternFunctions(EnumSet.of(PatternFunction.K))
+                .radii(new double[]{0.5, 1.5})
+                .simulations(1)
+                .build());
+
+        assertEquals("1.0;2.0", automatic.getProvenanceTable()
+                .getStringValue("Effective_Radii", 0));
+        assertEquals(2.0, automatic.getProvenanceTable()
+                .getValue("Effective_Maximum_Radius", 0), 0.0);
+        assertEquals("2.0;4.0", requestedMaximum.getProvenanceTable()
+                .getStringValue("Effective_Radii", 0));
+        assertEquals(4.0, requestedMaximum.getProvenanceTable()
+                .getValue("Effective_Maximum_Radius", 0), 0.0);
+        assertEquals("0.5;1.5", explicit.getProvenanceTable()
+                .getStringValue("Effective_Radii", 0));
+    }
+
+    @Test
     public void sanitizedChannelNameCollisionsDoNotOverwriteResultTables() {
         ImagePlus first = labels("first", 7, 3, 1);
         ImagePlus second = labels("second", 7, 3, 1);

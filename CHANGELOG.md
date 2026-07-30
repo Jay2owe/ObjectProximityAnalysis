@@ -27,3 +27,6 @@
   batch state, group manifest outcomes, and marked partial output.
 - Filtered centroid-input and full provenance tables, plus interactive
   histogram and ECDF display.
+- Collision-safe raw save prefixes, explicit empty-distance summary statuses,
+  effective-radius provenance, always-visible provenance, and per-group batch
+  calibration and analysis warnings.

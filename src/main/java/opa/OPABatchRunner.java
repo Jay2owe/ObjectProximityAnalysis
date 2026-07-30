@@ -112,6 +112,22 @@ public final class OPABatchRunner {
                         .channelNames(channelNames)
                         .build();
                 OPAResult result = OPA.run(analysis);
+                String calibrationWarning = result.hasPhysicalCalibration()
+                        ? ""
+                        : "UNCALIBRATED_INPUT: distances and radii are in pixels.";
+                String analysisWarnings = analysisWarnings(result);
+                groupManifest.setValue(
+                        "Calibration_Warning", groupIndex, calibrationWarning);
+                groupManifest.setValue(
+                        "Analysis_Warnings", groupIndex, analysisWarnings);
+                if (!calibrationWarning.isEmpty()) {
+                    IJ.log("WARNING: OPA batch group " + group.displayName()
+                            + " is uncalibrated; distances and radii are in pixels.");
+                }
+                if (!analysisWarnings.isEmpty()) {
+                    IJ.log("WARNING: OPA batch group " + group.displayName()
+                            + " completed with " + analysisWarnings + ".");
+                }
                 if (parameters.isAutoSave()) {
                     OPAOutput.save(
                             result, output, group.outputPrefix());
@@ -369,9 +385,46 @@ public final class OPABatchRunner {
                     rejection == null ? "" : rejection);
             table.addValue("Outcome",
                     rejection == null ? "PENDING" : "SKIPPED_INVALID");
+            table.addValue("Calibration_Warning", "");
+            table.addValue("Analysis_Warnings", "");
             table.addValue("Error_Message", "");
         }
         return table;
+    }
+
+    private static String analysisWarnings(OPAResult result) {
+        List<String> warnings = new ArrayList<String>();
+        collectWarnings(
+                warnings, "DISTANCE", result.getDistanceSummaryTable());
+        collectWarnings(
+                warnings, "PATTERN", result.getPatternSummaryTable());
+        StringBuilder text = new StringBuilder();
+        for (String warning : warnings) {
+            if (text.length() > 0) text.append(';');
+            text.append(warning);
+        }
+        return text.toString();
+    }
+
+    private static void collectWarnings(List<String> warnings,
+                                        String kind,
+                                        ResultsTable table) {
+        if (table == null || !hasHeading(table, "Status")) return;
+        for (int row = 0; row < table.size(); row++) {
+            String status = table.getStringValue("Status", row);
+            if (status == null || status.isEmpty() || "OK".equals(status)) {
+                continue;
+            }
+            String warning = kind + ":" + status;
+            if (!warnings.contains(warning)) warnings.add(warning);
+        }
+    }
+
+    private static boolean hasHeading(ResultsTable table, String expected) {
+        for (String heading : table.getHeadings()) {
+            if (expected.equals(heading)) return true;
+        }
+        return false;
     }
 
     private static void markCancelled(ResultsTable manifest,

@@ -33,7 +33,8 @@ public final class OPAOutput {
         if (parent == null) {
             throw new IllegalArgumentException("Output parent folder must not be null.");
         }
-        String safePrefix = safe(prefix == null ? "Analysis" : prefix);
+        String safePrefix = prefixIdentity(
+                prefix == null ? "Analysis" : prefix);
         File root = new File(parent, "Object Proximity Analysis");
         File objects = directory(root, "Objects");
         File distributions = directory(root, "Distributions");
@@ -123,6 +124,13 @@ public final class OPAOutput {
     private static String safe(String value) {
         String clean = value.trim().replaceAll("[^A-Za-z0-9._-]+", "_");
         return clean.isEmpty() ? "Analysis" : clean;
+    }
+
+    private static String prefixIdentity(String rawPrefix) {
+        String clean = safe(rawPrefix);
+        return clean.equals(rawPrefix)
+                ? clean
+                : clean + "__" + sha256(rawPrefix);
     }
 
     private static String csvName(String identity) {

@@ -125,6 +125,33 @@ public class OPAOutputTest {
         }
     }
 
+    @Test
+    public void rawPrefixesThatSanitizeTheSameDoNotOverwriteOutputs()
+            throws Exception {
+        ImagePlus image = new ImagePlus(
+                "labels", new ByteProcessor(6, 6));
+        image.getProcessor().set(1, 1, 1);
+        image.getProcessor().set(4, 4, 2);
+        OPAResult result = OPA.run(OPAParameters.builder(image)
+                .runPattern(false)
+                .build());
+        File parent = Files.createTempDirectory(
+                "opa-output-prefix-collision").toFile();
+        try {
+            File root = OPAOutput.save(result, parent, "sample:a");
+            OPAOutput.save(result, parent, "sample?a");
+            File objects = new File(root, "Objects");
+            File[] summaries = objects.listFiles((directory, name) ->
+                    name.endsWith("__Distance_Summary.csv"));
+            assertTrue(summaries != null);
+            assertEquals(2, summaries.length);
+            assertTrue(!summaries[0].getName().equals(
+                    summaries[1].getName()));
+        } finally {
+            delete(parent);
+        }
+    }
+
     private static void delete(File file) {
         if (file.isDirectory()) {
             File[] children = file.listFiles();

@@ -93,10 +93,14 @@ final class ResultTables {
     }
 
     static ResultsTable provenance(OPAParameters parameters,
-                                   List<ChannelGeometry> channels) {
+                                   List<ChannelGeometry> channels,
+                                   List<PatternResult> patterns) {
         ResultsTable table = new ResultsTable();
         if (channels.isEmpty()) return table;
         ChannelGeometry first = channels.get(0);
+        double[] effectiveRadii = patterns.isEmpty()
+                ? null
+                : patterns.get(0).getStatistics().getRadii();
         RectangularWindow requested = parameters.getObservationWindow();
         RectangularWindow window = requested == null
                 ? new RectangularWindow(
@@ -141,6 +145,14 @@ final class ResultTables {
             table.addValue("Maximum_Radius",
                     parameters.getMaximumRadius());
             table.addValue("Radius_Bins", parameters.getRadiusBins());
+            table.addValue("Effective_Radii",
+                    effectiveRadii == null
+                            ? "NOT_RUN"
+                            : radiiText(effectiveRadii));
+            table.addValue("Effective_Maximum_Radius",
+                    effectiveRadii == null || effectiveRadii.length == 0
+                            ? Double.NaN
+                            : effectiveRadii[effectiveRadii.length - 1]);
             table.addValue("Simulations", parameters.getSimulations());
             table.addValue("Seed", Long.toString(parameters.getSeed()));
             table.addValue("Edge_Correction",
@@ -169,34 +181,66 @@ final class ResultTables {
         return text.toString();
     }
 
-    static ResultsTable distanceSummary(List<DirectionResult> directions) {
+    static ResultsTable distanceSummary(List<DirectionResult> directions,
+                                        Iterable<DistanceMode> requestedModes,
+                                        int neighborCount) {
         ResultsTable table = new ResultsTable();
         for (DirectionResult direction : directions) {
-            for (DistanceMode mode : DistanceMode.values()) {
-                for (int rank = 1; ; rank++) {
+            for (DistanceMode mode : requestedModes) {
+                for (int rank = 1; rank <= neighborCount; rank++) {
                     List<Double> values = values(direction, mode, rank);
-                    if (values.isEmpty()) break;
                     double[] sorted = sorted(values);
                     table.incrementCounter();
                     table.addValue("Source_Channel", direction.getSourceChannel());
                     table.addValue("Target_Channel", direction.getTargetChannel());
+                    table.addValue("Source_Object_Count",
+                            direction.getSourceObjectCount());
+                    table.addValue("Target_Object_Count",
+                            direction.getTargetObjectCount());
                     table.addValue("Self_Comparison",
                             direction.isSelfComparison() ? 1 : 0);
                     table.addValue("Mode", mode.getColumnName());
                     table.addValue("Rank", rank);
                     table.addValue("Unit", measurementUnit(direction, mode));
+                    table.addValue("Status",
+                            distanceStatus(direction, rank, sorted.length));
                     table.addValue("N", sorted.length);
-                    table.addValue("Mean", mean(sorted));
-                    table.addValue("Median", median(sorted));
-                    table.addValue("SD", standardDeviation(sorted));
-                    table.addValue("Min", sorted[0]);
-                    table.addValue("Max", sorted[sorted.length - 1]);
+                    table.addValue("Mean",
+                            sorted.length == 0 ? Double.NaN : mean(sorted));
+                    table.addValue("Median",
+                            sorted.length == 0 ? Double.NaN : median(sorted));
+                    table.addValue("SD",
+                            sorted.length == 0
+                                    ? Double.NaN
+                                    : standardDeviation(sorted));
+                    table.addValue("Min",
+                            sorted.length == 0
+                                    ? Double.NaN
+                                    : sorted[0]);
+                    table.addValue("Max",
+                            sorted.length == 0
+                                    ? Double.NaN
+                                    : sorted[sorted.length - 1]);
                     table.addValue("Fraction_Within_Contact",
                             fractionWithinContact(direction, mode, rank));
                 }
             }
         }
         return table;
+    }
+
+    private static String distanceStatus(DirectionResult direction,
+                                         int rank,
+                                         int finiteValueCount) {
+        if (direction.getSourceObjectCount() == 0) {
+            return "NO_SOURCE_OBJECTS";
+        }
+        int availableTargets = direction.isSelfComparison()
+                ? direction.getTargetObjectCount() - 1
+                : direction.getTargetObjectCount();
+        if (availableTargets <= 0) return "NO_TARGET_OBJECTS";
+        if (rank > availableTargets) return "INSUFFICIENT_NEIGHBOURS";
+        return finiteValueCount == 0 ? "UNDEFINED_MEASUREMENTS" : "OK";
     }
 
     static Map<String, ResultsTable> histograms(

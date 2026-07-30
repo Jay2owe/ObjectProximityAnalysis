@@ -592,9 +592,54 @@ public class OPABatchRunnerTest {
         }
     }
 
+    @Test
+    public void emptyUncalibratedGroupCarriesStatusesIntoManifest()
+            throws Exception {
+        File directory = Files.createTempDirectory(
+                "opa-batch-empty-warning").toFile();
+        try {
+            saveEmptyLabel(new File(directory, "sample_A.tif"));
+            OPAParameters options = OPAParameters.builder()
+                    .runPattern(false)
+                    .distanceModes(EnumSet.of(
+                            DistanceMode.CENTRE_TO_CENTRE))
+                    .build();
+            OPABatchParameters parameters = OPABatchParameters.builder(
+                            directory,
+                            "(sample)_([A])\\.tif",
+                            2)
+                    .recursive(false)
+                    .analysisTemplate(options)
+                    .autoSave(false)
+                    .build();
+
+            OPABatchResult result = OPABatchRunner.run(parameters);
+
+            assertEquals(1, result.getProcessedGroups());
+            assertEquals(1, result.getDistanceSummary().size());
+            assertEquals("NO_SOURCE_OBJECTS", result.getDistanceSummary()
+                    .getStringValue("Status", 0));
+            assertTrue(result.getGroupManifest()
+                    .getStringValue("Calibration_Warning", 0)
+                    .contains("UNCALIBRATED_INPUT"));
+            assertTrue(result.getGroupManifest()
+                    .getStringValue("Analysis_Warnings", 0)
+                    .contains("DISTANCE:NO_SOURCE_OBJECTS"));
+        } finally {
+            deleteChildren(directory);
+        }
+    }
+
     private static void saveLabel(File file, int x, int y) {
         ImagePlus image = new ImagePlus("labels", new ByteProcessor(8, 8));
         image.getProcessor().set(x, y, 1);
+        IJ.saveAsTiff(image, file.getAbsolutePath());
+        image.close();
+    }
+
+    private static void saveEmptyLabel(File file) {
+        ImagePlus image = new ImagePlus(
+                "empty-labels", new ByteProcessor(8, 8));
         IJ.saveAsTiff(image, file.getAbsolutePath());
         image.close();
     }

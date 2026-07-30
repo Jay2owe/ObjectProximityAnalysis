@@ -19,19 +19,25 @@ public final class DirectionResult {
     private final boolean selfComparison;
     private final String unit;
     private final String surfaceMeasureUnit;
+    private final int sourceObjectCount;
+    private final int targetObjectCount;
     private final List<ObjectMeasurement> measurements;
 
     DirectionResult(String sourceChannel,
                     String targetChannel,
                     boolean selfComparison,
-                    String unit,
-                    String surfaceMeasureUnit,
-                    List<ObjectMeasurement> measurements) {
+                     String unit,
+                     String surfaceMeasureUnit,
+                     int sourceObjectCount,
+                     int targetObjectCount,
+                     List<ObjectMeasurement> measurements) {
         this.sourceChannel = sourceChannel;
         this.targetChannel = targetChannel;
         this.selfComparison = selfComparison;
         this.unit = unit;
         this.surfaceMeasureUnit = surfaceMeasureUnit;
+        this.sourceObjectCount = sourceObjectCount;
+        this.targetObjectCount = targetObjectCount;
         this.measurements = Collections.unmodifiableList(
                 new ArrayList<ObjectMeasurement>(measurements));
     }
@@ -54,6 +60,14 @@ public final class DirectionResult {
 
     public String getSurfaceMeasureUnit() {
         return surfaceMeasureUnit;
+    }
+
+    public int getSourceObjectCount() {
+        return sourceObjectCount;
+    }
+
+    public int getTargetObjectCount() {
+        return targetObjectCount;
     }
 
     public List<ObjectMeasurement> getMeasurements() {

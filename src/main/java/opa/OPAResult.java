@@ -43,10 +43,14 @@ public final class OPAResult {
         this.directionResults = immutableList(directionResults);
         this.patternResults = immutableList(patternResults);
         this.centroidTables = immutableMap(ResultTables.centroids(channels));
-        this.provenanceTable = ResultTables.provenance(parameters, channels);
+        this.provenanceTable = ResultTables.provenance(
+                parameters, channels, patternResults);
         this.perObjectTables = immutableMap(
                 ResultTables.perObject(directionResults));
-        this.distanceSummaryTable = ResultTables.distanceSummary(directionResults);
+        this.distanceSummaryTable = ResultTables.distanceSummary(
+                directionResults,
+                parameters.getDistanceModes(),
+                parameters.getNeighborCount());
         this.histogramTables = immutableMap(ResultTables.histograms(
                 directionResults, parameters.getHistogramBins()));
         this.ecdfTables = immutableMap(ResultTables.ecdfs(directionResults));
