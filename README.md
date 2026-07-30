@@ -52,6 +52,8 @@ must have identical dimensions and voxel calibration. Duplicate image or API
 channel names receive distinct effective names in every output. Multi-channel
 analyses also require identical ImageJ X/Y/Z spatial origins; differing origins
 are rejected rather than treating physically shifted channels as registered.
+Centroids, inverse pixel lookups, default windows, and ROI-derived windows all
+use `(pixel coordinate - spatial origin) × voxel size`.
 
 ## Calibration and observation window
 
@@ -62,7 +64,8 @@ log a warning for every uncalibrated group and record it in the group manifest.
 
 Point-pattern statistics require an observation window. The default is the full
 XY image rectangle. An optional region ROI set supplies a calibrated rectangular
-union bounding box for v0.1.0. Objects are included when their centroid lies
+union bounding box for v0.1.0; every region ROI must be an area selection.
+Objects are included when their centroid lies
 inside that window; objects crossing either the acquisition boundary or the
 effective observation-window boundary are marked as edge objects.
 
@@ -197,7 +200,8 @@ reported separately and do not inflate the failed-group count.
 Captured channel names are trimmed once before grouping, while their original
 text and input filenames remain in the saved group manifest. Long output names
 use bounded readable stems plus SHA-256 identity digests. Pressing Escape stops
-Monte Carlo work, sets `OPABatchResult.isCancelled()`, marks unprocessed groups
+geometry extraction, distance and surface calculations, or Monte Carlo work,
+sets `OPABatchResult.isCancelled()`, marks unprocessed groups
 as `CANCELLED`, and writes `Status: CANCELLED` into partial batch output.
 Every user-supplied save prefix gains a SHA-256 identity digest, so names that
 differ only by punctuation or case cannot overwrite each other on Windows.
@@ -237,6 +241,10 @@ Pointwise envelopes are emitted only when all requested simulations contribute
 at that radius. Curve tables record `Envelope_N` and `Envelope_Status` for each
 radius; incomplete bounds are `NaN` without invalidating an otherwise complete
 global rank test.
+
+Pair correlation supports translation edge correction (or no edge correction).
+Border correction is rejected because its risk-set weighting is not valid for
+this pair-correlation estimator and can otherwise produce negative estimates.
 
 ## Build
 

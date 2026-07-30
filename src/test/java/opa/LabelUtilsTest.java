@@ -57,6 +57,45 @@ public class LabelUtilsTest {
     }
 
     @Test
+    public void boundingWindowUsesImageJSpatialOrigins() {
+        ImagePlus reference = new ImagePlus(
+                "reference", new ByteProcessor(20, 20));
+        Calibration calibration = new Calibration();
+        calibration.pixelWidth = 0.5;
+        calibration.pixelHeight = 2.0;
+        calibration.xOrigin = 1.0;
+        calibration.yOrigin = 2.0;
+        calibration.setUnit("um");
+        reference.setCalibration(calibration);
+
+        RectangularWindow window = LabelUtils.boundingWindow(
+                reference,
+                new Roi[]{new Roi(2, 3, 4, 5)});
+
+        assertEquals(0.5, window.getMinX(), 1.0e-12);
+        assertEquals(2.0, window.getMinY(), 1.0e-12);
+        assertEquals(2.5, window.getMaxX(), 1.0e-12);
+        assertEquals(12.0, window.getMaxY(), 1.0e-12);
+    }
+
+    @Test
+    public void lineCannotDefineObservationWindow() {
+        ImagePlus reference = new ImagePlus(
+                "reference", new ByteProcessor(20, 20));
+        boolean rejected = false;
+        try {
+            LabelUtils.boundingWindow(
+                    reference,
+                    new Roi[]{new Line(2, 3, 12, 13)});
+        } catch (IllegalArgumentException exception) {
+            rejected = true;
+            assertTrue(exception.getMessage().contains(
+                    "not an area selection"));
+        }
+        assertTrue(rejected);
+    }
+
+    @Test
     public void overlappingObjectRoisAreRejectedWithBothLabels() {
         ImagePlus reference = new ImagePlus(
                 "reference", new ByteProcessor(10, 10));

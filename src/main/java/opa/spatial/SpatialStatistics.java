@@ -121,6 +121,13 @@ public final class SpatialStatistics {
                                                   RectangularWindow window,
                                                   double[] radii,
                                                   EdgeCorrection correction) {
+        if (correction == EdgeCorrection.BORDER) {
+            throw new IllegalArgumentException(
+                    "Pair correlation cannot use border correction because "
+                            + "the radius-dependent risk set can make K "
+                            + "increments negative; use translation or no "
+                            + "edge correction.");
+        }
         return pairCorrelationFromK(computeK(points, window, radii, correction), radii);
     }
 

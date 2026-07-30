@@ -105,12 +105,10 @@ final class ResultTables {
         RectangularWindow requested = parameters.getObservationWindow();
         RectangularWindow window = requested == null
                 ? new RectangularWindow(
-                        0.0,
-                        0.0,
-                        first.getWidth()
-                                * first.getCalibration().getPixelWidth(),
-                        first.getHeight()
-                                * first.getCalibration().getPixelHeight())
+                        first.getCalibration().xEdge(0.0),
+                        first.getCalibration().yEdge(0.0),
+                        first.getCalibration().xEdge(first.getWidth()),
+                        first.getCalibration().yEdge(first.getHeight()))
                 : requested;
         for (ChannelGeometry channel : channels) {
             table.incrementCounter();

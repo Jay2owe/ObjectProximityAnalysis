@@ -126,27 +126,39 @@ public final class CalibrationInfo {
     }
 
     public double x(int pixelX) {
-        return (pixelX + 0.5) * pixelWidth;
+        return xEdge(pixelX + 0.5);
     }
 
     public double y(int pixelY) {
-        return (pixelY + 0.5) * pixelHeight;
+        return yEdge(pixelY + 0.5);
     }
 
     public double z(int pixelZ) {
-        return (pixelZ + 0.5) * pixelDepth;
+        return zEdge(pixelZ + 0.5);
+    }
+
+    public double xEdge(double pixelEdgeX) {
+        return (pixelEdgeX - xOrigin) * pixelWidth;
+    }
+
+    public double yEdge(double pixelEdgeY) {
+        return (pixelEdgeY - yOrigin) * pixelHeight;
+    }
+
+    public double zEdge(double pixelEdgeZ) {
+        return (pixelEdgeZ - zOrigin) * pixelDepth;
     }
 
     public int pixelX(double calibratedX) {
-        return (int) Math.floor(calibratedX / pixelWidth);
+        return (int) Math.floor(calibratedX / pixelWidth + xOrigin);
     }
 
     public int pixelY(double calibratedY) {
-        return (int) Math.floor(calibratedY / pixelHeight);
+        return (int) Math.floor(calibratedY / pixelHeight + yOrigin);
     }
 
     public int pixelZ(double calibratedZ) {
-        return (int) Math.floor(calibratedZ / pixelDepth);
+        return (int) Math.floor(calibratedZ / pixelDepth + zOrigin);
     }
 
     private static double validatedDimension(double value, String name) {

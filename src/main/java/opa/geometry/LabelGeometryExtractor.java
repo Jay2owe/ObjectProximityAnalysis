@@ -8,6 +8,7 @@ package opa.geometry;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.process.ImageProcessor;
+import opa.AnalysisCancelledException;
 import opa.CalibrationInfo;
 
 import java.util.ArrayList;
@@ -75,8 +76,10 @@ public final class LabelGeometryExtractor {
     private static int[][] readLabels(ImageStack stack, int width, int height, int depth) {
         int[][] labels = new int[depth][width * height];
         for (int z = 0; z < depth; z++) {
+            AnalysisCancelledException.check();
             ImageProcessor processor = stack.getProcessor(z + 1);
             for (int y = 0; y < height; y++) {
+                AnalysisCancelledException.check();
                 int row = y * width;
                 for (int x = 0; x < width; x++) {
                     labels[z][row + x] = parseLabel(processor.getf(x, y), x, y, z);
@@ -93,7 +96,9 @@ public final class LabelGeometryExtractor {
                                                         CalibrationInfo calibration) {
         Map<Integer, Accumulator> map = new LinkedHashMap<Integer, Accumulator>();
         for (int z = 0; z < depth; z++) {
+            AnalysisCancelledException.check();
             for (int y = 0; y < height; y++) {
+                AnalysisCancelledException.check();
                 int row = y * width;
                 for (int x = 0; x < width; x++) {
                     int label = labels[z][row + x];
@@ -122,7 +127,9 @@ public final class LabelGeometryExtractor {
                                     CalibrationInfo calibration,
                                     Map<Integer, Accumulator> accumulators) {
         for (int z = 0; z < depth; z++) {
+            AnalysisCancelledException.check();
             for (int y = 0; y < height; y++) {
+                AnalysisCancelledException.check();
                 int row = y * width;
                 for (int x = 0; x < width; x++) {
                     int label = labels[z][row + x];

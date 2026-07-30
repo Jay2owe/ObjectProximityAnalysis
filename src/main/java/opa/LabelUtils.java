@@ -144,8 +144,18 @@ public final class LabelUtils {
                     "At least one observation-region ROI is required.");
         }
         Rectangle bounds = null;
-        for (Roi roi : regionRois) {
-            if (roi == null) continue;
+        for (int index = 0; index < regionRois.length; index++) {
+            Roi roi = regionRois[index];
+            int number = index + 1;
+            if (roi == null) {
+                throw new IllegalArgumentException(
+                        "Observation-region ROI " + number + " is null.");
+            }
+            if (!roi.isArea()) {
+                throw new IllegalArgumentException(
+                        "Observation-region ROI " + number
+                                + " is not an area selection.");
+            }
             bounds = bounds == null
                     ? new Rectangle(roi.getBounds())
                     : bounds.union(roi.getBounds());
@@ -156,10 +166,10 @@ public final class LabelUtils {
         }
         CalibrationInfo calibration = CalibrationInfo.from(reference);
         return new RectangularWindow(
-                bounds.x * calibration.getPixelWidth(),
-                bounds.y * calibration.getPixelHeight(),
-                (bounds.x + bounds.width) * calibration.getPixelWidth(),
-                (bounds.y + bounds.height) * calibration.getPixelHeight());
+                calibration.xEdge(bounds.x),
+                calibration.yEdge(bounds.y),
+                calibration.xEdge(bounds.x + bounds.width),
+                calibration.yEdge(bounds.y + bounds.height));
     }
 
     private static int fill(ImageProcessor processor, Roi roi, int label) {

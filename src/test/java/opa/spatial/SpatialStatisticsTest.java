@@ -108,6 +108,21 @@ public class SpatialStatisticsTest {
                 1.0e-12);
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void pairCorrelationRejectsRadiusDependentBorderRiskSet() {
+        double[][] points = {
+                {1.5, 4.9},
+                {1.5, 5.0},
+                {1.5, 5.1},
+                {5.0, 5.0}
+        };
+        SpatialStatistics.computePairCorrelation(
+                points,
+                WINDOW,
+                new double[]{1.0, 2.0},
+                EdgeCorrection.BORDER);
+    }
+
     @Test
     public void monteCarloEnvelopeIsDeterministicAndRecordsResolution() {
         double[][] lattice = {

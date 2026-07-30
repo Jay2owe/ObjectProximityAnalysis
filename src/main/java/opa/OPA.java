@@ -10,6 +10,7 @@ import opa.geometry.ChannelGeometry;
 import opa.geometry.DirectionResult;
 import opa.geometry.LabelGeometryExtractor;
 import opa.geometry.ProximityEngine;
+import opa.spatial.EdgeCorrection;
 import opa.spatial.MonteCarloAnalyzer;
 import opa.spatial.MonteCarloResult;
 import opa.spatial.PatternFunction;
@@ -41,8 +42,10 @@ public final class OPA {
     }
 
     public static OPAResult run(OPAParameters parameters) {
+        AnalysisCancelledException.check();
         validate(parameters);
         List<ChannelGeometry> channels = extractChannels(parameters);
+        AnalysisCancelledException.check();
         validateChannels(parameters, channels);
         channels = applyObservationWindow(parameters, channels);
 
@@ -59,6 +62,7 @@ public final class OPA {
         List<ChannelGeometry> channels = new ArrayList<ChannelGeometry>();
         List<String> names = effectiveChannelNames(parameters);
         for (int i = 0; i < parameters.getImages().size(); i++) {
+            AnalysisCancelledException.check();
             ImagePlus image = parameters.getImages().get(i);
             channels.add(LabelGeometryExtractor.extract(image, names.get(i)));
         }
@@ -93,6 +97,7 @@ public final class OPA {
             List<ChannelGeometry> channels) {
         List<DirectionResult> results = new ArrayList<DirectionResult>();
         for (int source = 0; source < channels.size(); source++) {
+            AnalysisCancelledException.check();
             if (parameters.isIncludeSelfDistances()) {
                 results.add(ProximityEngine.analyze(
                         channels.get(source),
@@ -132,10 +137,10 @@ public final class OPA {
         ChannelGeometry first = channels.get(0);
         RectangularWindow window = parameters.getObservationWindow() == null
                 ? new RectangularWindow(
-                        0.0,
-                        0.0,
-                        first.getWidth() * first.getCalibration().getPixelWidth(),
-                        first.getHeight() * first.getCalibration().getPixelHeight())
+                        first.getCalibration().xEdge(0.0),
+                        first.getCalibration().yEdge(0.0),
+                        first.getCalibration().xEdge(first.getWidth()),
+                        first.getCalibration().yEdge(first.getHeight()))
                 : parameters.getObservationWindow();
         double[] radii = resolveRadii(parameters, window);
         List<PatternResult> results = new ArrayList<PatternResult>();
@@ -275,6 +280,15 @@ public final class OPA {
                 throw new IllegalArgumentException(
                         "Edge correction must not be null.");
             }
+            if (parameters.getEdgeCorrection()
+                    == EdgeCorrection.BORDER
+                    && parameters.getPatternFunctions().contains(
+                            PatternFunction.PAIR_CORRELATION)) {
+                throw new IllegalArgumentException(
+                        "Pair correlation cannot use border correction; "
+                                + "choose translation or no edge correction, "
+                                + "or disable pair correlation.");
+            }
             double[] radii = parameters.getRadii();
             if (radii == null) {
                 if (parameters.getRadiusBins() < 1) {
@@ -351,11 +365,12 @@ public final class OPA {
         }
         if (parameters.getObservationWindow() != null) {
             RectangularWindow window = parameters.getObservationWindow();
-            double maximumX = first.getWidth()
-                    * first.getCalibration().getPixelWidth();
-            double maximumY = first.getHeight()
-                    * first.getCalibration().getPixelHeight();
-            if (window.getMinX() < 0.0 || window.getMinY() < 0.0
+            double minimumX = first.getCalibration().xEdge(0.0);
+            double minimumY = first.getCalibration().yEdge(0.0);
+            double maximumX = first.getCalibration().xEdge(first.getWidth());
+            double maximumY = first.getCalibration().yEdge(first.getHeight());
+            if (window.getMinX() < minimumX
+                    || window.getMinY() < minimumY
                     || window.getMaxX() > maximumX
                     || window.getMaxY() > maximumY) {
                 throw new IllegalArgumentException(

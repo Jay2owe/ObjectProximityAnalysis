@@ -37,3 +37,6 @@
 - Complete-only pointwise Monte Carlo envelopes with per-radius counts,
   area/Z/bounds validation for object ROIs, spatial-origin compatibility and
   provenance, output-shape identities, and isolated batch-run folders.
+- Non-negative pair-correlation safeguards, executable Unix Maven wrapper,
+  fully origin-aware coordinates and windows, end-to-end Escape cancellation,
+  and area-only observation-window ROIs.

@@ -134,6 +134,61 @@ public class OPATest {
         assertTrue(rejected);
     }
 
+    @Test
+    public void nonzeroOriginsCalibrateCentroidsAndDefaultWindow() {
+        ImagePlus image = labels("origin-coordinates", 5, 5, 1);
+        image.getProcessor().set(2, 3, 1);
+        Calibration calibration = new Calibration();
+        calibration.pixelWidth = 2.0;
+        calibration.pixelHeight = 3.0;
+        calibration.pixelDepth = 1.0;
+        calibration.xOrigin = 10.0;
+        calibration.yOrigin = 20.0;
+        calibration.setUnit("um");
+        image.setCalibration(calibration);
+
+        OPAResult result = OPA.run(OPAParameters.builder(image)
+                .runPattern(false)
+                .build());
+
+        assertEquals(-15.0, result.getChannels().get(0)
+                .getObjects().get(0).getCentroidX(), 1.0e-12);
+        assertEquals(-49.5, result.getChannels().get(0)
+                .getObjects().get(0).getCentroidY(), 1.0e-12);
+        assertEquals(-20.0, result.getProvenanceTable()
+                .getValue("Window_Min_X", 0), 1.0e-12);
+        assertEquals(-10.0, result.getProvenanceTable()
+                .getValue("Window_Max_X", 0), 1.0e-12);
+        assertEquals(-60.0, result.getProvenanceTable()
+                .getValue("Window_Min_Y", 0), 1.0e-12);
+        assertEquals(-45.0, result.getProvenanceTable()
+                .getValue("Window_Max_Y", 0), 1.0e-12);
+    }
+
+    @Test
+    public void pairCorrelationWithBorderCorrectionIsRejected() {
+        ImagePlus image = labels("invalid-pair-border", 8, 8, 1);
+        image.getProcessor().set(2, 2, 1);
+        image.getProcessor().set(5, 5, 2);
+        boolean rejected = false;
+        try {
+            OPA.run(OPAParameters.builder(image)
+                    .runDistances(false)
+                    .patternFunctions(EnumSet.of(
+                            PatternFunction.PAIR_CORRELATION))
+                    .edgeCorrection(
+                            opa.spatial.EdgeCorrection.BORDER)
+                    .radii(new double[]{1.0, 2.0})
+                    .simulations(1)
+                    .build());
+        } catch (IllegalArgumentException exception) {
+            rejected = true;
+            assertTrue(exception.getMessage().contains(
+                    "Pair correlation cannot use border correction"));
+        }
+        assertTrue(rejected);
+    }
+
     @Test(expected = IllegalArgumentException.class)
     public void threeDimensionalPatternRequiresExplicitProjection() {
         ImagePlus image = labels("volume", 5, 5, 2);
@@ -509,6 +564,26 @@ public class OPATest {
                     .patternFunctions(EnumSet.of(PatternFunction.K))
                     .radii(new double[]{1.0})
                     .simulations(10)
+                    .build());
+        } catch (AnalysisCancelledException expected) {
+            cancelled = true;
+        } finally {
+            IJ.resetEscape();
+            IJ.setKeyUp(KeyEvent.VK_ESCAPE);
+        }
+        assertTrue(cancelled);
+    }
+
+    @Test
+    public void escapeCancelsDistanceOnlyAnalysis() {
+        ImagePlus image = labels("cancel-distance", 5, 5, 1);
+        image.getProcessor().set(1, 1, 1);
+        image.getProcessor().set(3, 3, 2);
+        boolean cancelled = false;
+        try {
+            IJ.setKeyDown(KeyEvent.VK_ESCAPE);
+            OPA.run(OPAParameters.builder(image)
+                    .runPattern(false)
                     .build());
         } catch (AnalysisCancelledException expected) {
             cancelled = true;

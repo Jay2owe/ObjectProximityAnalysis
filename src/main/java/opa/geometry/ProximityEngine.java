@@ -5,6 +5,7 @@
  */
 package opa.geometry;
 
+import opa.AnalysisCancelledException;
 import opa.DistanceMode;
 
 import java.util.ArrayList;
@@ -33,12 +34,15 @@ public final class ProximityEngine {
                                           int neighborCount,
                                           double contactDistance) {
         validate(source, target, modes, neighborCount, contactDistance);
+        AnalysisCancelledException.check();
         boolean self = source == target;
         List<ObjectMeasurement> output = new ArrayList<ObjectMeasurement>();
 
         for (ObjectGeometry sourceObject : source.getObjects()) {
+            AnalysisCancelledException.check();
             List<PairMeasurement> pairs = new ArrayList<PairMeasurement>();
             for (ObjectGeometry targetObject : target.getObjects()) {
+                AnalysisCancelledException.check();
                 if (self && sourceObject.getLabel() == targetObject.getLabel()) continue;
                 pairs.add(measurePair(
                         sourceObject,
@@ -51,6 +55,7 @@ public final class ProximityEngine {
             Map<DistanceMode, List<NeighborMeasurement>> byMode =
                     new EnumMap<DistanceMode, List<NeighborMeasurement>>(DistanceMode.class);
             for (DistanceMode mode : modes) {
+                AnalysisCancelledException.check();
                 List<PairMeasurement> ranked = new ArrayList<PairMeasurement>(pairs);
                 Collections.sort(ranked, comparator(mode));
                 int count = Math.min(neighborCount, ranked.size());
@@ -115,7 +120,9 @@ public final class ProximityEngine {
 
         double edgeToEdge = Double.POSITIVE_INFINITY;
         for (SurfaceElement sourceFace : source.surface()) {
+            AnalysisCancelledException.check();
             for (SurfaceElement targetFace : target.surface()) {
+                AnalysisCancelledException.check();
                 double value = surfaceDistance(sourceFace, targetFace);
                 if (value < edgeToEdge) edgeToEdge = value;
             }
@@ -128,6 +135,7 @@ public final class ProximityEngine {
         double exactContactArea = 0.0;
         double apposedSurfaceArea = 0.0;
         for (SurfaceElement sourceFace : source.surface()) {
+            AnalysisCancelledException.check();
             int adjacentLabel = targetChannel.labelAt(
                     sourceFace.voxelX + sourceFace.normalX,
                     sourceFace.voxelY + sourceFace.normalY,
@@ -156,6 +164,7 @@ public final class ProximityEngine {
                                          List<SurfaceElement> surface) {
         double minimum = Double.POSITIVE_INFINITY;
         for (SurfaceElement face : surface) {
+            AnalysisCancelledException.check();
             double value = pointToSurfaceDistance(x, y, z, face);
             if (value < minimum) minimum = value;
         }
@@ -166,6 +175,7 @@ public final class ProximityEngine {
                                             List<SurfaceElement> target) {
         double minimum = Double.POSITIVE_INFINITY;
         for (SurfaceElement face : target) {
+            AnalysisCancelledException.check();
             if (source.normalX + face.normalX != 0
                     || source.normalY + face.normalY != 0
                     || source.normalZ + face.normalZ != 0) {
@@ -181,6 +191,7 @@ public final class ProximityEngine {
                                     int targetLabel,
                                     ChannelGeometry targetChannel) {
         for (int voxelIndex : source.voxelIndices()) {
+            AnalysisCancelledException.check();
             if (targetChannel.labelAtIndex(voxelIndex) == targetLabel) return true;
         }
         return false;
