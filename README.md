@@ -1,0 +1,178 @@
+# Object Proximity Analysis
+
+Object Proximity Analysis is an ImageJ/Fiji plugin for calibrated inter-object
+distances and 2D spatial point-pattern statistics. It accepts label images or
+ImageJ ROI sets from any segmentation workflow. Segmentation is deliberately
+separate from analysis.
+
+Version `0.1.0-SNAPSHOT` is under development and is not yet a validated
+scientific release.
+
+## Current scope
+
+- 1-5 channels, every directed channel pair, and optional self-channel analysis.
+- Centre-centre, centre-edge, edge-centre, edge-edge, and surface-contact modes.
+- First through k-th neighbours, partner labels, contact-threshold flags, and
+  edge-object flags.
+- Exact shared-face contact and thresholded surface apposition are separate
+  outputs. In 2D these are lengths; in 3D they are areas.
+- Ripley K, L, L(r)-r, nearest-neighbour G, pair correlation g(r), cross-K,
+  cross-L, and cross-G.
+- Translation or border edge correction for K and its derived curves.
+- Reproducible complete-spatial-randomness Monte Carlo envelopes with recorded
+  seed, pointwise 95% bounds, and a global maximum-deviation p-value.
+- Per-object, summary, histogram, empirical cumulative distribution (ECDF), and
+  curve tables.
+- Folder batch grouping by regular expression, with preview, recursive scanning,
+  mean curves, and mean ECDFs with between-group spread.
+- Dialog-free Java API and ImageJ macro operation.
+
+The first point-pattern implementation is 2D. A 3D label stack is rejected for
+pattern analysis unless the caller explicitly requests XY centroid projection.
+Distance measurements remain fully 3D.
+
+## Measurement definitions
+
+- Centre-edge is zero when the source centre lies inside the target object.
+- Edge-centre is the directed reverse of centre-edge.
+- Edge-edge is the exact minimum distance between calibrated voxel faces and is
+  zero for touching or overlapping objects.
+- Exact contact counts source boundary faces directly adjacent to the selected
+  target label.
+- Apposed surface counts source boundary faces within the chosen contact
+  distance of an oppositely facing target surface.
+- Surface-contact partners are ranked by apposed surface measure, largest first.
+  Distance modes are ranked smallest first.
+
+Label images must contain positive integer object labels on a zero background.
+All channels must have identical dimensions and voxel calibration.
+
+## Calibration and observation window
+
+The plugin displays detected voxel size in the dialog. An uncalibrated image is
+reported in `pixel`, never silently in micrometres. The Java API can require
+physical calibration with `requirePhysicalCalibration(true)`.
+
+Point-pattern statistics require an observation window. The default is the full
+XY image rectangle. An optional region ROI set supplies a calibrated rectangular
+union bounding box for v0.1.0. Objects are included when their centroid lies
+inside that window.
+
+## Fiji use
+
+Build the JAR, copy it into Fiji's `plugins/` folder, restart Fiji, then use:
+
+```text
+Plugins > Object Proximity Analysis
+Plugins > Object Proximity Analysis Batch...
+```
+
+The main dialog supports either open label images or `.zip`/`.roi` sets. ROI
+input needs an open reference image for dimensions and calibration.
+
+Auto-save writes:
+
+```text
+Object Proximity Analysis/
+  Objects/
+  Distributions/
+  Curves/
+  Folder/
+```
+
+Every subfolder contains a `README.txt`.
+
+## Java API
+
+The core call opens no dialogs, shows no windows, and writes no files:
+
+```java
+OPAParameters parameters = OPAParameters.builder(labelA, labelB)
+        .neighborCount(3)
+        .contactDistance(2.0)
+        .simulations(999)
+        .seed(12345L)
+        .build();
+
+OPAResult result = OPA.run(parameters);
+```
+
+ROI conversion is also dialog-free:
+
+```java
+ImagePlus labels = OPALabelImages.fromRoiSet(reference, "cells.zip");
+```
+
+Saving is explicit:
+
+```java
+OPAOutput.save(result, outputFolder, "Sample_01");
+```
+
+Folder batch:
+
+```java
+OPAParameters options = OPAParameters.builder()
+        .simulations(999)
+        .seed(12345L)
+        .build();
+
+OPABatchParameters batch = OPABatchParameters.builder(
+                inputFolder, "(sample\\d+)_([^_]+)\\.tif", 2)
+        .analysisTemplate(options)
+        .recursive(true)
+        .outputDirectory(outputFolder)
+        .build();
+
+String preview = OPABatchRunner.preview(batch);
+OPABatchResult result = OPABatchRunner.run(batch);
+```
+
+The selected capture group is the channel name. Replacing that group with `*`
+forms the sample group, so `sample1_A.tif` and `sample1_B.tif` run together.
+
+## Macro use
+
+ImageJ's `GenericDialog` makes the command recordable:
+
+```text
+run("Object Proximity Analysis",
+    "input_mode=[Open label images] channel_count=2 "
+  + "label_image_1=A label_image_2=B "
+  + "run_distances include_self_distances k_nearest_neighbours=1 "
+  + "contact_distance=2 run_pattern_analysis "
+  + "monte_carlo_simulations=99 random_seed=777 "
+  + "edge_correction=TRANSLATION hide_display");
+```
+
+Important option names are:
+
+| Group | Options |
+|---|---|
+| Input | `input_mode`, `channel_count`, `roi_reference_image`, `label_image_1`...`label_image_5`, `roi_set_1`...`roi_set_5`, `observation_region_roi` |
+| Distances | `run_distances`, `include_self_distances`, `k_nearest_neighbours`, `contact_distance`, `centre_centre`, `centre_edge`, `edge_centre`, `edge_edge`, `surface_contact` |
+| Pattern | `run_pattern_analysis`, `function_k`, `function_l`, `function_l_minus_r`, `function_g`, `function_pair_correlation`, `function_cross_k`, `function_cross_l`, `function_cross_g`, `maximum_radius_0_is_auto`, `radius_bins`, `monte_carlo_simulations`, `random_seed`, `edge_correction`, `project_3d_centroids_to_xy` |
+| Output | `histogram_bins`, `auto_save`, `output_directory`, `output_prefix`, `hide_display` |
+
+The smallest attainable Monte Carlo p-value is `1/(simulations+1)`. For example,
+99 simulations cannot report a p-value below 0.01.
+
+## Build
+
+macOS/Linux:
+
+```text
+./mvnw test
+```
+
+Windows:
+
+```text
+mvnw.cmd test
+```
+
+The packaged JAR is written to `target/Object_Proximity_Analysis-<version>.jar`.
+
+## Licence
+
+BSD 3-Clause. See `LICENSE`.

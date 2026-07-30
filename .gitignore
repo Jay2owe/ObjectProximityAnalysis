@@ -1,0 +1,17 @@
+/target/
+/.mvn/wrapper/maven-dist/
+/.idea/
+/.vscode/
+/.classpath
+/.project
+/.settings/
+*.iml
+*.log
+*.jar
+!.mvn/wrapper/*.jar
+.DS_Store
+Thumbs.db
+
+# Local planning context is not part of the public plugin repository.
+/FIRST_BUILD_PLAN.md
+/_SUPERSEDED_*.md

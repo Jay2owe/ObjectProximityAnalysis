@@ -1,0 +1,152 @@
+/*
+ * Copyright (c) 2026 Jamie Malcolm
+ *
+ * Released under the BSD 3-Clause License. See LICENSE for terms.
+ */
+package opa;
+
+import ij.ImagePlus;
+import ij.ImageStack;
+import ij.gui.Roi;
+import ij.io.RoiDecoder;
+import ij.process.ImageProcessor;
+import ij.process.ShortProcessor;
+import opa.spatial.RectangularWindow;
+
+import java.awt.Rectangle;
+import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
+/**
+ * ROI-set conversion utilities adapted from the CPC plugin chassis.
+ */
+public final class LabelUtils {
+
+    private LabelUtils() {
+    }
+
+    public static Roi[] loadRoiSet(String path) throws IOException {
+        if (path == null || path.trim().isEmpty()) {
+            throw new IllegalArgumentException("ROI-set path must not be empty.");
+        }
+        if (path.toLowerCase().endsWith(".roi")) {
+            Roi roi = new RoiDecoder(path).getRoi();
+            return roi == null ? new Roi[0] : new Roi[]{roi};
+        }
+
+        List<Roi> rois = new ArrayList<Roi>();
+        byte[] buffer = new byte[65536];
+        ZipInputStream input = new ZipInputStream(new FileInputStream(path));
+        try {
+            ZipEntry entry;
+            while ((entry = input.getNextEntry()) != null) {
+                if (!entry.getName().toLowerCase().endsWith(".roi")) continue;
+                ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+                int count;
+                while ((count = input.read(buffer)) > 0) {
+                    bytes.write(buffer, 0, count);
+                }
+                Roi roi = new RoiDecoder(
+                        bytes.toByteArray(), entry.getName()).getRoi();
+                if (roi != null) rois.add(roi);
+            }
+        } finally {
+            input.close();
+        }
+        return rois.toArray(new Roi[rois.size()]);
+    }
+
+    /**
+     * Converts one ROI per object to a 16-bit label image.
+     */
+    public static ImagePlus roiSetToLabelImage(ImagePlus reference, Roi[] rois) {
+        if (reference == null || reference.getStack() == null) {
+            throw new IllegalArgumentException(
+                    "A reference image is required for ROI dimensions and calibration.");
+        }
+        if (rois == null) {
+            throw new IllegalArgumentException("ROI array must not be null.");
+        }
+        if (rois.length > 65535) {
+            throw new IllegalArgumentException(
+                    "A 16-bit ROI label image supports at most 65,535 objects.");
+        }
+
+        int width = reference.getWidth();
+        int height = reference.getHeight();
+        int slices = Math.max(1, reference.getNSlices());
+        ImageStack stack = new ImageStack(width, height);
+        for (int z = 0; z < slices; z++) {
+            stack.addSlice(new ShortProcessor(width, height));
+        }
+
+        for (int index = 0; index < rois.length; index++) {
+            Roi roi = rois[index];
+            if (roi == null) continue;
+            int label = index + 1;
+            int zPosition = roi.getZPosition();
+            if (zPosition > 0 && zPosition <= slices) {
+                fill(stack.getProcessor(zPosition), roi, label);
+            } else {
+                for (int z = 1; z <= slices; z++) {
+                    fill(stack.getProcessor(z), roi, label);
+                }
+            }
+        }
+
+        ImagePlus result = new ImagePlus("Labels from ROIs", stack);
+        if (reference.getCalibration() != null) {
+            result.setCalibration(reference.getCalibration().copy());
+        }
+        return result;
+    }
+
+    public static RectangularWindow boundingWindow(ImagePlus reference,
+                                                   Roi[] regionRois) {
+        if (reference == null) {
+            throw new IllegalArgumentException("Reference image must not be null.");
+        }
+        if (regionRois == null || regionRois.length == 0) {
+            throw new IllegalArgumentException(
+                    "At least one observation-region ROI is required.");
+        }
+        Rectangle bounds = null;
+        for (Roi roi : regionRois) {
+            if (roi == null) continue;
+            bounds = bounds == null
+                    ? new Rectangle(roi.getBounds())
+                    : bounds.union(roi.getBounds());
+        }
+        if (bounds == null || bounds.width <= 0 || bounds.height <= 0) {
+            throw new IllegalArgumentException(
+                    "Observation-region ROIs have no positive-area bounds.");
+        }
+        CalibrationInfo calibration = CalibrationInfo.from(reference);
+        return new RectangularWindow(
+                bounds.x * calibration.getPixelWidth(),
+                bounds.y * calibration.getPixelHeight(),
+                (bounds.x + bounds.width) * calibration.getPixelWidth(),
+                (bounds.y + bounds.height) * calibration.getPixelHeight());
+    }
+
+    private static void fill(ImageProcessor processor, Roi roi, int label) {
+        Rectangle bounds = roi.getBounds();
+        ImageProcessor mask = roi.getMask();
+        for (int y = 0; y < bounds.height; y++) {
+            for (int x = 0; x < bounds.width; x++) {
+                if (mask != null && mask.getPixel(x, y) == 0) continue;
+                int globalX = bounds.x + x;
+                int globalY = bounds.y + y;
+                if (globalX >= 0 && globalX < processor.getWidth()
+                        && globalY >= 0 && globalY < processor.getHeight()) {
+                    processor.set(globalX, globalY, label);
+                }
+            }
+        }
+    }
+}
