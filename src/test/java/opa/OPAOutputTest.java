@@ -216,6 +216,40 @@ public class OPAOutputTest {
         }
     }
 
+    @Test
+    public void reusedPrefixWithDifferentOutputShapeGetsNewRunIdentity()
+            throws Exception {
+        ImagePlus image = new ImagePlus(
+                "labels", new ByteProcessor(8, 8));
+        image.getProcessor().set(1, 1, 1);
+        image.getProcessor().set(6, 6, 2);
+        OPAResult full = OPA.run(OPAParameters.builder(image)
+                .patternFunctions(EnumSet.of(PatternFunction.K))
+                .radii(new double[]{1.0})
+                .simulations(1)
+                .build());
+        OPAResult limited = OPA.run(OPAParameters.builder(image)
+                .runPattern(false)
+                .distanceModes(EnumSet.of(
+                        DistanceMode.CENTRE_TO_CENTRE))
+                .build());
+        File parent = Files.createTempDirectory(
+                "opa-output-reused-prefix").toFile();
+        try {
+            File root = OPAOutput.save(full, parent, "same-prefix");
+            OPAOutput.save(limited, parent, "same-prefix");
+            File[] summaries = new File(root, "Objects").listFiles(
+                    (directory, name) ->
+                            name.endsWith("__Distance_Summary.csv"));
+            assertTrue(summaries != null);
+            assertEquals(2, summaries.length);
+            assertTrue(!summaries[0].getName().equals(
+                    summaries[1].getName()));
+        } finally {
+            delete(parent);
+        }
+    }
+
     private static void delete(File file) {
         if (file.isDirectory()) {
             File[] children = file.listFiles();

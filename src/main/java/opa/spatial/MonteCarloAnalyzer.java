@@ -116,11 +116,13 @@ public final class MonteCarloAnalyzer {
         int radiusCount = radii.length;
         double[] lower = new double[radiusCount];
         double[] upper = new double[radiusCount];
+        int[] envelopeSampleCounts = new int[radiusCount];
 
         for (int radiusIndex = 0; radiusIndex < radiusCount; radiusIndex++) {
             checkCancelled();
             double[] finite = finiteColumn(samples, radiusIndex);
-            if (finite.length == 0) {
+            envelopeSampleCounts[radiusIndex] = finite.length;
+            if (finite.length != simulations) {
                 lower[radiusIndex] = Double.NaN;
                 upper[radiusIndex] = Double.NaN;
                 continue;
@@ -174,6 +176,7 @@ public final class MonteCarloAnalyzer {
                 expected,
                 lower,
                 upper,
+                envelopeSampleCounts,
                 globalP,
                 maximumDeviation,
                 maximumRadius,
@@ -196,6 +199,7 @@ public final class MonteCarloAnalyzer {
                                               PatternStatus status) {
         double[] undefined = new double[radii.length];
         Arrays.fill(undefined, Double.NaN);
+        int[] envelopeSampleCounts = new int[radii.length];
         return new MonteCarloResult(
                 function,
                 radii,
@@ -203,6 +207,7 @@ public final class MonteCarloAnalyzer {
                 expected,
                 undefined,
                 undefined,
+                envelopeSampleCounts,
                 Double.NaN,
                 Double.NaN,
                 Double.NaN,

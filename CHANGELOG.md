@@ -34,3 +34,6 @@
   prefixes, explicit one-channel cross-function statuses, optional-capture
   validation, complete batch analysis controls, and undefined singleton sample
   standard deviations.
+- Complete-only pointwise Monte Carlo envelopes with per-radius counts,
+  area/Z/bounds validation for object ROIs, spatial-origin compatibility and
+  provenance, output-shape identities, and isolated batch-run folders.

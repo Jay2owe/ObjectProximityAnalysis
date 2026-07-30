@@ -49,7 +49,9 @@ Label images must contain positive integer object labels on a zero background.
 Each input must contain one ImageJ channel and one time frame; split
 multichannel or time-series data into separate label images first. All inputs
 must have identical dimensions and voxel calibration. Duplicate image or API
-channel names receive distinct effective names in every output.
+channel names receive distinct effective names in every output. Multi-channel
+analyses also require identical ImageJ X/Y/Z spatial origins; differing origins
+are rejected rather than treating physically shifted channels as registered.
 
 ## Calibration and observation window
 
@@ -76,7 +78,9 @@ Plugins > Object Proximity Analysis Batch...
 The main dialog supports either open label images or `.zip`/`.roi` sets. ROI
 input needs an open reference image for dimensions and calibration. Object ROIs
 must not overlap; conversion reports both ROI labels and the first conflicting
-pixel instead of overwriting an object.
+pixel instead of overwriting an object. Each object ROI must be an area
+selection, use an in-range Z position (or Z=0 for an unpositioned ROI), and
+cover at least one in-bounds pixel.
 
 Auto-save writes:
 
@@ -89,6 +93,9 @@ Object Proximity Analysis/
 ```
 
 Every subfolder contains a `README.txt`.
+Batch aggregate runs are kept in identity-named subfolders below `Folder/`, so
+rerunning a different input root or analysis shape cannot mix old and new
+aggregate files.
 Interactive runs display histogram and ECDF tables as well as per-object,
 summary, centroid, pattern-curve, and provenance tables.
 
@@ -194,6 +201,9 @@ Monte Carlo work, sets `OPABatchResult.isCancelled()`, marks unprocessed groups
 as `CANCELLED`, and writes `Status: CANCELLED` into partial batch output.
 Every user-supplied save prefix gains a SHA-256 identity digest, so names that
 differ only by punctuation or case cannot overwrite each other on Windows.
+The digest also includes the exact output shape; reusing a prefix for a run
+with different requested tables creates a distinct run identity instead of
+leaving obsolete files under the current identity.
 CSV output writes the full stored double value rather than ImageJ's rounded
 display form. The group manifest records non-OK distance or pattern statuses
 in `Analysis_Warnings`.
@@ -223,6 +233,10 @@ Important option names are:
 
 The smallest attainable Monte Carlo p-value is `1/(simulations+1)`. For example,
 99 simulations cannot report a p-value below 0.01.
+Pointwise envelopes are emitted only when all requested simulations contribute
+at that radius. Curve tables record `Envelope_N` and `Envelope_Status` for each
+radius; incomplete bounds are `NaN` without invalidating an otherwise complete
+global rank test.
 
 ## Build
 

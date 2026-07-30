@@ -70,7 +70,9 @@ public final class OPABatchRunner {
         ResultsTable distanceSummary = new ResultsTable();
         ResultsTable patternSummary = new ResultsTable();
         ResultsTable groupManifest = groupManifest(
-                groups, parameters.getAnalysisTemplate());
+                groups,
+                parameters.getAnalysisTemplate(),
+                parameters.getInputFolder());
         CurveAccumulator curves = new CurveAccumulator();
         EcdfAccumulator ecdfs = new EcdfAccumulator();
         File output = parameters.getOutputDirectory() == null
@@ -130,12 +132,14 @@ public final class OPABatchRunner {
                 }
                 if (parameters.isAutoSave()) {
                     OPAOutput.save(
-                            result, output, group.outputPrefix());
+                            result,
+                            output,
+                            group.outputPrefix(parameters.getInputFolder()));
                 }
                 appendTable(distanceSummary, result.getDistanceSummaryTable(),
-                        group);
+                        group, parameters.getInputFolder());
                 appendTable(patternSummary, result.getPatternSummaryTable(),
-                        group);
+                        group, parameters.getInputFolder());
                 curves.add(result.getCurveTables());
                 ecdfs.add(result.getEcdfTables());
                 processed++;
@@ -168,6 +172,7 @@ public final class OPABatchRunner {
         if (parameters.isAutoSave()) {
             try {
                 saveAggregates(
+                        parameters,
                         output,
                         distanceSummary,
                         patternSummary,
@@ -376,11 +381,14 @@ public final class OPABatchRunner {
 
     private static ResultsTable groupManifest(
             List<Group> groups,
-            OPAParameters analysisTemplate) {
+            OPAParameters analysisTemplate,
+            File inputRoot) {
         ResultsTable table = new ResultsTable();
         for (Group group : groups) {
             String rejection = group.rejectionReason(analysisTemplate);
             table.incrementCounter();
+            table.addValue(
+                    "Input_Root", inputRoot.getAbsolutePath());
             table.addValue("Folder", group.relativeFolder);
             table.addValue("Group", group.displayName());
             table.addValue("Group_Identity", group.identity());
@@ -404,6 +412,11 @@ public final class OPABatchRunner {
                 warnings, "DISTANCE", result.getDistanceSummaryTable());
         collectWarnings(
                 warnings, "PATTERN", result.getPatternSummaryTable());
+        collectWarnings(
+                warnings,
+                "PATTERN_ENVELOPE",
+                result.getPatternSummaryTable(),
+                "Envelope_Status");
         StringBuilder text = new StringBuilder();
         for (String warning : warnings) {
             if (text.length() > 0) text.append(';');
@@ -415,9 +428,16 @@ public final class OPABatchRunner {
     private static void collectWarnings(List<String> warnings,
                                         String kind,
                                         ResultsTable table) {
-        if (table == null || !hasHeading(table, "Status")) return;
+        collectWarnings(warnings, kind, table, "Status");
+    }
+
+    private static void collectWarnings(List<String> warnings,
+                                        String kind,
+                                        ResultsTable table,
+                                        String statusHeading) {
+        if (table == null || !hasHeading(table, statusHeading)) return;
         for (int row = 0; row < table.size(); row++) {
-            String status = table.getStringValue("Status", row);
+            String status = table.getStringValue(statusHeading, row);
             if (status == null || status.isEmpty() || "OK".equals(status)) {
                 continue;
             }
@@ -446,11 +466,14 @@ public final class OPABatchRunner {
 
     private static void appendTable(ResultsTable target,
                                     ResultsTable source,
-                                    Group group) {
+                                    Group group,
+                                    File inputRoot) {
         if (source == null) return;
         String[] headings = source.getHeadings();
         for (int row = 0; row < source.size(); row++) {
             target.incrementCounter();
+            target.addValue(
+                    "Input_Root", inputRoot.getAbsolutePath());
             target.addValue("Folder", group.relativeFolder);
             target.addValue("Group", group.displayName());
             target.addValue("Group_Identity", group.identity());
@@ -466,7 +489,8 @@ public final class OPABatchRunner {
                         || "Function".equals(heading)
                         || "Radius_Unit".equals(heading)
                         || "Value_Unit".equals(heading)
-                        || "Status".equals(heading)) {
+                        || "Status".equals(heading)
+                        || "Envelope_Status".equals(heading)) {
                     target.addValue(
                             heading, source.getStringValue(heading, row));
                     continue;
@@ -477,6 +501,7 @@ public final class OPABatchRunner {
     }
 
     private static void saveAggregates(
+            OPABatchParameters parameters,
             File parent,
             ResultsTable distanceSummary,
             ResultsTable patternSummary,
@@ -488,8 +513,32 @@ public final class OPABatchRunner {
             int processed,
             int skipped,
             int groupErrors) throws IOException {
-        File folder = new File(
+        File batchRoot = new File(
                 new File(parent, "Object Proximity Analysis"), "Folder");
+        if (!batchRoot.isDirectory() && !batchRoot.mkdirs()) {
+            throw new IOException(
+                    "Could not create batch root folder: "
+                            + batchRoot.getAbsolutePath());
+        }
+        Writer rootReadme = new FileWriter(
+                new File(batchRoot, "README.txt"));
+        try {
+            rootReadme.write(
+                    "Each Batch__ subfolder is one input-root, settings, "
+                            + "and output-shape identity.");
+            rootReadme.write(System.lineSeparator());
+        } finally {
+            rootReadme.close();
+        }
+        File folder = new File(
+                batchRoot,
+                batchRunDirectory(
+                        parameters,
+                        distanceSummary,
+                        patternSummary,
+                        groupManifest,
+                        curves,
+                        ecdfs));
         if (!folder.isDirectory() && !folder.mkdirs()) {
             throw new IOException(
                     "Could not create batch folder: " + folder.getAbsolutePath());
@@ -537,6 +586,93 @@ public final class OPABatchRunner {
 
     private static String safe(String value) {
         return value.replaceAll("[^A-Za-z0-9._-]+", "_");
+    }
+
+    private static String batchRunDirectory(
+            OPABatchParameters parameters,
+            ResultsTable distanceSummary,
+            ResultsTable patternSummary,
+            ResultsTable groupManifest,
+            Map<String, ResultsTable> curves,
+            Map<String, ResultsTable> ecdfs) {
+        String readable = safe(parameters.getInputFolder().getName());
+        if (readable.isEmpty()) readable = "Batch";
+        if (readable.length() > 48) {
+            readable = readable.substring(0, 48);
+        }
+        return "Batch__" + readable + "__"
+                + sha256(
+                        batchRunIdentity(parameters)
+                                + batchOutputShapeIdentity(
+                                        distanceSummary,
+                                        patternSummary,
+                                        groupManifest,
+                                        curves,
+                                        ecdfs));
+    }
+
+    private static String batchOutputShapeIdentity(
+            ResultsTable distanceSummary,
+            ResultsTable patternSummary,
+            ResultsTable groupManifest,
+            Map<String, ResultsTable> curves,
+            Map<String, ResultsTable> ecdfs) {
+        StringBuilder identity = new StringBuilder();
+        appendIdentityField(
+                identity,
+                "DISTANCE_ROWS=" + distanceSummary.size());
+        appendIdentityField(
+                identity,
+                "PATTERN_ROWS=" + patternSummary.size());
+        for (int row = 0; row < groupManifest.size(); row++) {
+            appendIdentityField(
+                    identity,
+                    groupManifest.getStringValue(
+                            "Group_Identity", row));
+        }
+        for (String key : curves.keySet()) {
+            appendIdentityField(identity, "CURVE=" + key);
+        }
+        for (String key : ecdfs.keySet()) {
+            appendIdentityField(identity, "ECDF=" + key);
+        }
+        return identity.toString();
+    }
+
+    private static String batchRunIdentity(
+            OPABatchParameters parameters) {
+        OPAParameters analysis = parameters.getAnalysisTemplate();
+        double[] radii = analysis.getRadii();
+        String window = analysis.getObservationWindow() == null
+                ? "FULL_IMAGE"
+                : analysis.getObservationWindow().getMinX() + ","
+                        + analysis.getObservationWindow().getMinY() + ","
+                        + analysis.getObservationWindow().getMaxX() + ","
+                        + analysis.getObservationWindow().getMaxY();
+        return canonicalIdentity(
+                "BATCH_RUN",
+                parameters.getInputFolder().getAbsolutePath(),
+                parameters.getFilenameRegex(),
+                Integer.toString(parameters.getChannelCaptureGroup()),
+                Boolean.toString(parameters.isRecursive()),
+                Boolean.toString(analysis.isRunDistances()),
+                Boolean.toString(analysis.isRunPattern()),
+                Boolean.toString(analysis.isIncludeSelfDistances()),
+                analysis.getDistanceModes().toString(),
+                Integer.toString(analysis.getNeighborCount()),
+                Double.toString(analysis.getContactDistance()),
+                analysis.getPatternFunctions().toString(),
+                radii == null ? "AUTO" : Arrays.toString(radii),
+                Double.toString(analysis.getMaximumRadius()),
+                Integer.toString(analysis.getRadiusBins()),
+                Integer.toString(analysis.getSimulations()),
+                Long.toString(analysis.getSeed()),
+                String.valueOf(analysis.getEdgeCorrection()),
+                Boolean.toString(analysis.isProject3DToXY()),
+                Integer.toString(analysis.getHistogramBins()),
+                Boolean.toString(
+                        analysis.isRequirePhysicalCalibration()),
+                window);
     }
 
     private static String aggregateFilename(String prefix, String identity) {
@@ -726,8 +862,9 @@ public final class OPABatchRunner {
             return text.toString();
         }
 
-        private String outputPrefix() {
-            String tokenIdentity = relativeFolder + "\u0000" + key;
+        private String outputPrefix(File inputRoot) {
+            String tokenIdentity = inputRoot.getAbsolutePath()
+                    + "\u0000" + relativeFolder + "\u0000" + key;
             String readable = safe(displayName());
             if (readable.length() > 48) {
                 readable = readable.substring(0, 48);

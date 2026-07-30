@@ -258,8 +258,10 @@ public class OPABatchRunnerTest {
 
             assertEquals(2, result.getProcessedGroups());
             assertEquals(2, result.getMeanCurveTables().size());
-            File folder = new File(
+            File folderRoot = new File(
                     new File(output, "Object Proximity Analysis"), "Folder");
+            File folder = onlyBatchRunDirectory(folderRoot);
+            assertTrue(folder != null);
             File[] curves = folder.listFiles((directory, name) ->
                     name.startsWith("OPA_Batch_Mean_Curve__")
                             && name.endsWith(".csv"));
@@ -575,11 +577,11 @@ public class OPABatchRunnerTest {
                     .getStringValue("Outcome", 0));
             assertEquals("CANCELLED", result.getGroupManifest()
                     .getStringValue("Outcome", 1));
-            File readme = new File(
-                    new File(
-                            new File(output, "Object Proximity Analysis"),
-                            "Folder"),
-                    "README.txt");
+            File folderRoot = new File(
+                    new File(output, "Object Proximity Analysis"), "Folder");
+            File batchRun = onlyBatchRunDirectory(folderRoot);
+            assertTrue(batchRun != null);
+            File readme = new File(batchRun, "README.txt");
             String text = new String(
                     Files.readAllBytes(readme.toPath()),
                     java.nio.charset.StandardCharsets.UTF_8);
@@ -705,6 +707,50 @@ public class OPABatchRunnerTest {
         }
     }
 
+    @Test
+    public void differentInputRootsGetDistinctBatchRunFolders()
+            throws Exception {
+        File firstInput = Files.createTempDirectory(
+                "opa-batch-root-one").toFile();
+        File secondInput = Files.createTempDirectory(
+                "opa-batch-root-two").toFile();
+        File output = Files.createTempDirectory(
+                "opa-batch-root-output").toFile();
+        try {
+            saveDiagonalLabels(new File(firstInput, "sample_A.tif"));
+            saveDiagonalLabels(new File(secondInput, "sample_A.tif"));
+            OPAParameters options = OPAParameters.builder()
+                    .runPattern(false)
+                    .distanceModes(EnumSet.of(
+                            DistanceMode.CENTRE_TO_CENTRE))
+                    .build();
+            for (File input : new File[]{firstInput, secondInput}) {
+                OPABatchRunner.run(OPABatchParameters.builder(
+                                input,
+                                "(sample)_([A])\\.tif",
+                                2)
+                        .recursive(false)
+                        .analysisTemplate(options)
+                        .autoSave(true)
+                        .outputDirectory(output)
+                        .build());
+            }
+
+            File folderRoot = new File(
+                    new File(output, "Object Proximity Analysis"), "Folder");
+            File[] runs = folderRoot.listFiles((directory, name) ->
+                    new File(directory, name).isDirectory()
+                            && name.startsWith("Batch__"));
+            assertTrue(runs != null);
+            assertEquals(2, runs.length);
+            assertTrue(!runs[0].getName().equals(runs[1].getName()));
+        } finally {
+            deleteChildren(firstInput);
+            deleteChildren(secondInput);
+            deleteChildren(output);
+        }
+    }
+
     private static void saveLabel(File file, int x, int y) {
         ImagePlus image = new ImagePlus("labels", new ByteProcessor(8, 8));
         image.getProcessor().set(x, y, 1);
@@ -726,6 +772,13 @@ public class OPABatchRunnerTest {
         image.getProcessor().set(2, 2, 2);
         IJ.saveAsTiff(image, file.getAbsolutePath());
         image.close();
+    }
+
+    private static File onlyBatchRunDirectory(File folderRoot) {
+        File[] runs = folderRoot.listFiles((directory, name) ->
+                new File(directory, name).isDirectory()
+                        && name.startsWith("Batch__"));
+        return runs != null && runs.length == 1 ? runs[0] : null;
     }
 
     private static String repeat(String value, int count) {

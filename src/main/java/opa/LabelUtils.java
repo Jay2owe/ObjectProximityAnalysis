@@ -87,15 +87,43 @@ public final class LabelUtils {
 
         for (int index = 0; index < rois.length; index++) {
             Roi roi = rois[index];
-            if (roi == null) continue;
             int label = index + 1;
+            if (roi == null) {
+                throw new IllegalArgumentException(
+                        "ROI " + label + " is null.");
+            }
+            if (!roi.isArea()) {
+                throw new IllegalArgumentException(
+                        "ROI " + label
+                                + " is not an area selection and cannot define "
+                                + "an object label.");
+            }
+            if (roi.getCPosition() > 1 || roi.getTPosition() > 1) {
+                throw new IllegalArgumentException(
+                        "ROI " + label
+                                + " targets an unsupported channel or time "
+                                + "position; object ROIs must use C/T 0 or 1.");
+            }
             int zPosition = roi.getZPosition();
-            if (zPosition > 0 && zPosition <= slices) {
-                fill(stack.getProcessor(zPosition), roi, label);
+            if (zPosition > slices) {
+                throw new IllegalArgumentException(
+                        "ROI " + label + " has Z position " + zPosition
+                                + " outside the reference stack (1-"
+                                + slices + ").");
+            }
+            int painted = 0;
+            if (zPosition > 0) {
+                painted += fill(
+                        stack.getProcessor(zPosition), roi, label);
             } else {
                 for (int z = 1; z <= slices; z++) {
-                    fill(stack.getProcessor(z), roi, label);
+                    painted += fill(stack.getProcessor(z), roi, label);
                 }
+            }
+            if (painted == 0) {
+                throw new IllegalArgumentException(
+                        "ROI " + label
+                                + " does not cover any in-bounds image pixels.");
             }
         }
 
@@ -134,9 +162,10 @@ public final class LabelUtils {
                 (bounds.y + bounds.height) * calibration.getPixelHeight());
     }
 
-    private static void fill(ImageProcessor processor, Roi roi, int label) {
+    private static int fill(ImageProcessor processor, Roi roi, int label) {
         Rectangle bounds = roi.getBounds();
         ImageProcessor mask = roi.getMask();
+        int painted = 0;
         for (int y = 0; y < bounds.height; y++) {
             for (int x = 0; x < bounds.width; x++) {
                 if (mask != null && mask.getPixel(x, y) == 0) continue;
@@ -152,8 +181,10 @@ public final class LabelUtils {
                                         + globalY + ").");
                     }
                     processor.set(globalX, globalY, label);
+                    painted++;
                 }
             }
         }
+        return painted;
     }
 }

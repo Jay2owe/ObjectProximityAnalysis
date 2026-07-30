@@ -108,6 +108,32 @@ public class OPATest {
                 .build());
     }
 
+    @Test
+    public void channelsWithDifferentSpatialOriginsAreRejected() {
+        ImagePlus first = labels("first-origin", 5, 5, 1);
+        ImagePlus second = labels("second-origin", 5, 5, 1);
+        first.getProcessor().set(2, 2, 1);
+        second.getProcessor().set(2, 2, 1);
+        Calibration firstCalibration = new Calibration();
+        firstCalibration.setUnit("um");
+        Calibration secondCalibration = new Calibration();
+        secondCalibration.setUnit("um");
+        secondCalibration.xOrigin = 10.0;
+        first.setCalibration(firstCalibration);
+        second.setCalibration(secondCalibration);
+
+        boolean rejected = false;
+        try {
+            OPA.run(OPAParameters.builder(first, second)
+                    .runPattern(false)
+                    .build());
+        } catch (IllegalArgumentException exception) {
+            rejected = true;
+            assertTrue(exception.getMessage().contains("origins"));
+        }
+        assertTrue(rejected);
+    }
+
     @Test(expected = IllegalArgumentException.class)
     public void threeDimensionalPatternRequiresExplicitProjection() {
         ImagePlus image = labels("volume", 5, 5, 2);
@@ -269,6 +295,37 @@ public class OPATest {
             }
         }
         assertTrue(sawCrossStatus);
+    }
+
+    @Test
+    public void curveTablesExposePointwiseEnvelopeCompleteness() {
+        ImagePlus image = labels("envelope-counts", 10, 10, 1);
+        image.getProcessor().set(4, 4, 1);
+        image.getProcessor().set(5, 4, 2);
+        OPAResult result = OPA.run(OPAParameters.builder(image)
+                .runDistances(false)
+                .patternFunctions(EnumSet.of(PatternFunction.K))
+                .radii(new double[]{0.0, 4.5})
+                .edgeCorrection(opa.spatial.EdgeCorrection.BORDER)
+                .simulations(99)
+                .seed(1L)
+                .build());
+
+        ij.measure.ResultsTable curve =
+                result.getCurveTables().values().iterator().next();
+        assertEquals(99.0, curve.getValue("Envelope_N", 0), 0.0);
+        assertEquals("OK",
+                curve.getStringValue("Envelope_Status", 0));
+        assertTrue(curve.getValue("Envelope_N", 1) < 99.0);
+        assertEquals(
+                "INCOMPLETE_POINTWISE_ENVELOPE",
+                curve.getStringValue("Envelope_Status", 1));
+        assertTrue(Double.isNaN(
+                curve.getValue("Envelope_Lower", 1)));
+        assertEquals(
+                "INCOMPLETE_POINTWISE_ENVELOPE",
+                result.getPatternSummaryTable()
+                        .getStringValue("Envelope_Status", 0));
     }
 
     @Test

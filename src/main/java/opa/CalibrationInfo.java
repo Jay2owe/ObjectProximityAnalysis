@@ -18,17 +18,26 @@ public final class CalibrationInfo {
     private final double pixelWidth;
     private final double pixelHeight;
     private final double pixelDepth;
+    private final double xOrigin;
+    private final double yOrigin;
+    private final double zOrigin;
     private final String unit;
     private final boolean physicalUnits;
 
     private CalibrationInfo(double pixelWidth,
                             double pixelHeight,
                             double pixelDepth,
+                            double xOrigin,
+                            double yOrigin,
+                            double zOrigin,
                             String unit,
                             boolean physicalUnits) {
         this.pixelWidth = pixelWidth;
         this.pixelHeight = pixelHeight;
         this.pixelDepth = pixelDepth;
+        this.xOrigin = xOrigin;
+        this.yOrigin = yOrigin;
+        this.zOrigin = zOrigin;
         this.unit = unit;
         this.physicalUnits = physicalUnits;
     }
@@ -47,10 +56,27 @@ public final class CalibrationInfo {
         double depth = calibration == null
                 ? 1.0
                 : validatedDimension(calibration.pixelDepth, "pixel depth");
+        double xOrigin = calibration == null
+                ? 0.0
+                : validatedOrigin(calibration.xOrigin, "X origin");
+        double yOrigin = calibration == null
+                ? 0.0
+                : validatedOrigin(calibration.yOrigin, "Y origin");
+        double zOrigin = calibration == null
+                ? 0.0
+                : validatedOrigin(calibration.zOrigin, "Z origin");
         String rawUnit = calibration == null ? null : calibration.getUnit();
         String unit = normalizeUnit(rawUnit);
         boolean physical = !isPixelUnit(unit);
-        return new CalibrationInfo(width, height, depth, unit, physical);
+        return new CalibrationInfo(
+                width,
+                height,
+                depth,
+                xOrigin,
+                yOrigin,
+                zOrigin,
+                unit,
+                physical);
     }
 
     public double getPixelWidth() {
@@ -63,6 +89,18 @@ public final class CalibrationInfo {
 
     public double getPixelDepth() {
         return pixelDepth;
+    }
+
+    public double getXOrigin() {
+        return xOrigin;
+    }
+
+    public double getYOrigin() {
+        return yOrigin;
+    }
+
+    public double getZOrigin() {
+        return zOrigin;
     }
 
     public String getUnit() {
@@ -81,6 +119,9 @@ public final class CalibrationInfo {
         return nearlyEqual(pixelWidth, other.pixelWidth)
                 && nearlyEqual(pixelHeight, other.pixelHeight)
                 && nearlyEqual(pixelDepth, other.pixelDepth)
+                && nearlyEqual(xOrigin, other.xOrigin)
+                && nearlyEqual(yOrigin, other.yOrigin)
+                && nearlyEqual(zOrigin, other.zOrigin)
                 && unit.equalsIgnoreCase(other.unit);
     }
 
@@ -113,6 +154,15 @@ public final class CalibrationInfo {
             throw new IllegalArgumentException(
                     "Image calibration " + name
                             + " must be a finite positive value; found " + value + ".");
+        }
+        return value;
+    }
+
+    private static double validatedOrigin(double value, String name) {
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException(
+                    "Image calibration " + name
+                            + " must be finite; found " + value + ".");
         }
         return value;
     }

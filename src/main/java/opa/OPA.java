@@ -331,7 +331,8 @@ public final class OPA {
             }
             if (!channel.getCalibration().isCompatibleWith(first.getCalibration())) {
                 throw new IllegalArgumentException(
-                        "All label images must have identical voxel calibration and units.");
+                        "All label images must have identical voxel calibration, "
+                                + "spatial origins, and units.");
             }
             if (parameters.isRequirePhysicalCalibration()
                     && !channel.getCalibration().hasPhysicalUnits()) {

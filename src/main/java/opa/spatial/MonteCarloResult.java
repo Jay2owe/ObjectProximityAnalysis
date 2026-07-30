@@ -19,6 +19,7 @@ public final class MonteCarloResult {
     private final double[] expected;
     private final double[] lower;
     private final double[] upper;
+    private final int[] envelopeSampleCounts;
     private final double globalPValue;
     private final double maximumDeviation;
     private final double maximumDeviationRadius;
@@ -33,6 +34,7 @@ public final class MonteCarloResult {
                      double[] expected,
                      double[] lower,
                      double[] upper,
+                     int[] envelopeSampleCounts,
                      double globalPValue,
                      double maximumDeviation,
                      double maximumDeviationRadius,
@@ -46,6 +48,7 @@ public final class MonteCarloResult {
         this.expected = copy(expected);
         this.lower = copy(lower);
         this.upper = copy(upper);
+        this.envelopeSampleCounts = copy(envelopeSampleCounts);
         this.globalPValue = globalPValue;
         this.maximumDeviation = maximumDeviation;
         this.maximumDeviationRadius = maximumDeviationRadius;
@@ -77,6 +80,20 @@ public final class MonteCarloResult {
 
     public double[] getUpper() {
         return copy(upper);
+    }
+
+    /**
+     * Number of simulated curves contributing to each pointwise envelope.
+     */
+    public int[] getEnvelopeSampleCounts() {
+        return copy(envelopeSampleCounts);
+    }
+
+    public boolean hasCompletePointwiseEnvelope() {
+        for (int count : envelopeSampleCounts) {
+            if (count != simulations) return false;
+        }
+        return true;
     }
 
     public double getGlobalPValue() {
@@ -117,6 +134,10 @@ public final class MonteCarloResult {
     }
 
     private static double[] copy(double[] values) {
+        return Arrays.copyOf(values, values.length);
+    }
+
+    private static int[] copy(int[] values) {
         return Arrays.copyOf(values, values.length);
     }
 }

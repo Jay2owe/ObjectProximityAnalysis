@@ -124,6 +124,12 @@ final class ResultTables {
                     channel.getCalibration().getPixelHeight());
             table.addValue("Pixel_Depth",
                     channel.getCalibration().getPixelDepth());
+            table.addValue("Origin_X",
+                    channel.getCalibration().getXOrigin());
+            table.addValue("Origin_Y",
+                    channel.getCalibration().getYOrigin());
+            table.addValue("Origin_Z",
+                    channel.getCalibration().getZOrigin());
             table.addValue("Unit", channel.getCalibration().getUnit());
             table.addValue("Physical_Calibration",
                     channel.getCalibration().hasPhysicalUnits() ? 1 : 0);
@@ -305,6 +311,7 @@ final class ResultTables {
             double[] expected = result.getExpected();
             double[] lower = result.getLower();
             double[] upper = result.getUpper();
+            int[] envelopeCounts = result.getEnvelopeSampleCounts();
             ResultsTable table = new ResultsTable();
             for (int i = 0; i < radii.length; i++) {
                 table.incrementCounter();
@@ -313,6 +320,12 @@ final class ResultTables {
                 table.addValue("CSR_Expectation", expected[i]);
                 table.addValue("Envelope_Lower", lower[i]);
                 table.addValue("Envelope_Upper", upper[i]);
+                table.addValue("Envelope_N", envelopeCounts[i]);
+                table.addValue(
+                        "Envelope_Status",
+                        envelopeStatus(
+                                envelopeCounts[i],
+                                result.getSimulations()));
                 table.addValue("Radius_Unit", pattern.getUnit());
                 table.addValue("Value_Unit", pattern.getValueUnit());
                 table.addValue("Simulations", result.getSimulations());
@@ -344,6 +357,11 @@ final class ResultTables {
                     pattern.isBivariate() ? pattern.getTargetChannel() : "");
             table.addValue("Function", result.getFunction().name());
             table.addValue("Status", result.getStatus().name());
+            table.addValue(
+                    "Envelope_Status",
+                    result.hasCompletePointwiseEnvelope()
+                            ? "OK"
+                            : "INCOMPLETE_POINTWISE_ENVELOPE");
             table.addValue("Maximum_Absolute_Deviation",
                     result.getMaximumDeviation());
             table.addValue("Radius_At_Maximum_Deviation",
@@ -356,6 +374,24 @@ final class ResultTables {
             table.addValue("Seed", Long.toString(result.getSeed()));
             table.addValue("Radius_Unit", pattern.getUnit());
             table.addValue("Value_Unit", pattern.getValueUnit());
+            int[] envelopeCounts = result.getEnvelopeSampleCounts();
+            int minimumEnvelopeCount = envelopeCounts.length == 0
+                    ? 0
+                    : envelopeCounts[0];
+            int completeEnvelopeRadii = 0;
+            for (int count : envelopeCounts) {
+                if (count < minimumEnvelopeCount) {
+                    minimumEnvelopeCount = count;
+                }
+                if (count == result.getSimulations()) {
+                    completeEnvelopeRadii++;
+                }
+            }
+            table.addValue("Minimum_Envelope_N", minimumEnvelopeCount);
+            table.addValue(
+                    "Complete_Envelope_Radii", completeEnvelopeRadii);
+            table.addValue(
+                    "Requested_Radii_Count", envelopeCounts.length);
         }
         if (parameters.isRunPattern() && channels.size() < 2) {
             ChannelGeometry channel = channels.get(0);
@@ -368,6 +404,7 @@ final class ResultTables {
                 table.addValue("Function", function.name());
                 table.addValue("Status",
                         "NOT_APPLICABLE_REQUIRES_TWO_CHANNELS");
+                table.addValue("Envelope_Status", "NOT_APPLICABLE");
                 table.addValue(
                         "Maximum_Absolute_Deviation", Double.NaN);
                 table.addValue(
@@ -389,9 +426,19 @@ final class ResultTables {
                         patternValueUnit(
                                 function,
                                 channel.getCalibration().getUnit()));
+                table.addValue("Minimum_Envelope_N", 0);
+                table.addValue("Complete_Envelope_Radii", 0);
+                table.addValue("Requested_Radii_Count", 0);
             }
         }
         return table;
+    }
+
+    private static String envelopeStatus(int count, int simulations) {
+        if (count == simulations) return "OK";
+        return count == 0
+                ? "NO_VALID_SIMULATIONS"
+                : "INCOMPLETE_POINTWISE_ENVELOPE";
     }
 
     private static String patternValueUnit(PatternFunction function,

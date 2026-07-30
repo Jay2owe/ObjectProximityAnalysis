@@ -6,6 +6,8 @@
 package opa;
 
 import ij.ImagePlus;
+import ij.ImageStack;
+import ij.gui.Line;
 import ij.gui.Roi;
 import ij.measure.Calibration;
 import ij.process.ByteProcessor;
@@ -71,6 +73,61 @@ public class LabelUtilsTest {
             assertTrue(exception.getMessage().contains("ROI 2"));
             assertTrue(exception.getMessage().contains("ROI 1"));
             assertTrue(exception.getMessage().contains("(3, 3)"));
+        }
+        assertTrue(rejected);
+    }
+
+    @Test
+    public void lineRoiIsRejectedInsteadOfBecomingItsBoundingBox() {
+        ImagePlus reference = new ImagePlus(
+                "reference", new ByteProcessor(10, 10));
+        boolean rejected = false;
+        try {
+            OPALabelImages.fromRois(
+                    reference,
+                    new Roi[]{new Line(1, 1, 4, 4)});
+        } catch (IllegalArgumentException exception) {
+            rejected = true;
+            assertTrue(exception.getMessage().contains(
+                    "not an area selection"));
+        }
+        assertTrue(rejected);
+    }
+
+    @Test
+    public void outOfRangeZRoiIsRejectedInsteadOfExtruded() {
+        ImageStack stack = new ImageStack(10, 10);
+        for (int z = 0; z < 3; z++) {
+            stack.addSlice(new ByteProcessor(10, 10));
+        }
+        ImagePlus reference = new ImagePlus("reference", stack);
+        Roi roi = new Roi(1, 1, 2, 2);
+        roi.setPosition(5);
+
+        boolean rejected = false;
+        try {
+            OPALabelImages.fromRois(reference, new Roi[]{roi});
+        } catch (IllegalArgumentException exception) {
+            rejected = true;
+            assertTrue(exception.getMessage().contains("Z position 5"));
+            assertTrue(exception.getMessage().contains("1-3"));
+        }
+        assertTrue(rejected);
+    }
+
+    @Test
+    public void objectRoiMustPaintAnInBoundsPixel() {
+        ImagePlus reference = new ImagePlus(
+                "reference", new ByteProcessor(10, 10));
+        boolean rejected = false;
+        try {
+            OPALabelImages.fromRois(
+                    reference,
+                    new Roi[]{new Roi(20, 20, 2, 2)});
+        } catch (IllegalArgumentException exception) {
+            rejected = true;
+            assertTrue(exception.getMessage().contains(
+                    "does not cover any in-bounds image pixels"));
         }
         assertTrue(rejected);
     }

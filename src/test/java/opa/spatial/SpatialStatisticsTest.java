@@ -291,6 +291,29 @@ public class SpatialStatisticsTest {
         assertTrue(Double.isNaN(partial.getGlobalPValue()));
     }
 
+    @Test
+    public void incompletePointwiseEnvelopeIsCountedAndSuppressed() {
+        double[][] points = {{5.0, 5.0}, {6.0, 5.0}};
+        MonteCarloResult result = MonteCarloAnalyzer.analyzeUnivariate(
+                PatternFunction.K,
+                points,
+                WINDOW,
+                new double[]{0.0, 4.5},
+                EdgeCorrection.BORDER,
+                99,
+                1L);
+
+        int[] counts = result.getEnvelopeSampleCounts();
+        assertEquals(99, counts[0]);
+        assertTrue(counts[1] > 0);
+        assertTrue(counts[1] < 99);
+        assertTrue(Double.isNaN(result.getLower()[1]));
+        assertTrue(Double.isNaN(result.getUpper()[1]));
+        assertTrue(!result.hasCompletePointwiseEnvelope());
+        assertEquals(PatternStatus.OK, result.getStatus());
+        assertEquals(100, result.getRankSampleCount());
+    }
+
     @Test(expected = IllegalArgumentException.class)
     public void gAnalyzerRejectsPointsOutsideItsObservationWindow() {
         MonteCarloAnalyzer.analyzeUnivariate(

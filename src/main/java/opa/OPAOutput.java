@@ -37,7 +37,8 @@ public final class OPAOutput {
             throw new IllegalArgumentException("Output parent folder must not be null.");
         }
         String safePrefix = prefixIdentity(
-                prefix == null ? "Analysis" : prefix);
+                prefix == null ? "Analysis" : prefix,
+                result);
         File root = new File(parent, "Object Proximity Analysis");
         File objects = directory(root, "Objects");
         File distributions = directory(root, "Distributions");
@@ -94,7 +95,8 @@ public final class OPAOutput {
                 "Observed point-pattern curves, complete-spatial-randomness expectations, "
                         + "Monte Carlo envelopes, seeds and global p-values.");
         writeReadme(folder,
-                "Reserved for folder-batch aggregate tables and mean curves.");
+                "Folder-batch summaries and mean curves are stored in "
+                        + "identity-named Batch__ subfolders.");
         return root;
     }
 
@@ -167,12 +169,40 @@ public final class OPAOutput {
         return clean.isEmpty() ? "Analysis" : clean;
     }
 
-    private static String prefixIdentity(String rawPrefix) {
+    private static String prefixIdentity(String rawPrefix,
+                                         OPAResult result) {
         String clean = safe(rawPrefix);
         String readable = clean.length() > 80
                 ? clean.substring(0, 80)
                 : clean;
-        return readable + "__" + sha256(rawPrefix);
+        return readable + "__" + sha256(
+                rawPrefix + "\u0000" + outputShapeIdentity(result));
+    }
+
+    private static String outputShapeIdentity(OPAResult result) {
+        StringBuilder identity = new StringBuilder();
+        appendKeys(identity, "CENTROIDS", result.getCentroidTables());
+        appendKeys(identity, "OBJECTS", result.getPerObjectTables());
+        appendKeys(identity, "HISTOGRAMS", result.getHistogramTables());
+        appendKeys(identity, "ECDFS", result.getEcdfTables());
+        appendKeys(identity, "CURVES", result.getCurveTables());
+        identity.append("DISTANCE_SUMMARY_ROWS:")
+                .append(result.getDistanceSummaryTable().size())
+                .append('\u0000');
+        identity.append("PATTERN_SUMMARY_ROWS:")
+                .append(result.getPatternSummaryTable().size())
+                .append('\u0000');
+        return identity.toString();
+    }
+
+    private static void appendKeys(StringBuilder identity,
+                                   String kind,
+                                   Map<String, ResultsTable> tables) {
+        identity.append(kind).append(':');
+        for (String key : tables.keySet()) {
+            identity.append(key.length()).append(':').append(key);
+        }
+        identity.append('\u0000');
     }
 
     private static String csvName(String identity) {
