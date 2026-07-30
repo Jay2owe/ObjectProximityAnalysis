@@ -191,6 +191,10 @@ public final class SpatialStatistics {
                              RectangularWindow window,
                              double[] radii,
                              EdgeCorrection correction) {
+        validateInputs(source, window, radii, correction);
+        if (function != null && function.isBivariate()) {
+            validatePoints(target, window, "target");
+        }
         switch (function) {
             case K:
                 return computeK(source, window, radii, correction);

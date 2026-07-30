@@ -57,7 +57,8 @@ physical calibration with `requirePhysicalCalibration(true)`.
 Point-pattern statistics require an observation window. The default is the full
 XY image rectangle. An optional region ROI set supplies a calibrated rectangular
 union bounding box for v0.1.0. Objects are included when their centroid lies
-inside that window.
+inside that window; objects crossing either the acquisition boundary or the
+effective observation-window boundary are marked as edge objects.
 
 ## Fiji use
 
@@ -139,6 +140,8 @@ OPABatchResult result = OPABatchRunner.run(batch);
 
 The selected capture group is the channel name. Replacing that group with `*`
 forms the sample group, so `sample1_A.tif` and `sample1_B.tif` run together.
+Saved batch prefixes include a lossless group-identity token, preventing groups
+whose human-readable names are similar from overwriting one another.
 
 ## Macro use
 

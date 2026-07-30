@@ -11,3 +11,5 @@
   neighbour rank.
 - Strict validation of voxel calibration and label-image values.
 - Collision-safe result-table names and explicit incomplete Monte Carlo ranks.
+- Observation-window validation for G functions, disambiguated ImageJ window
+  choices, effective-window edge flags, and overwrite-safe batch group names.

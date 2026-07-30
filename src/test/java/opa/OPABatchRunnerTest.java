@@ -133,6 +133,46 @@ public class OPABatchRunnerTest {
         }
     }
 
+    @Test
+    public void autoSaveDoesNotOverwriteGroupsDifferingOnlyByExtension()
+            throws Exception {
+        File input = Files.createTempDirectory("opa-batch-overwrite-input").toFile();
+        File output = Files.createTempDirectory("opa-batch-overwrite-output").toFile();
+        try {
+            saveTwoLabels(new File(input, "sample_A.tif"), "pixel");
+            saveTwoLabels(new File(input, "sample_B.tif"), "pixel");
+            saveTwoLabels(new File(input, "sample_A.tiff"), "pixel");
+            saveTwoLabels(new File(input, "sample_B.tiff"), "pixel");
+
+            OPAParameters options = OPAParameters.builder()
+                    .runPattern(false)
+                    .distanceModes(EnumSet.of(DistanceMode.CENTRE_TO_CENTRE))
+                    .build();
+            OPABatchParameters parameters = OPABatchParameters.builder(
+                            input,
+                            "(sample)_([AB])\\.(tif|tiff)",
+                            2)
+                    .recursive(false)
+                    .analysisTemplate(options)
+                    .autoSave(true)
+                    .outputDirectory(output)
+                    .build();
+
+            OPABatchResult result = OPABatchRunner.run(parameters);
+            assertEquals(2, result.getProcessedGroups());
+            File objects = new File(
+                    new File(output, "Object Proximity Analysis"), "Objects");
+            File[] summaries = objects.listFiles((directory, name) ->
+                    name.endsWith("__Distance_Summary.csv"));
+            assertTrue(summaries != null);
+            assertEquals(2, summaries.length);
+            assertFalse(summaries[0].getName().equals(summaries[1].getName()));
+        } finally {
+            deleteChildren(input);
+            deleteChildren(output);
+        }
+    }
+
     private static void saveLabel(File file, int x, int y) {
         ImagePlus image = new ImagePlus("labels", new ByteProcessor(8, 8));
         image.getProcessor().set(x, y, 1);

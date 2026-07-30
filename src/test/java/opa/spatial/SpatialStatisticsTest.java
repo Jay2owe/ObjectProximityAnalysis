@@ -266,4 +266,65 @@ public class SpatialStatisticsTest {
         assertTrue(Double.isNaN(result.getGlobalPValue()));
         assertTrue(Double.isNaN(result.getMinimumAchievablePValue()));
     }
+
+    @Test
+    public void partiallyValidMonteCarloRankIsAlsoMarkedIncomplete() {
+        double[][] points = {{5.0, 5.0}, {6.0, 5.0}};
+        MonteCarloResult partial = null;
+        for (long seed = 1L; seed <= 1000L; seed++) {
+            MonteCarloResult candidate = MonteCarloAnalyzer.analyzeUnivariate(
+                    PatternFunction.K,
+                    points,
+                    WINDOW,
+                    new double[]{4.0},
+                    EdgeCorrection.BORDER,
+                    9,
+                    seed);
+            if (candidate.getRankSampleCount() > 1
+                    && candidate.getRankSampleCount() < 10) {
+                partial = candidate;
+                break;
+            }
+        }
+        assertTrue("Expected a deterministic partially valid rank", partial != null);
+        assertEquals(PatternStatus.INCOMPLETE_MONTE_CARLO, partial.getStatus());
+        assertTrue(Double.isNaN(partial.getGlobalPValue()));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void gAnalyzerRejectsPointsOutsideItsObservationWindow() {
+        MonteCarloAnalyzer.analyzeUnivariate(
+                PatternFunction.G,
+                new double[][]{{20.0, 20.0}, {21.0, 20.0}},
+                WINDOW,
+                new double[]{1.0},
+                EdgeCorrection.NONE,
+                3,
+                1L);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void crossGAnalyzerRejectsTargetsOutsideItsObservationWindow() {
+        MonteCarloAnalyzer.analyzeBivariate(
+                PatternFunction.CROSS_G,
+                new double[][]{{5.0, 5.0}},
+                new double[][]{{20.0, 20.0}},
+                WINDOW,
+                new double[]{1.0},
+                EdgeCorrection.NONE,
+                3,
+                1L);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void gAnalyzerRejectsNullEdgeCorrection() {
+        MonteCarloAnalyzer.analyzeUnivariate(
+                PatternFunction.G,
+                new double[][]{{5.0, 5.0}, {6.0, 5.0}},
+                WINDOW,
+                new double[]{1.0},
+                null,
+                3,
+                1L);
+    }
 }

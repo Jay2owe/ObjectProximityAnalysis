@@ -15,6 +15,8 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -466,9 +468,11 @@ public final class OPABatchRunner {
         }
 
         private String outputPrefix() {
-            return relativeFolder.isEmpty()
-                    ? displayName()
-                    : relativeFolder.replace('/', '_') + "__" + displayName();
+            String identity = relativeFolder + "\u0000" + key;
+            String token = Base64.getUrlEncoder()
+                    .withoutPadding()
+                    .encodeToString(identity.getBytes(StandardCharsets.UTF_8));
+            return displayName() + "__" + token;
         }
     }
 

@@ -8,6 +8,7 @@ package opa.geometry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import opa.spatial.RectangularWindow;
 
 /**
  * Calibrated geometry extracted for one non-zero label.
@@ -79,5 +80,28 @@ public final class ObjectGeometry {
 
     int[] voxelIndices() {
         return voxelIndices;
+    }
+
+    ObjectGeometry withEffectiveWindow(RectangularWindow window) {
+        boolean touchesWindow = false;
+        for (SurfaceElement element : surface) {
+            if (element.minX <= window.getMinX()
+                    || element.maxX >= window.getMaxX()
+                    || element.minY <= window.getMinY()
+                    || element.maxY >= window.getMaxY()) {
+                touchesWindow = true;
+                break;
+            }
+        }
+        if (!touchesWindow || edgeObject) return this;
+        return new ObjectGeometry(
+                label,
+                voxelCount,
+                centroidX,
+                centroidY,
+                centroidZ,
+                true,
+                surface,
+                voxelIndices);
     }
 }

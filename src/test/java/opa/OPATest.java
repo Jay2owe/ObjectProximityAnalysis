@@ -161,14 +161,49 @@ public class OPATest {
 
         OPAResult result = OPA.run(OPAParameters.builder(first, second)
                 .channelNames(Arrays.asList("A B", "A_B"))
-                .runPattern(false)
                 .distanceModes(EnumSet.of(DistanceMode.CENTRE_TO_CENTRE))
+                .patternFunctions(EnumSet.of(
+                        PatternFunction.K,
+                        PatternFunction.CROSS_K))
+                .radii(new double[]{1.0})
+                .simulations(1)
                 .build());
 
         assertEquals(4, result.getDirectionResults().size());
         assertEquals(4, result.getPerObjectTables().size());
         assertEquals(4, result.getHistogramTables().size());
         assertEquals(4, result.getEcdfTables().size());
+        assertEquals(4, result.getPatternResults().size());
+        assertEquals(4, result.getCurveTables().size());
+    }
+
+    @Test
+    public void duplicateImageTitlesGetDistinctDialogChoices() {
+        String[] choices = Object_Proximity_Analysis.disambiguateImageTitles(
+                new String[]{"Labels", "Labels", "Reference"});
+
+        assertEquals("[None]", choices[0]);
+        assertFalse(choices[1].equals(choices[2]));
+        assertTrue(choices[1].contains("Labels"));
+        assertTrue(choices[2].contains("Labels"));
+        assertEquals("Reference", choices[3]);
+    }
+
+    @Test
+    public void customWindowMarksObjectsCrossingItsBoundaryAsEdgeObjects() {
+        ImagePlus image = labels("custom-window", 10, 6, 1);
+        image.getProcessor().set(3, 2, 1);
+        image.getProcessor().set(4, 2, 1);
+        image.getProcessor().set(5, 2, 1);
+        image.getProcessor().set(1, 1, 2);
+
+        OPAResult result = OPA.run(OPAParameters.builder(image)
+                .runPattern(false)
+                .observationWindow(new RectangularWindow(0.0, 0.0, 5.0, 5.0))
+                .build());
+
+        assertTrue(result.getChannels().get(0).getObject(1).isEdgeObject());
+        assertFalse(result.getChannels().get(0).getObject(2).isEdgeObject());
     }
 
     private static ImagePlus labels(String title, int width, int height, int depth) {

@@ -111,7 +111,7 @@ public final class ChannelGeometry {
         for (ObjectGeometry object : objects) {
             if (window.contains(
                     object.getCentroidX(), object.getCentroidY())) {
-                included.add(object);
+                included.add(object.withEffectiveWindow(window));
             }
         }
         return new ChannelGeometry(

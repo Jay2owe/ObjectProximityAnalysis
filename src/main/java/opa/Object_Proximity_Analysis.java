@@ -17,9 +17,12 @@ import opa.spatial.RectangularWindow;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * ImageJ 1.x menu and macro entry point.
@@ -258,13 +261,41 @@ public final class Object_Proximity_Analysis implements PlugIn {
     }
 
     private static String[] imageChoices(int[] imageIds) {
-        String[] choices = new String[imageIds.length + 1];
-        choices[0] = NONE;
+        String[] titles = new String[imageIds.length];
         for (int i = 0; i < imageIds.length; i++) {
             ImagePlus image = WindowManager.getImage(imageIds[i]);
-            choices[i + 1] = image == null
+            titles[i] = image == null
                     ? "Image " + imageIds[i]
                     : image.getTitle();
+        }
+        return disambiguateImageTitles(titles);
+    }
+
+    static String[] disambiguateImageTitles(String[] titles) {
+        Map<String, Integer> totals = new HashMap<String, Integer>();
+        for (String title : titles) {
+            Integer count = totals.get(title);
+            totals.put(title, count == null ? 1 : count + 1);
+        }
+        Map<String, Integer> occurrences = new HashMap<String, Integer>();
+        Set<String> used = new HashSet<String>();
+        used.add(NONE);
+        String[] choices = new String[titles.length + 1];
+        choices[0] = NONE;
+        for (int i = 0; i < titles.length; i++) {
+            String title = titles[i];
+            Integer previous = occurrences.get(title);
+            int occurrence = previous == null ? 1 : previous + 1;
+            occurrences.put(title, occurrence);
+            String choice = title;
+            if (totals.get(title) > 1 || used.contains(choice)) {
+                choice = title + " [window " + occurrence + "]";
+            }
+            while (used.contains(choice)) {
+                choice += "_";
+            }
+            choices[i + 1] = choice;
+            used.add(choice);
         }
         return choices;
     }
