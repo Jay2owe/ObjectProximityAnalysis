@@ -210,64 +210,102 @@ public final class OPA {
             throw new IllegalArgumentException(
                     "Object Proximity Analysis requires 1 to 5 label images.");
         }
-        if (!parameters.isRunDistances() && !parameters.isRunPattern()) {
-            throw new IllegalArgumentException(
-                    "At least one of distance or pattern analysis must be enabled.");
-        }
-        if (parameters.isRunDistances()
-                && parameters.getDistanceModes().isEmpty()) {
-            throw new IllegalArgumentException(
-                    "At least one distance mode must be enabled.");
-        }
-        if (parameters.isRunDistances()
-                && images.size() == 1
-                && !parameters.isIncludeSelfDistances()) {
-            throw new IllegalArgumentException(
-                    "A one-channel distance analysis requires self-distances; "
-                            + "enable self-distances or disable distance analysis.");
-        }
-        if (parameters.isRunPattern()
-                && parameters.getPatternFunctions().isEmpty()) {
-            throw new IllegalArgumentException(
-                    "At least one point-pattern function must be enabled.");
-        }
-        if (parameters.isRunPattern()
-                && !hasExecutablePatternFunction(
-                        parameters.getPatternFunctions(), images.size())) {
-            throw new IllegalArgumentException(
-                    "Cross-pattern functions require at least two label images; "
-                            + "enable a univariate function or add another image.");
-        }
-        if (parameters.getNeighborCount() < 1) {
-            throw new IllegalArgumentException(
-                    "Neighbor count must be at least 1.");
-        }
-        if (!Double.isFinite(parameters.getContactDistance())
-                || parameters.getContactDistance() < 0.0) {
-            throw new IllegalArgumentException(
-                    "Contact distance must be finite and non-negative.");
-        }
-        if (parameters.getRadiusBins() < 1) {
-            throw new IllegalArgumentException("Radius bin count must be at least 1.");
-        }
-        if (!Double.isFinite(parameters.getMaximumRadius())
-                || parameters.getMaximumRadius() < 0.0) {
-            throw new IllegalArgumentException(
-                    "Maximum radius must be finite and non-negative.");
-        }
-        if (parameters.getSimulations() < 1) {
-            throw new IllegalArgumentException(
-                    "Simulation count must be at least 1.");
-        }
-        if (parameters.getHistogramBins() < 1) {
-            throw new IllegalArgumentException(
-                    "Histogram bin count must be at least 1.");
-        }
+        validateOptions(parameters, images.size());
         for (int i = 0; i < images.size(); i++) {
             if (images.get(i) == null || images.get(i).getStack() == null) {
                 throw new IllegalArgumentException(
                         "Label image " + (i + 1) + " has no image stack.");
             }
+        }
+    }
+
+    static void validateOptions(OPAParameters parameters, int imageCount) {
+        if (parameters == null) {
+            throw new IllegalArgumentException("OPA parameters must not be null.");
+        }
+        if (imageCount < OPAParameters.MIN_IMAGES
+                || imageCount > OPAParameters.MAX_IMAGES) {
+            throw new IllegalArgumentException(
+                    "Object Proximity Analysis requires 1 to 5 label images.");
+        }
+        if (!parameters.isRunDistances() && !parameters.isRunPattern()) {
+            throw new IllegalArgumentException(
+                    "At least one of distance or pattern analysis must be enabled.");
+        }
+        if (parameters.isRunDistances()) {
+            if (parameters.getDistanceModes().isEmpty()) {
+                throw new IllegalArgumentException(
+                        "At least one distance mode must be enabled.");
+            }
+            if (imageCount == 1 && !parameters.isIncludeSelfDistances()) {
+                throw new IllegalArgumentException(
+                        "A one-channel distance analysis requires self-distances; "
+                                + "enable self-distances or disable distance analysis.");
+            }
+            if (parameters.getNeighborCount() < 1) {
+                throw new IllegalArgumentException(
+                        "Neighbor count must be at least 1.");
+            }
+            if (!Double.isFinite(parameters.getContactDistance())
+                    || parameters.getContactDistance() < 0.0) {
+                throw new IllegalArgumentException(
+                        "Contact distance must be finite and non-negative.");
+            }
+            if (parameters.getHistogramBins() < 1) {
+                throw new IllegalArgumentException(
+                        "Histogram bin count must be at least 1.");
+            }
+        }
+        if (parameters.isRunPattern()) {
+            if (parameters.getPatternFunctions().isEmpty()) {
+                throw new IllegalArgumentException(
+                        "At least one point-pattern function must be enabled.");
+            }
+            if (!hasExecutablePatternFunction(
+                    parameters.getPatternFunctions(), imageCount)) {
+                throw new IllegalArgumentException(
+                        "Cross-pattern functions require at least two label images; "
+                                + "enable a univariate function or add another image.");
+            }
+            if (parameters.getSimulations() < 1) {
+                throw new IllegalArgumentException(
+                        "Simulation count must be at least 1.");
+            }
+            if (parameters.getEdgeCorrection() == null) {
+                throw new IllegalArgumentException(
+                        "Edge correction must not be null.");
+            }
+            double[] radii = parameters.getRadii();
+            if (radii == null) {
+                if (parameters.getRadiusBins() < 1) {
+                    throw new IllegalArgumentException(
+                            "Radius bin count must be at least 1.");
+                }
+                if (!Double.isFinite(parameters.getMaximumRadius())
+                        || parameters.getMaximumRadius() < 0.0) {
+                    throw new IllegalArgumentException(
+                            "Maximum radius must be finite and non-negative.");
+                }
+            } else {
+                validateRadii(radii);
+            }
+        }
+    }
+
+    private static void validateRadii(double[] radii) {
+        if (radii.length == 0) {
+            throw new IllegalArgumentException(
+                    "At least one pattern radius is required.");
+        }
+        double previous = Double.NEGATIVE_INFINITY;
+        for (double radius : radii) {
+            if (!Double.isFinite(radius) || radius < 0.0
+                    || radius < previous) {
+                throw new IllegalArgumentException(
+                        "Pattern radii must be finite, non-negative, "
+                                + "and sorted in ascending order.");
+            }
+            previous = radius;
         }
     }
 

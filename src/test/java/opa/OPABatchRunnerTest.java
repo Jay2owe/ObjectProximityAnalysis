@@ -12,6 +12,7 @@ import ij.measure.Calibration;
 import opa.spatial.PatternFunction;
 import org.junit.Test;
 
+import java.awt.event.KeyEvent;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.EnumSet;
@@ -346,7 +347,7 @@ public class OPABatchRunnerTest {
 
             assertTrue(preview.contains("0 runnable"));
             assertTrue(preview.contains(
-                    "one-channel distances require self-distances"));
+                    "one-channel distance analysis requires self-distances"));
             assertEquals(0, result.getValidGroups());
             assertEquals(0, result.getProcessedGroups());
             assertEquals(1, result.getSkippedGroups());
@@ -405,11 +406,203 @@ public class OPABatchRunnerTest {
         }
     }
 
+    @Test
+    public void channelCapturesAreTrimmedBeforeDuplicateValidation()
+            throws Exception {
+        File directory = Files.createTempDirectory(
+                "opa-batch-trimmed-channels").toFile();
+        try {
+            saveTwoLabels(new File(directory, "sample_A.tif"), "pixel");
+            saveTwoLabels(new File(directory, "sample_A .tif"), "pixel");
+            OPAParameters options = OPAParameters.builder()
+                    .runPattern(false)
+                    .build();
+            OPABatchParameters parameters = OPABatchParameters.builder(
+                            directory,
+                            "(sample)_([A ]+)\\.tif",
+                            2)
+                    .recursive(false)
+                    .analysisTemplate(options)
+                    .autoSave(false)
+                    .build();
+
+            String preview = OPABatchRunner.preview(parameters);
+            OPABatchResult result = OPABatchRunner.run(parameters);
+
+            assertTrue(preview.contains("0 runnable"));
+            assertTrue(preview.contains("duplicate channel names"));
+            assertTrue(preview.contains("captured as [A ]"));
+            assertEquals(0, result.getValidGroups());
+            assertEquals(1, result.getSkippedGroups());
+            assertTrue(result.getGroupManifest()
+                    .getStringValue("Channel_Captures", 0)
+                    .contains("A <- [A ]"));
+            assertEquals("SKIPPED_INVALID", result.getGroupManifest()
+                    .getStringValue("Outcome", 0));
+        } finally {
+            deleteChildren(directory);
+        }
+    }
+
+    @Test
+    public void longSimilarGroupNamesAutoSaveToDistinctBoundedFiles()
+            throws Exception {
+        File input = Files.createTempDirectory(
+                "opa-batch-long-input").toFile();
+        File output = Files.createTempDirectory(
+                "opa-batch-long-output").toFile();
+        try {
+            String common = repeat("longname", 11);
+            saveTwoLabels(new File(
+                    input, common + "X_A.tif"), "pixel");
+            saveTwoLabels(new File(
+                    input, common + "Y_A.tif"), "pixel");
+            OPAParameters options = OPAParameters.builder()
+                    .runPattern(false)
+                    .build();
+            OPABatchParameters parameters = OPABatchParameters.builder(
+                            input,
+                            "(.+)_([A])\\.tif",
+                            2)
+                    .recursive(false)
+                    .analysisTemplate(options)
+                    .autoSave(true)
+                    .outputDirectory(output)
+                    .build();
+
+            OPABatchResult result = OPABatchRunner.run(parameters);
+
+            assertEquals(2, result.getProcessedGroups());
+            assertEquals(0, result.getErrorGroups());
+            File objects = new File(
+                    new File(output, "Object Proximity Analysis"), "Objects");
+            File[] summaries = objects.listFiles((directory, name) ->
+                    name.endsWith("__Distance_Summary.csv"));
+            assertTrue(summaries != null);
+            assertEquals(2, summaries.length);
+            assertFalse(summaries[0].getName().equals(summaries[1].getName()));
+            for (File summary : summaries) {
+                assertTrue(summary.getName().length() <= 184);
+            }
+        } finally {
+            deleteChildren(input);
+            deleteChildren(output);
+        }
+    }
+
+    @Test
+    public void previewRejectsEveryStaticallyInvalidAnalysisTemplate()
+            throws Exception {
+        File directory = Files.createTempDirectory(
+                "opa-batch-invalid-templates").toFile();
+        try {
+            saveTwoLabels(new File(directory, "sample_A.tif"), "pixel");
+            OPAParameters[] invalid = new OPAParameters[]{
+                    OPAParameters.builder()
+                            .runDistances(false)
+                            .runPattern(false)
+                            .build(),
+                    OPAParameters.builder()
+                            .runPattern(false)
+                            .distanceModes(EnumSet.noneOf(DistanceMode.class))
+                            .build(),
+                    OPAParameters.builder()
+                            .runDistances(false)
+                            .patternFunctions(
+                                    EnumSet.noneOf(PatternFunction.class))
+                            .build(),
+                    OPAParameters.builder()
+                            .runPattern(false)
+                            .neighborCount(0)
+                            .build(),
+                    OPAParameters.builder()
+                            .runDistances(false)
+                            .simulations(0)
+                            .build()
+            };
+            for (OPAParameters options : invalid) {
+                OPABatchParameters parameters = OPABatchParameters.builder(
+                                directory,
+                                "(sample)_([A])\\.tif",
+                                2)
+                        .recursive(false)
+                        .analysisTemplate(options)
+                        .autoSave(false)
+                        .build();
+                assertTrue(OPABatchRunner.preview(parameters)
+                        .contains("0 runnable"));
+                assertEquals(0,
+                        OPABatchRunner.run(parameters).getValidGroups());
+            }
+        } finally {
+            deleteChildren(directory);
+        }
+    }
+
+    @Test
+    public void cancelledBatchIsExplicitAndMarksSavedPartialOutputs()
+            throws Exception {
+        File input = Files.createTempDirectory(
+                "opa-batch-cancel-input").toFile();
+        File output = Files.createTempDirectory(
+                "opa-batch-cancel-output").toFile();
+        try {
+            saveTwoLabels(new File(input, "sample1_A.tif"), "pixel");
+            saveTwoLabels(new File(input, "sample2_A.tif"), "pixel");
+            OPAParameters options = OPAParameters.builder()
+                    .runPattern(false)
+                    .build();
+            OPABatchParameters parameters = OPABatchParameters.builder(
+                            input,
+                            "(sample\\d+)_([A])\\.tif",
+                            2)
+                    .recursive(false)
+                    .analysisTemplate(options)
+                    .autoSave(true)
+                    .outputDirectory(output)
+                    .build();
+
+            IJ.setKeyDown(KeyEvent.VK_ESCAPE);
+            OPABatchResult result = OPABatchRunner.run(parameters);
+            IJ.setKeyUp(KeyEvent.VK_ESCAPE);
+
+            assertTrue(result.isCancelled());
+            assertEquals(0, result.getProcessedGroups());
+            assertEquals(2, result.getSkippedGroups());
+            assertEquals(0, result.getErrorGroups());
+            assertFalse(result.hasErrors());
+            assertEquals("CANCELLED", result.getGroupManifest()
+                    .getStringValue("Outcome", 0));
+            assertEquals("CANCELLED", result.getGroupManifest()
+                    .getStringValue("Outcome", 1));
+            File readme = new File(
+                    new File(
+                            new File(output, "Object Proximity Analysis"),
+                            "Folder"),
+                    "README.txt");
+            String text = new String(
+                    Files.readAllBytes(readme.toPath()),
+                    java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(text.contains("Status: CANCELLED"));
+        } finally {
+            IJ.resetEscape();
+            IJ.setKeyUp(KeyEvent.VK_ESCAPE);
+            deleteChildren(input);
+            deleteChildren(output);
+        }
+    }
+
     private static void saveLabel(File file, int x, int y) {
         ImagePlus image = new ImagePlus("labels", new ByteProcessor(8, 8));
         image.getProcessor().set(x, y, 1);
         IJ.saveAsTiff(image, file.getAbsolutePath());
         image.close();
+    }
+
+    private static String repeat(String value, int count) {
+        StringBuilder text = new StringBuilder();
+        for (int i = 0; i < count; i++) text.append(value);
+        return text.toString();
     }
 
     private static void saveTwoLabels(File file, String unit) {

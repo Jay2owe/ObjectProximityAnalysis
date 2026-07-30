@@ -11,6 +11,9 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Map;
 
 /**
@@ -38,36 +41,49 @@ public final class OPAOutput {
         File folder = directory(root, "Folder");
 
         for (Map.Entry<String, ResultsTable> entry
+                : result.getCentroidTables().entrySet()) {
+            saveTable(entry.getValue(), new File(
+                    objects, csvName(
+                            safePrefix + "__" + safe(entry.getKey()))));
+        }
+        saveTable(result.getProvenanceTable(), new File(
+                objects, csvName(safePrefix + "__Provenance")));
+        for (Map.Entry<String, ResultsTable> entry
                 : result.getPerObjectTables().entrySet()) {
             saveTable(entry.getValue(), new File(
-                    objects, safePrefix + "__" + safe(entry.getKey()) + ".csv"));
+                    objects, csvName(
+                            safePrefix + "__" + safe(entry.getKey()))));
         }
         saveTable(result.getDistanceSummaryTable(), new File(
-                objects, safePrefix + "__Distance_Summary.csv"));
+                objects, csvName(safePrefix + "__Distance_Summary")));
 
         for (Map.Entry<String, ResultsTable> entry
                 : result.getHistogramTables().entrySet()) {
             saveTable(entry.getValue(), new File(
                     distributions,
-                    safePrefix + "__" + safe(entry.getKey()) + "__Histogram.csv"));
+                    csvName(safePrefix + "__" + safe(entry.getKey())
+                            + "__Histogram")));
         }
         for (Map.Entry<String, ResultsTable> entry
                 : result.getEcdfTables().entrySet()) {
             saveTable(entry.getValue(), new File(
                     distributions,
-                    safePrefix + "__" + safe(entry.getKey()) + "__ECDF.csv"));
+                    csvName(safePrefix + "__" + safe(entry.getKey())
+                            + "__ECDF")));
         }
 
         for (Map.Entry<String, ResultsTable> entry
                 : result.getCurveTables().entrySet()) {
             saveTable(entry.getValue(), new File(
-                    curves, safePrefix + "__" + safe(entry.getKey()) + ".csv"));
+                    curves, csvName(
+                            safePrefix + "__" + safe(entry.getKey()))));
         }
         saveTable(result.getPatternSummaryTable(), new File(
-                curves, safePrefix + "__Pattern_Summary.csv"));
+                curves, csvName(safePrefix + "__Pattern_Summary")));
 
         writeReadme(objects,
-                "Per-object proximity tables and nearest-neighbour summary statistics.");
+                "Filtered centroid inputs, analysis provenance, per-object proximity "
+                        + "tables and nearest-neighbour summary statistics.");
         writeReadme(distributions,
                 "Nearest-neighbour histograms and empirical cumulative distributions.");
         writeReadme(curves,
@@ -107,5 +123,27 @@ public final class OPAOutput {
     private static String safe(String value) {
         String clean = value.trim().replaceAll("[^A-Za-z0-9._-]+", "_");
         return clean.isEmpty() ? "Analysis" : clean;
+    }
+
+    private static String csvName(String identity) {
+        String clean = safe(identity);
+        if (clean.length() <= 180) return clean + ".csv";
+        return clean.substring(0, 100) + "__" + sha256(identity) + ".csv";
+    }
+
+    private static String sha256(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(
+                    value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder text = new StringBuilder(hash.length * 2);
+            for (byte item : hash) {
+                text.append(String.format("%02x", item & 0xff));
+            }
+            return text.toString();
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException(
+                    "This Java runtime does not provide SHA-256.", exception);
+        }
     }
 }

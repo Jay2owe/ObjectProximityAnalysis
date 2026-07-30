@@ -24,9 +24,11 @@ public final class OPABatchResult {
     private final int processedGroups;
     private final int skippedGroups;
     private final int errorGroups;
+    private final boolean cancelled;
     private final File outputDirectory;
     private final ResultsTable distanceSummary;
     private final ResultsTable patternSummary;
+    private final ResultsTable groupManifest;
     private final Map<String, ResultsTable> meanCurveTables;
     private final Map<String, ResultsTable> meanEcdfTables;
     private final List<String> errors;
@@ -36,9 +38,11 @@ public final class OPABatchResult {
                    int processedGroups,
                    int skippedGroups,
                    int errorGroups,
+                   boolean cancelled,
                    File outputDirectory,
                    ResultsTable distanceSummary,
                    ResultsTable patternSummary,
+                   ResultsTable groupManifest,
                    Map<String, ResultsTable> meanCurveTables,
                    Map<String, ResultsTable> meanEcdfTables,
                    List<String> errors) {
@@ -47,9 +51,11 @@ public final class OPABatchResult {
         this.processedGroups = processedGroups;
         this.skippedGroups = skippedGroups;
         this.errorGroups = errorGroups;
+        this.cancelled = cancelled;
         this.outputDirectory = outputDirectory;
         this.distanceSummary = distanceSummary;
         this.patternSummary = patternSummary;
+        this.groupManifest = groupManifest;
         this.meanCurveTables = Collections.unmodifiableMap(
                 new LinkedHashMap<String, ResultsTable>(meanCurveTables));
         this.meanEcdfTables = Collections.unmodifiableMap(
@@ -78,6 +84,10 @@ public final class OPABatchResult {
         return errorGroups;
     }
 
+    public boolean isCancelled() {
+        return cancelled;
+    }
+
     public File getOutputDirectory() {
         return outputDirectory;
     }
@@ -88,6 +98,10 @@ public final class OPABatchResult {
 
     public ResultsTable getPatternSummary() {
         return patternSummary;
+    }
+
+    public ResultsTable getGroupManifest() {
+        return groupManifest;
     }
 
     public Map<String, ResultsTable> getMeanCurveTables() {

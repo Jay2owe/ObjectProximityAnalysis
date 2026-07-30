@@ -5,8 +5,12 @@
  */
 package opa.spatial;
 
+import ij.IJ;
+import opa.AnalysisCancelledException;
+
 /**
- * Pure, dependency-free 2D point-pattern statistics.
+ * Two-dimensional point-pattern statistics with ImageJ Escape-key
+ * cancellation checks in long-running loops.
  */
 public final class SpatialStatistics {
 
@@ -23,6 +27,7 @@ public final class SpatialStatistics {
         if (count < 2) return nanArray(radii.length);
 
         for (int radiusIndex = 0; radiusIndex < radii.length; radiusIndex++) {
+            checkCancelled();
             double radius = radii[radiusIndex];
             if (correction == EdgeCorrection.BORDER) {
                 values[radiusIndex] = borderK(
@@ -48,6 +53,7 @@ public final class SpatialStatistics {
         }
 
         for (int radiusIndex = 0; radiusIndex < radii.length; radiusIndex++) {
+            checkCancelled();
             double radius = radii[radiusIndex];
             if (correction == EdgeCorrection.BORDER) {
                 values[radiusIndex] = borderK(
@@ -228,6 +234,7 @@ public final class SpatialStatistics {
                                 EdgeCorrection correction) {
         double weightedPairs = 0.0;
         for (int sourceIndex = 0; sourceIndex < source.length; sourceIndex++) {
+            checkCancelled();
             for (int targetIndex = 0; targetIndex < target.length; targetIndex++) {
                 if (self && sourceIndex == targetIndex) continue;
                 double dx = target[targetIndex][0] - source[sourceIndex][0];
@@ -256,6 +263,7 @@ public final class SpatialStatistics {
         int pairCount = 0;
         double squaredRadius = radius * radius;
         for (int sourceIndex = 0; sourceIndex < source.length; sourceIndex++) {
+            checkCancelled();
             if (window.boundaryDistance(
                     source[sourceIndex][0], source[sourceIndex][1]) < radius) {
                 continue;
@@ -280,6 +288,7 @@ public final class SpatialStatistics {
                                              boolean self) {
         double[] distances = new double[source.length];
         for (int sourceIndex = 0; sourceIndex < source.length; sourceIndex++) {
+            checkCancelled();
             double minimum = Double.POSITIVE_INFINITY;
             for (int targetIndex = 0; targetIndex < target.length; targetIndex++) {
                 if (self && sourceIndex == targetIndex) continue;
@@ -297,6 +306,7 @@ public final class SpatialStatistics {
         double[] values = new double[radii.length];
         if (distances.length == 0) return values;
         for (int radiusIndex = 0; radiusIndex < radii.length; radiusIndex++) {
+            checkCancelled();
             int count = 0;
             for (double distance : distances) {
                 if (distance <= radii[radiusIndex]) count++;
@@ -308,6 +318,10 @@ public final class SpatialStatistics {
 
     private static double squaredDistance(double dx, double dy) {
         return dx * dx + dy * dy;
+    }
+
+    private static void checkCancelled() {
+        if (IJ.escapePressed()) throw new AnalysisCancelledException();
     }
 
     private static double[] nanArray(int length) {

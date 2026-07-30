@@ -6,10 +6,13 @@
 package opa;
 
 import ij.measure.ResultsTable;
+import opa.geometry.ChannelGeometry;
 import opa.geometry.DirectionResult;
 import opa.geometry.NeighborMeasurement;
+import opa.geometry.ObjectGeometry;
 import opa.geometry.ObjectMeasurement;
 import opa.spatial.MonteCarloResult;
+import opa.spatial.RectangularWindow;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -61,6 +64,109 @@ final class ResultTables {
             putUnique(tables, directionKey(direction), table);
         }
         return tables;
+    }
+
+    static Map<String, ResultsTable> centroids(
+            List<ChannelGeometry> channels) {
+        Map<String, ResultsTable> tables =
+                new LinkedHashMap<String, ResultsTable>();
+        for (ChannelGeometry channel : channels) {
+            ResultsTable table = new ResultsTable();
+            for (ObjectGeometry object : channel.getObjects()) {
+                table.incrementCounter();
+                table.addValue("Channel", channel.getName());
+                table.addValue("Label", object.getLabel());
+                table.addValue("Centroid_X", object.getCentroidX());
+                table.addValue("Centroid_Y", object.getCentroidY());
+                table.addValue("Centroid_Z", object.getCentroidZ());
+                table.addValue("Edge_Object",
+                        object.isEdgeObject() ? 1 : 0);
+                table.addValue("Voxel_Count", object.getVoxelCount());
+                table.addValue("Coordinate_Unit",
+                        channel.getCalibration().getUnit());
+            }
+            String key = safe(channel.getName()) + "__Centroids__"
+                    + identityHash("CENTROIDS", channel.getName());
+            putUnique(tables, key, table);
+        }
+        return tables;
+    }
+
+    static ResultsTable provenance(OPAParameters parameters,
+                                   List<ChannelGeometry> channels) {
+        ResultsTable table = new ResultsTable();
+        if (channels.isEmpty()) return table;
+        ChannelGeometry first = channels.get(0);
+        RectangularWindow requested = parameters.getObservationWindow();
+        RectangularWindow window = requested == null
+                ? new RectangularWindow(
+                        0.0,
+                        0.0,
+                        first.getWidth()
+                                * first.getCalibration().getPixelWidth(),
+                        first.getHeight()
+                                * first.getCalibration().getPixelHeight())
+                : requested;
+        for (ChannelGeometry channel : channels) {
+            table.incrementCounter();
+            table.addValue("Channel", channel.getName());
+            table.addValue("Width", channel.getWidth());
+            table.addValue("Height", channel.getHeight());
+            table.addValue("Depth", channel.getDepth());
+            table.addValue("Pixel_Width",
+                    channel.getCalibration().getPixelWidth());
+            table.addValue("Pixel_Height",
+                    channel.getCalibration().getPixelHeight());
+            table.addValue("Pixel_Depth",
+                    channel.getCalibration().getPixelDepth());
+            table.addValue("Unit", channel.getCalibration().getUnit());
+            table.addValue("Physical_Calibration",
+                    channel.getCalibration().hasPhysicalUnits() ? 1 : 0);
+            table.addValue("Run_Distances",
+                    parameters.isRunDistances() ? 1 : 0);
+            table.addValue("Run_Pattern",
+                    parameters.isRunPattern() ? 1 : 0);
+            table.addValue("Include_Self_Distances",
+                    parameters.isIncludeSelfDistances() ? 1 : 0);
+            table.addValue("Distance_Modes",
+                    parameters.getDistanceModes().toString());
+            table.addValue("Neighbour_Count",
+                    parameters.getNeighborCount());
+            table.addValue("Contact_Distance",
+                    parameters.getContactDistance());
+            table.addValue("Pattern_Functions",
+                    parameters.getPatternFunctions().toString());
+            table.addValue("Requested_Radii",
+                    radiiText(parameters.getRadii()));
+            table.addValue("Maximum_Radius",
+                    parameters.getMaximumRadius());
+            table.addValue("Radius_Bins", parameters.getRadiusBins());
+            table.addValue("Simulations", parameters.getSimulations());
+            table.addValue("Seed", Long.toString(parameters.getSeed()));
+            table.addValue("Edge_Correction",
+                    parameters.getEdgeCorrection() == null
+                            ? ""
+                            : parameters.getEdgeCorrection().name());
+            table.addValue("Project_3D_To_XY",
+                    parameters.isProject3DToXY() ? 1 : 0);
+            table.addValue("Observation_Window_Source",
+                    requested == null ? "FULL_IMAGE" : "CUSTOM_RECTANGLE");
+            table.addValue("Window_Min_X", window.getMinX());
+            table.addValue("Window_Min_Y", window.getMinY());
+            table.addValue("Window_Max_X", window.getMaxX());
+            table.addValue("Window_Max_Y", window.getMaxY());
+        }
+        return table;
+    }
+
+    private static String radiiText(double[] radii) {
+        if (radii == null) return "AUTO";
+        StringBuilder text = new StringBuilder();
+        for (double radius : radii) {
+            if (text.length() > 0) text.append(';');
+            text.append(radius);
+        }
+        return text.toString();
     }
 
     static ResultsTable distanceSummary(List<DirectionResult> directions) {

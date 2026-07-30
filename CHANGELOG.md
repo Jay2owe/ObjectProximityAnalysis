@@ -21,3 +21,9 @@
   batch preview, transactional group aggregation, and honest group error
   counts.
 - Rejection of single-channel cross-only pattern requests.
+- Canonical batch channel captures, bounded collision-safe filenames, reusable
+  option validation, and template-aware preview for all static settings.
+- Escape-key cancellation through Monte Carlo loops with explicit cancelled
+  batch state, group manifest outcomes, and marked partial output.
+- Filtered centroid-input and full provenance tables, plus interactive
+  histogram and ECDF display.

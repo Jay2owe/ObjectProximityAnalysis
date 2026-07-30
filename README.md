@@ -86,6 +86,8 @@ Object Proximity Analysis/
 ```
 
 Every subfolder contains a `README.txt`.
+Interactive runs display histogram and ECDF tables as well as per-object,
+summary, centroid, pattern-curve, and provenance tables.
 
 Pattern outputs carry separate radius and curve-value units: K is area, L is
 length, and G/pair-correlation are dimensionless. Requests with too few points
@@ -98,6 +100,9 @@ curve.
 A one-channel run cannot request distances with self-distances disabled or
 request only cross-pattern functions; the API rejects both configurations
 instead of returning empty output.
+Distance settings are validated only when distance analysis runs, and pattern
+settings only when pattern analysis runs, so either half remains independently
+usable.
 
 ## Java API
 
@@ -113,6 +118,11 @@ OPAParameters parameters = OPAParameters.builder(labelA, labelB)
 
 OPAResult result = OPA.run(parameters);
 ```
+
+`OPAResult.getCentroidTables()` returns the filtered centroid lists actually
+used by pattern analysis. `getProvenanceTable()` records calibration, effective
+observation-window bounds, edge correction, projection, seed, contact
+threshold, and the requested analysis settings.
 
 ROI conversion is also dialog-free:
 
@@ -160,6 +170,11 @@ display names. The preview marks groups that cannot run under the selected
 analysis options. A group is added to summaries and aggregates only after its
 required per-group save succeeds; batch-level aggregate-save errors are
 reported separately and do not inflate the failed-group count.
+Captured channel names are trimmed once before grouping, while their original
+text and input filenames remain in the saved group manifest. Long output names
+use bounded readable stems plus SHA-256 identity digests. Pressing Escape stops
+Monte Carlo work, sets `OPABatchResult.isCancelled()`, marks unprocessed groups
+as `CANCELLED`, and writes `Status: CANCELLED` into partial batch output.
 
 ## Macro use
 

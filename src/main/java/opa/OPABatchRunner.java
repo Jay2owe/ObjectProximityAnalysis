@@ -8,7 +8,6 @@ package opa;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.measure.ResultsTable;
-import opa.spatial.PatternFunction;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -66,9 +65,12 @@ public final class OPABatchRunner {
         int processed = 0;
         int skipped = 0;
         int errors = 0;
+        boolean cancelled = false;
         List<String> errorMessages = new ArrayList<String>();
         ResultsTable distanceSummary = new ResultsTable();
         ResultsTable patternSummary = new ResultsTable();
+        ResultsTable groupManifest = groupManifest(
+                groups, parameters.getAnalysisTemplate());
         CurveAccumulator curves = new CurveAccumulator();
         EcdfAccumulator ecdfs = new EcdfAccumulator();
         File output = parameters.getOutputDirectory() == null
@@ -79,6 +81,8 @@ public final class OPABatchRunner {
             if (IJ.escapePressed()) {
                 IJ.resetEscape();
                 skipped += groups.size() - groupIndex;
+                cancelled = true;
+                markCancelled(groupManifest, groupIndex, groups.size());
                 break;
             }
             Group group = groups.get(groupIndex);
@@ -113,14 +117,23 @@ public final class OPABatchRunner {
                             result, output, group.outputPrefix());
                 }
                 appendTable(distanceSummary, result.getDistanceSummaryTable(),
-                        group.relativeFolder, group.displayName(), group.identity());
+                        group);
                 appendTable(patternSummary, result.getPatternSummaryTable(),
-                        group.relativeFolder, group.displayName(), group.identity());
+                        group);
                 curves.add(result.getCurveTables());
                 ecdfs.add(result.getEcdfTables());
                 processed++;
+                groupManifest.setValue("Outcome", groupIndex, "PROCESSED");
+            } catch (AnalysisCancelledException exception) {
+                IJ.resetEscape();
+                cancelled = true;
+                skipped += groups.size() - groupIndex;
+                markCancelled(groupManifest, groupIndex, groups.size());
             } catch (Exception exception) {
                 errors++;
+                groupManifest.setValue("Outcome", groupIndex, "ERROR");
+                groupManifest.setValue(
+                        "Error_Message", groupIndex, exception.getMessage());
                 errorMessages.add(group.displayName() + ": "
                         + exception.getMessage());
                 IJ.log("OPA batch error - " + group.displayName()
@@ -131,6 +144,7 @@ public final class OPABatchRunner {
                     image.close();
                 }
             }
+            if (cancelled) break;
         }
 
         Map<String, ResultsTable> meanCurves = curves.tables();
@@ -141,13 +155,23 @@ public final class OPABatchRunner {
                         output,
                         distanceSummary,
                         patternSummary,
+                        groupManifest,
                         meanCurves,
                         meanEcdfs,
-                        errorMessages);
+                        errorMessages,
+                        cancelled,
+                        processed,
+                        skipped,
+                        errors);
             } catch (IOException exception) {
                 errorMessages.add("Saving batch aggregates: "
                         + exception.getMessage());
             }
+        }
+        if (cancelled) {
+            IJ.log("OPA batch cancelled: " + processed + " processed, "
+                    + skipped + " skipped, " + errors + " errors.");
+            IJ.showStatus("OPA batch cancelled");
         }
         IJ.showProgress(1.0);
         return new OPABatchResult(
@@ -156,9 +180,11 @@ public final class OPABatchRunner {
                 processed,
                 skipped,
                 errors,
+                cancelled,
                 output,
                 distanceSummary,
                 patternSummary,
+                groupManifest,
                 meanCurves,
                 meanEcdfs,
                 errorMessages);
@@ -314,24 +340,63 @@ public final class OPABatchRunner {
                     .append(")\n");
             for (BatchFile file : group.files) {
                 text.append("  [").append(file.channel).append("] ")
-                        .append(file.file.getName()).append("\n");
+                        .append(file.file.getName());
+                if (!file.originalChannel.equals(file.channel)) {
+                    text.append("  (captured as [")
+                            .append(file.originalChannel)
+                            .append("])");
+                }
+                text.append("\n");
             }
         }
         return text.toString();
     }
 
+    private static ResultsTable groupManifest(
+            List<Group> groups,
+            OPAParameters analysisTemplate) {
+        ResultsTable table = new ResultsTable();
+        for (Group group : groups) {
+            String rejection = group.rejectionReason(analysisTemplate);
+            table.incrementCounter();
+            table.addValue("Folder", group.relativeFolder);
+            table.addValue("Group", group.displayName());
+            table.addValue("Group_Identity", group.identity());
+            table.addValue("Input_Files", group.inputFiles());
+            table.addValue("Channel_Captures", group.channelCaptures());
+            table.addValue("Runnable", rejection == null ? 1 : 0);
+            table.addValue("Rejection_Reason",
+                    rejection == null ? "" : rejection);
+            table.addValue("Outcome",
+                    rejection == null ? "PENDING" : "SKIPPED_INVALID");
+            table.addValue("Error_Message", "");
+        }
+        return table;
+    }
+
+    private static void markCancelled(ResultsTable manifest,
+                                      int firstRow,
+                                      int rowCount) {
+        for (int row = firstRow; row < rowCount; row++) {
+            if ("PENDING".equals(
+                    manifest.getStringValue("Outcome", row))) {
+                manifest.setValue("Outcome", row, "CANCELLED");
+            }
+        }
+    }
+
     private static void appendTable(ResultsTable target,
                                     ResultsTable source,
-                                    String folder,
-                                    String group,
-                                    String groupIdentity) {
+                                    Group group) {
         if (source == null) return;
         String[] headings = source.getHeadings();
         for (int row = 0; row < source.size(); row++) {
             target.incrementCounter();
-            target.addValue("Folder", folder);
-            target.addValue("Group", group);
-            target.addValue("Group_Identity", groupIdentity);
+            target.addValue("Folder", group.relativeFolder);
+            target.addValue("Group", group.displayName());
+            target.addValue("Group_Identity", group.identity());
+            target.addValue("Input_Files", group.inputFiles());
+            target.addValue("Channel_Captures", group.channelCaptures());
             for (String heading : headings) {
                 if (heading == null || heading.trim().isEmpty()) continue;
                 String value = source.getStringValue(heading, row);
@@ -360,9 +425,14 @@ public final class OPABatchRunner {
             File parent,
             ResultsTable distanceSummary,
             ResultsTable patternSummary,
+            ResultsTable groupManifest,
             Map<String, ResultsTable> curves,
             Map<String, ResultsTable> ecdfs,
-            List<String> errors) throws IOException {
+            List<String> errors,
+            boolean cancelled,
+            int processed,
+            int skipped,
+            int groupErrors) throws IOException {
         File folder = new File(
                 new File(parent, "Object Proximity Analysis"), "Folder");
         if (!folder.isDirectory() && !folder.mkdirs()) {
@@ -373,6 +443,8 @@ public final class OPABatchRunner {
                 folder, "OPA_Batch_Distance_Summary.csv").getAbsolutePath());
         patternSummary.saveAs(new File(
                 folder, "OPA_Batch_Pattern_Summary.csv").getAbsolutePath());
+        groupManifest.saveAs(new File(
+                folder, "OPA_Batch_Group_Manifest.csv").getAbsolutePath());
         for (Map.Entry<String, ResultsTable> entry : curves.entrySet()) {
             entry.getValue().saveAs(new File(
                     folder,
@@ -391,6 +463,11 @@ public final class OPABatchRunner {
         try {
             readme.write("Folder-batch scalar summaries, mean point-pattern curves, "
                     + "and mean ECDFs. Spread columns are between-group sample SD.");
+            readme.write(System.lineSeparator());
+            readme.write("Status: " + (cancelled ? "CANCELLED" : "COMPLETE")
+                    + "; processed=" + processed
+                    + "; skipped=" + skipped
+                    + "; group_errors=" + groupErrors + ".");
             readme.write(System.lineSeparator());
             if (!errors.isEmpty()) {
                 readme.write(System.lineSeparator());
@@ -518,11 +595,13 @@ public final class OPABatchRunner {
 
     private static final class BatchFile {
         private final File file;
+        private final String originalChannel;
         private final String channel;
 
         private BatchFile(File file, String channel) {
             this.file = file;
-            this.channel = channel;
+            this.originalChannel = channel == null ? "" : channel;
+            this.channel = this.originalChannel.trim();
         }
     }
 
@@ -552,24 +631,10 @@ public final class OPABatchRunner {
                     return "empty or duplicate channel names";
                 }
             }
-            if (analysisTemplate.isRunDistances()
-                    && files.size() == 1
-                    && !analysisTemplate.isIncludeSelfDistances()) {
-                return "one-channel distances require self-distances";
-            }
-            if (analysisTemplate.isRunPattern()
-                    && files.size() == 1) {
-                boolean hasUnivariate = false;
-                for (PatternFunction function
-                        : analysisTemplate.getPatternFunctions()) {
-                    if (!function.isBivariate()) {
-                        hasUnivariate = true;
-                        break;
-                    }
-                }
-                if (!hasUnivariate) {
-                    return "cross-pattern functions require at least two channels";
-                }
+            try {
+                OPA.validateOptions(analysisTemplate, files.size());
+            } catch (IllegalArgumentException exception) {
+                return exception.getMessage();
             }
             return null;
         }
@@ -587,13 +652,34 @@ public final class OPABatchRunner {
                     : relativeFolder + "/" + key;
         }
 
+        private String inputFiles() {
+            StringBuilder text = new StringBuilder();
+            for (BatchFile file : files) {
+                if (text.length() > 0) text.append("; ");
+                text.append(file.file.getName());
+            }
+            return text.toString();
+        }
+
+        private String channelCaptures() {
+            StringBuilder text = new StringBuilder();
+            for (BatchFile file : files) {
+                if (text.length() > 0) text.append("; ");
+                text.append(file.channel)
+                        .append(" <- [")
+                        .append(file.originalChannel)
+                        .append("]");
+            }
+            return text.toString();
+        }
+
         private String outputPrefix() {
             String tokenIdentity = relativeFolder + "\u0000" + key;
-            String token = Base64.getUrlEncoder()
-                    .withoutPadding()
-                    .encodeToString(
-                            tokenIdentity.getBytes(StandardCharsets.UTF_8));
-            return displayName() + "__" + token;
+            String readable = safe(displayName());
+            if (readable.length() > 48) {
+                readable = readable.substring(0, 48);
+            }
+            return readable + "__" + sha256(tokenIdentity);
         }
     }
 

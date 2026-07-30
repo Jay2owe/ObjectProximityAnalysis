@@ -25,6 +25,8 @@ public final class OPAResult {
     private final List<ChannelGeometry> channels;
     private final List<DirectionResult> directionResults;
     private final List<PatternResult> patternResults;
+    private final Map<String, ResultsTable> centroidTables;
+    private final ResultsTable provenanceTable;
     private final Map<String, ResultsTable> perObjectTables;
     private final ResultsTable distanceSummaryTable;
     private final Map<String, ResultsTable> histogramTables;
@@ -40,6 +42,8 @@ public final class OPAResult {
         this.channels = immutableList(channels);
         this.directionResults = immutableList(directionResults);
         this.patternResults = immutableList(patternResults);
+        this.centroidTables = immutableMap(ResultTables.centroids(channels));
+        this.provenanceTable = ResultTables.provenance(parameters, channels);
         this.perObjectTables = immutableMap(
                 ResultTables.perObject(directionResults));
         this.distanceSummaryTable = ResultTables.distanceSummary(directionResults);
@@ -64,6 +68,14 @@ public final class OPAResult {
 
     public List<PatternResult> getPatternResults() {
         return patternResults;
+    }
+
+    public Map<String, ResultsTable> getCentroidTables() {
+        return centroidTables;
+    }
+
+    public ResultsTable getProvenanceTable() {
+        return provenanceTable;
     }
 
     public Map<String, ResultsTable> getPerObjectTables() {

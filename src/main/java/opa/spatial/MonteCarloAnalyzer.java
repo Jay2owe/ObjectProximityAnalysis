@@ -5,6 +5,9 @@
  */
 package opa.spatial;
 
+import ij.IJ;
+import opa.AnalysisCancelledException;
+
 import java.util.Arrays;
 import java.util.Random;
 
@@ -46,6 +49,7 @@ public final class MonteCarloAnalyzer {
         Random random = new Random(seed);
         double[][] samples = new double[simulations][radii.length];
         for (int simulation = 0; simulation < simulations; simulation++) {
+            checkCancelled();
             double[][] randomPoints = generate(
                     points.length, window, random);
             samples[simulation] = SpatialStatistics.evaluate(
@@ -87,6 +91,7 @@ public final class MonteCarloAnalyzer {
         Random random = new Random(seed);
         double[][] samples = new double[simulations][radii.length];
         for (int simulation = 0; simulation < simulations; simulation++) {
+            checkCancelled();
             double[][] randomSource = generate(source.length, window, random);
             double[][] randomTarget = generate(target.length, window, random);
             samples[simulation] = SpatialStatistics.evaluate(
@@ -113,6 +118,7 @@ public final class MonteCarloAnalyzer {
         double[] upper = new double[radiusCount];
 
         for (int radiusIndex = 0; radiusIndex < radiusCount; radiusIndex++) {
+            checkCancelled();
             double[] finite = finiteColumn(samples, radiusIndex);
             if (finite.length == 0) {
                 lower[radiusIndex] = Double.NaN;
@@ -133,6 +139,7 @@ public final class MonteCarloAnalyzer {
             rankSampleCount++;
             asOrMoreExtreme++;
             for (double[] sample : samples) {
+                checkCancelled();
                 double simulatedMaximum = standardizedMaximum(
                         sample, expected, exchangeableScales);
                 if (Double.isNaN(simulatedMaximum)) continue;
@@ -148,6 +155,7 @@ public final class MonteCarloAnalyzer {
         int maximumIndex = -1;
         double maximumDeviation = Double.NaN;
         for (int i = 0; i < observed.length; i++) {
+            checkCancelled();
             if (!Double.isFinite(observed[i]) || !Double.isFinite(expected[i])) continue;
             double deviation = Math.abs(observed[i] - expected[i]);
             if (maximumIndex < 0 || deviation > maximumDeviation) {
@@ -209,6 +217,7 @@ public final class MonteCarloAnalyzer {
                                        Random random) {
         double[][] points = new double[count][2];
         for (int i = 0; i < count; i++) {
+            if ((i & 255) == 0) checkCancelled();
             points[i][0] = window.getMinX() + random.nextDouble() * window.width();
             points[i][1] = window.getMinY() + random.nextDouble() * window.height();
         }
@@ -232,6 +241,7 @@ public final class MonteCarloAnalyzer {
                                                double[][] samples) {
         double[] scales = new double[observed.length];
         for (int column = 0; column < scales.length; column++) {
+            checkCancelled();
             int count = Double.isFinite(observed[column]) ? 1 : 0;
             for (double[] sample : samples) {
                 if (Double.isFinite(sample[column])) count++;
@@ -305,5 +315,9 @@ public final class MonteCarloAnalyzer {
             throw new IllegalArgumentException(
                     "Simulation count must be at least 1.");
         }
+    }
+
+    private static void checkCancelled() {
+        if (IJ.escapePressed()) throw new AnalysisCancelledException();
     }
 }

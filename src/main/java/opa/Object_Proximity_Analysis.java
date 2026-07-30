@@ -63,6 +63,10 @@ public final class Object_Proximity_Analysis implements PlugIn {
                         + saved.getAbsolutePath());
             }
             IJ.showStatus("Object Proximity Analysis complete");
+        } catch (AnalysisCancelledException exception) {
+            IJ.resetEscape();
+            IJ.log("Object Proximity Analysis cancelled.");
+            IJ.showStatus("Object Proximity Analysis cancelled");
         } catch (Exception exception) {
             IJ.handleException(exception);
         }
@@ -243,6 +247,13 @@ public final class Object_Proximity_Analysis implements PlugIn {
     }
 
     private static void show(OPAResult result) {
+        if (result.getParameters().isRunPattern()) {
+            for (Map.Entry<String, ij.measure.ResultsTable> entry
+                    : result.getCentroidTables().entrySet()) {
+                entry.getValue().show("OPA Centroids - " + entry.getKey());
+            }
+            result.getProvenanceTable().show("OPA Analysis Provenance");
+        }
         for (Map.Entry<String, ij.measure.ResultsTable> entry
                 : result.getPerObjectTables().entrySet()) {
             entry.getValue().show("OPA Objects - " + entry.getKey());
@@ -252,6 +263,14 @@ public final class Object_Proximity_Analysis implements PlugIn {
         }
         if (result.getPatternSummaryTable().size() > 0) {
             result.getPatternSummaryTable().show("OPA Pattern Summary");
+        }
+        for (Map.Entry<String, ij.measure.ResultsTable> entry
+                : result.getHistogramTables().entrySet()) {
+            entry.getValue().show("OPA Histogram - " + entry.getKey());
+        }
+        for (Map.Entry<String, ij.measure.ResultsTable> entry
+                : result.getEcdfTables().entrySet()) {
+            entry.getValue().show("OPA ECDF - " + entry.getKey());
         }
         for (Map.Entry<String, ij.measure.ResultsTable> entry
                 : result.getCurveTables().entrySet()) {

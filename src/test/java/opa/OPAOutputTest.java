@@ -7,6 +7,8 @@ package opa;
 
 import ij.ImagePlus;
 import ij.process.ByteProcessor;
+import opa.spatial.PatternFunction;
+import opa.spatial.RectangularWindow;
 import org.junit.Test;
 
 import java.io.File;
@@ -66,7 +68,9 @@ public class OPAOutputTest {
             File objects = new File(root, "Objects");
             File[] tables = objects.listFiles((directory, name) ->
                     name.endsWith(".csv")
-                            && !name.endsWith("__Distance_Summary.csv"));
+                            && !name.endsWith("__Distance_Summary.csv")
+                            && !name.contains("__Centroids__")
+                            && !name.endsWith("__Provenance.csv"));
             assertTrue(tables != null);
             assertEquals(4, tables.length);
             String summary = new String(Files.readAllBytes(new File(
@@ -74,6 +78,48 @@ public class OPAOutputTest {
                             "sample__Distance_Summary.csv").toPath()),
                     StandardCharsets.UTF_8);
             assertTrue(summary.contains("Labels [channel 2]"));
+        } finally {
+            delete(parent);
+        }
+    }
+
+    @Test
+    public void patternOnlySaveIncludesFilteredCentroidsAndProvenance()
+            throws Exception {
+        ImagePlus image = new ImagePlus(
+                "pattern-labels", new ByteProcessor(10, 10));
+        image.getProcessor().set(2, 2, 1);
+        image.getProcessor().set(8, 8, 2);
+        OPAResult result = OPA.run(OPAParameters.builder(image)
+                .runDistances(false)
+                .patternFunctions(EnumSet.of(PatternFunction.K))
+                .observationWindow(
+                        new RectangularWindow(0.0, 0.0, 5.0, 5.0))
+                .radii(new double[]{1.0})
+                .simulations(1)
+                .build());
+
+        assertTrue(result.getPerObjectTables().isEmpty());
+        assertEquals(1, result.getCentroidTables().size());
+        assertEquals(1, result.getCentroidTables()
+                .values().iterator().next().size());
+        assertEquals(5.0, result.getProvenanceTable()
+                .getValue("Window_Max_X", 0), 0.0);
+        assertEquals("TRANSLATION", result.getProvenanceTable()
+                .getStringValue("Edge_Correction", 0));
+
+        File parent = Files.createTempDirectory(
+                "opa-output-pattern-provenance").toFile();
+        try {
+            File root = OPAOutput.save(result, parent, "pattern");
+            File objects = new File(root, "Objects");
+            File[] centroids = objects.listFiles((directory, name) ->
+                    name.contains("__Centroids__")
+                            && name.endsWith(".csv"));
+            assertTrue(centroids != null);
+            assertEquals(1, centroids.length);
+            assertTrue(new File(
+                    objects, "pattern__Provenance.csv").isFile());
         } finally {
             delete(parent);
         }

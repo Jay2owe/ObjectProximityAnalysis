@@ -113,8 +113,8 @@ public final class OPA_Batch implements PlugIn {
                 GenericDialog confirmation = new GenericDialog(
                         "Object Proximity Analysis Batch Preview");
                 confirmation.addMessage(
-                        "Review the groups below. Groups with 1-5 unique "
-                                + "channels are runnable.");
+                        "Review the groups below. Runnable groups satisfy both "
+                                + "the filename grouping and selected analysis options.");
                 confirmation.addTextAreas(preview, null, 24, 80);
                 confirmation.enableYesNoCancel("Run batch", "Back");
                 confirmation.showDialog();
@@ -124,7 +124,9 @@ public final class OPA_Batch implements PlugIn {
             }
 
             OPABatchResult result = OPABatchRunner.run(parameters);
-            IJ.log("OPA batch complete: " + result.getProcessedGroups()
+            IJ.log("OPA batch "
+                    + (result.isCancelled() ? "cancelled" : "complete")
+                    + ": " + result.getProcessedGroups()
                     + " processed, " + result.getSkippedGroups()
                     + " skipped, " + result.getErrorGroups() + " errors.");
             if (!hideDisplay) show(result);
@@ -134,6 +136,7 @@ public final class OPA_Batch implements PlugIn {
     }
 
     private static void show(OPABatchResult result) {
+        result.getGroupManifest().show("OPA Batch Group Manifest");
         if (result.getDistanceSummary().size() > 0) {
             result.getDistanceSummary().show("OPA Batch Distance Summary");
         }

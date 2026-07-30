@@ -5,6 +5,7 @@
  */
 package opa;
 
+import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.measure.Calibration;
@@ -13,6 +14,7 @@ import opa.spatial.PatternFunction;
 import opa.spatial.RectangularWindow;
 import org.junit.Test;
 
+import java.awt.event.KeyEvent;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -254,6 +256,69 @@ public class OPATest {
                 .radii(new double[]{1.0})
                 .simulations(1)
                 .build());
+    }
+
+    @Test
+    public void distanceOnlyIgnoresDisabledPatternSettings() {
+        ImagePlus image = labels("distance-only", 5, 5, 1);
+        image.getProcessor().set(1, 1, 1);
+        image.getProcessor().set(3, 3, 2);
+
+        OPAResult result = OPA.run(OPAParameters.builder(image)
+                .runPattern(false)
+                .patternFunctions(EnumSet.noneOf(PatternFunction.class))
+                .radii(new double[0])
+                .radiusBins(0)
+                .maximumRadius(-1.0)
+                .simulations(0)
+                .edgeCorrection(null)
+                .build());
+
+        assertFalse(result.getDirectionResults().isEmpty());
+    }
+
+    @Test
+    public void patternOnlyIgnoresDisabledDistanceSettings() {
+        ImagePlus image = labels("pattern-only", 5, 5, 1);
+        image.getProcessor().set(1, 1, 1);
+        image.getProcessor().set(3, 3, 2);
+
+        OPAResult result = OPA.run(OPAParameters.builder(image)
+                .runDistances(false)
+                .distanceModes(EnumSet.noneOf(DistanceMode.class))
+                .includeSelfDistances(false)
+                .neighborCount(0)
+                .contactDistance(-1.0)
+                .histogramBins(0)
+                .patternFunctions(EnumSet.of(PatternFunction.K))
+                .radii(new double[]{1.0})
+                .simulations(1)
+                .build());
+
+        assertEquals(1, result.getPatternResults().size());
+    }
+
+    @Test
+    public void escapeCancelsAnActivePatternAnalysis() {
+        ImagePlus image = labels("cancel-pattern", 5, 5, 1);
+        image.getProcessor().set(1, 1, 1);
+        image.getProcessor().set(3, 3, 2);
+        boolean cancelled = false;
+        try {
+            IJ.setKeyDown(KeyEvent.VK_ESCAPE);
+            OPA.run(OPAParameters.builder(image)
+                    .runDistances(false)
+                    .patternFunctions(EnumSet.of(PatternFunction.K))
+                    .radii(new double[]{1.0})
+                    .simulations(10)
+                    .build());
+        } catch (AnalysisCancelledException expected) {
+            cancelled = true;
+        } finally {
+            IJ.resetEscape();
+            IJ.setKeyUp(KeyEvent.VK_ESCAPE);
+        }
+        assertTrue(cancelled);
     }
 
     @Test
