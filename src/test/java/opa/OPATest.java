@@ -238,6 +238,64 @@ public class OPATest {
     }
 
     @Test
+    public void requestedOneChannelCrossFunctionsAreExplicitlyNotApplicable() {
+        ImagePlus image = labels("one-channel-pattern", 8, 8, 1);
+        image.getProcessor().set(2, 2, 1);
+        image.getProcessor().set(6, 6, 2);
+        OPAResult result = OPA.run(OPAParameters.builder(image)
+                .runDistances(false)
+                .patternFunctions(EnumSet.of(
+                        PatternFunction.K,
+                        PatternFunction.CROSS_K))
+                .radii(new double[]{1.0})
+                .simulations(1)
+                .build());
+
+        assertEquals(1, result.getPatternResults().size());
+        assertEquals(2, result.getPatternSummaryTable().size());
+        boolean sawCrossStatus = false;
+        for (int row = 0;
+             row < result.getPatternSummaryTable().size();
+             row++) {
+            if ("CROSS_K".equals(result.getPatternSummaryTable()
+                    .getStringValue("Function", row))) {
+                sawCrossStatus = true;
+                assertEquals(
+                        "NOT_APPLICABLE_REQUIRES_TWO_CHANNELS",
+                        result.getPatternSummaryTable()
+                                .getStringValue("Status", row));
+                assertTrue(Double.isNaN(result.getPatternSummaryTable()
+                        .getValue("Global_P", row)));
+            }
+        }
+        assertTrue(sawCrossStatus);
+    }
+
+    @Test
+    public void singletonDistanceSampleSdIsUndefined() {
+        ImagePlus first = labels("first", 5, 5, 1);
+        ImagePlus second = labels("second", 5, 5, 1);
+        first.getProcessor().set(1, 1, 1);
+        second.getProcessor().set(2, 2, 1);
+        OPAResult result = OPA.run(OPAParameters.builder(first, second)
+                .runPattern(false)
+                .includeSelfDistances(false)
+                .distanceModes(EnumSet.of(
+                        DistanceMode.CENTRE_TO_CENTRE))
+                .build());
+
+        assertEquals(2, result.getDistanceSummaryTable().size());
+        for (int row = 0;
+             row < result.getDistanceSummaryTable().size();
+             row++) {
+            assertEquals(1.0, result.getDistanceSummaryTable()
+                    .getValue("N", row), 0.0);
+            assertTrue(Double.isNaN(result.getDistanceSummaryTable()
+                    .getValue("SD", row)));
+        }
+    }
+
+    @Test
     public void sanitizedChannelNameCollisionsDoNotOverwriteResultTables() {
         ImagePlus first = labels("first", 7, 3, 1);
         ImagePlus second = labels("second", 7, 3, 1);

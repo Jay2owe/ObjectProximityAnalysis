@@ -7,9 +7,12 @@ package opa;
 
 import ij.measure.ResultsTable;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -104,10 +107,48 @@ public final class OPAOutput {
         return directory;
     }
 
-    private static void saveTable(ResultsTable table, File file)
+    static void saveTable(ResultsTable table, File file)
             throws IOException {
         if (table == null) return;
-        table.saveAs(file.getAbsolutePath());
+        Writer writer = new BufferedWriter(new OutputStreamWriter(
+                new FileOutputStream(file), StandardCharsets.UTF_8));
+        try {
+            String[] headings = table.getHeadings();
+            writeCsvRow(writer, headings);
+            for (int row = 0; row < table.size(); row++) {
+                String[] values = new String[headings.length];
+                for (int column = 0; column < headings.length; column++) {
+                    double number = table.getValue(headings[column], row);
+                    values[column] = Double.isNaN(number)
+                            ? table.getStringValue(headings[column], row)
+                            : Double.toString(number);
+                }
+                writeCsvRow(writer, values);
+            }
+        } finally {
+            writer.close();
+        }
+    }
+
+    private static void writeCsvRow(Writer writer, String[] values)
+            throws IOException {
+        if (values.length == 0) return;
+        for (int i = 0; i < values.length; i++) {
+            if (i > 0) writer.write(',');
+            writer.write(csvValue(values[i]));
+        }
+        writer.write(System.lineSeparator());
+    }
+
+    private static String csvValue(String value) {
+        String text = value == null ? "" : value;
+        if (text.indexOf(',') < 0
+                && text.indexOf('"') < 0
+                && text.indexOf('\r') < 0
+                && text.indexOf('\n') < 0) {
+            return text;
+        }
+        return "\"" + text.replace("\"", "\"\"") + "\"";
     }
 
     private static void writeReadme(File directory, String text)
@@ -128,9 +169,10 @@ public final class OPAOutput {
 
     private static String prefixIdentity(String rawPrefix) {
         String clean = safe(rawPrefix);
-        return clean.equals(rawPrefix)
-                ? clean
-                : clean + "__" + sha256(rawPrefix);
+        String readable = clean.length() > 80
+                ? clean.substring(0, 80)
+                : clean;
+        return readable + "__" + sha256(rawPrefix);
     }
 
     private static String csvName(String identity) {

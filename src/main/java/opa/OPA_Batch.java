@@ -11,8 +11,10 @@ import ij.gui.GenericDialog;
 import ij.measure.ResultsTable;
 import ij.plugin.PlugIn;
 import opa.spatial.EdgeCorrection;
+import opa.spatial.PatternFunction;
 
 import java.io.File;
+import java.util.EnumSet;
 import java.util.Map;
 
 /**
@@ -31,12 +33,20 @@ public final class OPA_Batch implements PlugIn {
                 42);
         dialog.addNumericField("Channel_capture_group", 2, 0);
         dialog.addCheckbox("Recursive", true);
-        dialog.addMessage("Analysis");
+        dialog.addMessage("Distances");
         dialog.addCheckbox("Run_distances", true);
-        dialog.addCheckbox("Run_pattern_analysis", true);
         dialog.addCheckbox("Include_self_distances", true);
         dialog.addNumericField("K_nearest_neighbours", 1, 0);
         dialog.addNumericField("Contact_distance", 0.0, 3);
+        for (DistanceMode mode : DistanceMode.values()) {
+            dialog.addCheckbox(
+                    mode.getColumnName().replace('-', '_'), true);
+        }
+        dialog.addMessage("2D point-pattern analysis");
+        dialog.addCheckbox("Run_pattern_analysis", true);
+        for (PatternFunction function : PatternFunction.values()) {
+            dialog.addCheckbox("Function_" + function.name(), true);
+        }
         dialog.addNumericField("Maximum_radius_0_is_auto", 0.0, 3);
         dialog.addNumericField("Radius_bins", 50, 0);
         dialog.addNumericField("Monte_Carlo_simulations", 99, 0);
@@ -54,6 +64,7 @@ public final class OPA_Batch implements PlugIn {
                 EdgeCorrection.TRANSLATION.name());
         dialog.addCheckbox("Project_3D_centroids_to_XY", false);
         dialog.addMessage("Output");
+        dialog.addNumericField("Histogram_bins", 20, 0);
         dialog.addCheckbox("Auto_save", true);
         dialog.addDirectoryField("Output_directory", IJ.getDirectory("home"));
         dialog.addCheckbox("Hide_display", false);
@@ -66,10 +77,22 @@ public final class OPA_Batch implements PlugIn {
             int channelGroup = (int) dialog.getNextNumber();
             boolean recursive = dialog.getNextBoolean();
             boolean distances = dialog.getNextBoolean();
-            boolean pattern = dialog.getNextBoolean();
             boolean self = dialog.getNextBoolean();
             int neighbors = (int) dialog.getNextNumber();
             double contact = dialog.getNextNumber();
+            EnumSet<DistanceMode> distanceModes =
+                    EnumSet.noneOf(DistanceMode.class);
+            for (DistanceMode mode : DistanceMode.values()) {
+                if (dialog.getNextBoolean()) distanceModes.add(mode);
+            }
+            boolean pattern = dialog.getNextBoolean();
+            EnumSet<PatternFunction> patternFunctions =
+                    EnumSet.noneOf(PatternFunction.class);
+            for (PatternFunction function : PatternFunction.values()) {
+                if (dialog.getNextBoolean()) {
+                    patternFunctions.add(function);
+                }
+            }
             double maximumRadius = dialog.getNextNumber();
             int radiusBins = (int) dialog.getNextNumber();
             int simulations = (int) dialog.getNextNumber();
@@ -83,6 +106,7 @@ public final class OPA_Batch implements PlugIn {
             EdgeCorrection correction =
                     EdgeCorrection.valueOf(dialog.getNextChoice());
             boolean project3D = dialog.getNextBoolean();
+            int histogramBins = (int) dialog.getNextNumber();
             boolean autoSave = dialog.getNextBoolean();
             File output = new File(dialog.getNextString().trim());
             boolean hideDisplay = dialog.getNextBoolean();
@@ -91,14 +115,17 @@ public final class OPA_Batch implements PlugIn {
                     .runDistances(distances)
                     .runPattern(pattern)
                     .includeSelfDistances(self)
+                    .distanceModes(distanceModes)
                     .neighborCount(neighbors)
                     .contactDistance(contact)
+                    .patternFunctions(patternFunctions)
                     .maximumRadius(maximumRadius)
                     .radiusBins(radiusBins)
                     .simulations(simulations)
                     .seed(seed)
                     .edgeCorrection(correction)
                     .project3DToXY(project3D)
+                    .histogramBins(histogramBins)
                     .build();
             OPABatchParameters parameters = OPABatchParameters.builder(
                             input, regex, channelGroup)

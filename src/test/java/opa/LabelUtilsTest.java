@@ -13,6 +13,7 @@ import opa.spatial.RectangularWindow;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class LabelUtilsTest {
 
@@ -51,5 +52,26 @@ public class LabelUtilsTest {
         assertEquals(6.0, window.getMinY(), 1.0e-12);
         assertEquals(6.0, window.getMaxX(), 1.0e-12);
         assertEquals(16.0, window.getMaxY(), 1.0e-12);
+    }
+
+    @Test
+    public void overlappingObjectRoisAreRejectedWithBothLabels() {
+        ImagePlus reference = new ImagePlus(
+                "reference", new ByteProcessor(10, 10));
+        Roi[] rois = {
+                new Roi(1, 1, 4, 4),
+                new Roi(3, 3, 4, 4)
+        };
+
+        boolean rejected = false;
+        try {
+            OPALabelImages.fromRois(reference, rois);
+        } catch (IllegalArgumentException exception) {
+            rejected = true;
+            assertTrue(exception.getMessage().contains("ROI 2"));
+            assertTrue(exception.getMessage().contains("ROI 1"));
+            assertTrue(exception.getMessage().contains("(3, 3)"));
+        }
+        assertTrue(rejected);
     }
 }

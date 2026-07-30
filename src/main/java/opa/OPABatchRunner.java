@@ -290,15 +290,21 @@ public final class OPABatchRunner {
             if (!child.isFile()) continue;
             Matcher matcher = pattern.matcher(child.getName());
             if (!matcher.matches()) continue;
-            String key = child.getName().substring(0, matcher.start(channelGroup))
-                    + "*" + child.getName().substring(matcher.end(channelGroup));
+            int channelStart = matcher.start(channelGroup);
+            int channelEnd = matcher.end(channelGroup);
+            String key = channelStart < 0
+                    ? child.getName() + "*[unmatched-channel-capture]"
+                    : child.getName().substring(0, channelStart)
+                            + "*"
+                            + child.getName().substring(channelEnd);
             Group group = local.get(key);
             if (group == null) {
                 group = new Group(relative, key);
                 local.put(key, group);
             }
             group.files.add(new BatchFile(
-                    child, matcher.group(channelGroup)));
+                    child,
+                    channelStart < 0 ? null : matcher.group(channelGroup)));
         }
         for (Group group : local.values()) {
             Collections.sort(group.files, new Comparator<BatchFile>() {
@@ -452,7 +458,6 @@ public final class OPABatchRunner {
             target.addValue("Channel_Captures", group.channelCaptures());
             for (String heading : headings) {
                 if (heading == null || heading.trim().isEmpty()) continue;
-                String value = source.getStringValue(heading, row);
                 if ("Seed".equals(heading)
                         || "Source_Channel".equals(heading)
                         || "Target_Channel".equals(heading)
@@ -462,14 +467,11 @@ public final class OPABatchRunner {
                         || "Radius_Unit".equals(heading)
                         || "Value_Unit".equals(heading)
                         || "Status".equals(heading)) {
-                    target.addValue(heading, value);
+                    target.addValue(
+                            heading, source.getStringValue(heading, row));
                     continue;
                 }
-                try {
-                    target.addValue(heading, Double.parseDouble(value));
-                } catch (NumberFormatException ignored) {
-                    target.addValue(heading, value);
-                }
+                target.addValue(heading, source.getValue(heading, row));
             }
         }
     }
@@ -492,25 +494,23 @@ public final class OPABatchRunner {
             throw new IOException(
                     "Could not create batch folder: " + folder.getAbsolutePath());
         }
-        distanceSummary.saveAs(new File(
-                folder, "OPA_Batch_Distance_Summary.csv").getAbsolutePath());
-        patternSummary.saveAs(new File(
-                folder, "OPA_Batch_Pattern_Summary.csv").getAbsolutePath());
-        groupManifest.saveAs(new File(
-                folder, "OPA_Batch_Group_Manifest.csv").getAbsolutePath());
+        OPAOutput.saveTable(distanceSummary, new File(
+                folder, "OPA_Batch_Distance_Summary.csv"));
+        OPAOutput.saveTable(patternSummary, new File(
+                folder, "OPA_Batch_Pattern_Summary.csv"));
+        OPAOutput.saveTable(groupManifest, new File(
+                folder, "OPA_Batch_Group_Manifest.csv"));
         for (Map.Entry<String, ResultsTable> entry : curves.entrySet()) {
-            entry.getValue().saveAs(new File(
+            OPAOutput.saveTable(entry.getValue(), new File(
                     folder,
                     aggregateFilename(
-                            "OPA_Batch_Mean_Curve__", entry.getKey()))
-                    .getAbsolutePath());
+                            "OPA_Batch_Mean_Curve__", entry.getKey())));
         }
         for (Map.Entry<String, ResultsTable> entry : ecdfs.entrySet()) {
-            entry.getValue().saveAs(new File(
+            OPAOutput.saveTable(entry.getValue(), new File(
                     folder,
                     aggregateFilename(
-                            "OPA_Batch_Mean_ECDF__", entry.getKey()))
-                    .getAbsolutePath());
+                            "OPA_Batch_Mean_ECDF__", entry.getKey())));
         }
         Writer readme = new FileWriter(new File(folder, "README.txt"));
         try {
@@ -993,7 +993,7 @@ public final class OPABatchRunner {
                 sumSquares += difference * difference;
             }
             double sd = values.size() < 2
-                    ? 0.0
+                    ? Double.NaN
                     : Math.sqrt(sumSquares / (values.size() - 1));
             return new Stats(values.size(), mean, sd);
         }

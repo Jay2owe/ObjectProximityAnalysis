@@ -144,6 +144,13 @@ public final class LabelUtils {
                 int globalY = bounds.y + y;
                 if (globalX >= 0 && globalX < processor.getWidth()
                         && globalY >= 0 && globalY < processor.getHeight()) {
+                    int existing = processor.get(globalX, globalY);
+                    if (existing != 0 && existing != label) {
+                        throw new IllegalArgumentException(
+                                "ROI " + label + " overlaps ROI " + existing
+                                        + " at pixel (" + globalX + ", "
+                                        + globalY + ").");
+                    }
                     processor.set(globalX, globalY, label);
                 }
             }

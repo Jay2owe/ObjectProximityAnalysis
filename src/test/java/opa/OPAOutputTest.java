@@ -39,9 +39,11 @@ public class OPAOutputTest {
                 assertTrue(directory.isDirectory());
                 assertTrue(new File(directory, "README.txt").isFile());
             }
-            assertTrue(new File(
-                    new File(root, "Objects"),
-                    "sample__Distance_Summary.csv").isFile());
+            File[] summaries = new File(root, "Objects").listFiles(
+                    (directory, name) ->
+                            name.endsWith("__Distance_Summary.csv"));
+            assertTrue(summaries != null);
+            assertEquals(1, summaries.length);
         } finally {
             delete(parent);
         }
@@ -73,9 +75,12 @@ public class OPAOutputTest {
                             && !name.endsWith("__Provenance.csv"));
             assertTrue(tables != null);
             assertEquals(4, tables.length);
-            String summary = new String(Files.readAllBytes(new File(
-                            objects,
-                            "sample__Distance_Summary.csv").toPath()),
+            File[] summaries = objects.listFiles((directory, name) ->
+                    name.endsWith("__Distance_Summary.csv"));
+            assertTrue(summaries != null);
+            assertEquals(1, summaries.length);
+            String summary = new String(Files.readAllBytes(
+                            summaries[0].toPath()),
                     StandardCharsets.UTF_8);
             assertTrue(summary.contains("Labels [channel 2]"));
         } finally {
@@ -118,8 +123,10 @@ public class OPAOutputTest {
                             && name.endsWith(".csv"));
             assertTrue(centroids != null);
             assertEquals(1, centroids.length);
-            assertTrue(new File(
-                    objects, "pattern__Provenance.csv").isFile());
+            File[] provenance = objects.listFiles((directory, name) ->
+                    name.endsWith("__Provenance.csv"));
+            assertTrue(provenance != null);
+            assertEquals(1, provenance.length);
         } finally {
             delete(parent);
         }
@@ -147,6 +154,63 @@ public class OPAOutputTest {
             assertEquals(2, summaries.length);
             assertTrue(!summaries[0].getName().equals(
                     summaries[1].getName()));
+        } finally {
+            delete(parent);
+        }
+    }
+
+    @Test
+    public void caseOnlyPrefixesDoNotOverwriteOnWindows()
+            throws Exception {
+        ImagePlus image = new ImagePlus(
+                "labels", new ByteProcessor(6, 6));
+        image.getProcessor().set(1, 1, 1);
+        image.getProcessor().set(4, 4, 2);
+        OPAResult result = OPA.run(OPAParameters.builder(image)
+                .runPattern(false)
+                .build());
+        File parent = Files.createTempDirectory(
+                "opa-output-case-collision").toFile();
+        try {
+            File root = OPAOutput.save(result, parent, "Sample");
+            OPAOutput.save(result, parent, "sample");
+            File[] summaries = new File(root, "Objects").listFiles(
+                    (directory, name) ->
+                            name.endsWith("__Distance_Summary.csv"));
+            assertTrue(summaries != null);
+            assertEquals(2, summaries.length);
+            assertTrue(!summaries[0].getName().equalsIgnoreCase(
+                    summaries[1].getName()));
+        } finally {
+            delete(parent);
+        }
+    }
+
+    @Test
+    public void savedCsvPreservesFullDoublePrecision() throws Exception {
+        ImagePlus image = new ImagePlus(
+                "diagonal", new ByteProcessor(5, 5));
+        image.getProcessor().set(1, 1, 1);
+        image.getProcessor().set(2, 2, 2);
+        OPAResult result = OPA.run(OPAParameters.builder(image)
+                .runPattern(false)
+                .distanceModes(EnumSet.of(
+                        DistanceMode.CENTRE_TO_CENTRE))
+                .build());
+        File parent = Files.createTempDirectory(
+                "opa-output-precision").toFile();
+        try {
+            File root = OPAOutput.save(result, parent, "precision");
+            File[] summaries = new File(root, "Objects").listFiles(
+                    (directory, name) ->
+                            name.endsWith("__Distance_Summary.csv"));
+            assertTrue(summaries != null);
+            assertEquals(1, summaries.length);
+            String csv = new String(
+                    Files.readAllBytes(summaries[0].toPath()),
+                    StandardCharsets.UTF_8);
+            assertTrue(csv.contains(
+                    Double.toString(Math.sqrt(2.0))));
         } finally {
             delete(parent);
         }

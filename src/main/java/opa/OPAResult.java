@@ -55,7 +55,8 @@ public final class OPAResult {
                 directionResults, parameters.getHistogramBins()));
         this.ecdfTables = immutableMap(ResultTables.ecdfs(directionResults));
         this.curveTables = immutableMap(ResultTables.curves(patternResults));
-        this.patternSummaryTable = ResultTables.patternSummary(patternResults);
+        this.patternSummaryTable = ResultTables.patternSummary(
+                patternResults, parameters, channels);
     }
 
     public OPAParameters getParameters() {

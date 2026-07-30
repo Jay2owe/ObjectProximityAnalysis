@@ -74,7 +74,9 @@ Plugins > Object Proximity Analysis Batch...
 ```
 
 The main dialog supports either open label images or `.zip`/`.roi` sets. ROI
-input needs an open reference image for dimensions and calibration.
+input needs an open reference image for dimensions and calibration. Object ROIs
+must not overlap; conversion reports both ROI labels and the first conflicting
+pixel instead of overwriting an object.
 
 Auto-save writes:
 
@@ -102,6 +104,9 @@ Distance summaries always contain every requested mode and neighbour rank.
 Empty or undersized inputs retain object counts and are marked
 `NO_SOURCE_OBJECTS`, `NO_TARGET_OBJECTS`, `INSUFFICIENT_NEIGHBOURS`, or
 `UNDEFINED_MEASUREMENTS` rather than disappearing from the output.
+With one channel, requested cross-pattern functions receive explicit
+`NOT_APPLICABLE_REQUIRES_TWO_CHANNELS` summary rows. Sample standard deviation
+is undefined (`NaN`) when fewer than two measurements or groups contribute.
 
 A one-channel run cannot request distances with self-distances disabled or
 request only cross-pattern functions; the API rejects both configurations
@@ -163,8 +168,12 @@ String preview = OPABatchRunner.preview(batch);
 OPABatchResult result = OPABatchRunner.run(batch);
 ```
 
+The batch dialog and recorded macro expose the same distance modes, pattern
+functions, and histogram-bin setting as the main analysis dialog.
 The selected capture group is the channel name. Replacing that group with `*`
 forms the sample group, so `sample1_A.tif` and `sample1_B.tif` run together.
+If an optional capture group is unmatched for a filename, that file is retained
+as an explicitly invalid group in the preview and manifest.
 Saved batch prefixes include a lossless group-identity token, preventing groups
 whose human-readable names are similar from overwriting one another. Aggregate
 summary rows include the raw `Group_Identity`. Mean curves are linearly
@@ -183,10 +192,11 @@ text and input filenames remain in the saved group manifest. Long output names
 use bounded readable stems plus SHA-256 identity digests. Pressing Escape stops
 Monte Carlo work, sets `OPABatchResult.isCancelled()`, marks unprocessed groups
 as `CANCELLED`, and writes `Status: CANCELLED` into partial batch output.
-User-supplied save prefixes also gain an identity digest when filename
-sanitisation changes them, so distinct raw prefixes cannot overwrite each
-other. The group manifest records non-OK distance or pattern statuses in
-`Analysis_Warnings`.
+Every user-supplied save prefix gains a SHA-256 identity digest, so names that
+differ only by punctuation or case cannot overwrite each other on Windows.
+CSV output writes the full stored double value rather than ImageJ's rounded
+display form. The group manifest records non-OK distance or pattern statuses
+in `Analysis_Warnings`.
 
 ## Macro use
 

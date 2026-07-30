@@ -30,3 +30,7 @@
 - Collision-safe raw save prefixes, explicit empty-distance summary statuses,
   effective-radius provenance, always-visible provenance, and per-group batch
   calibration and analysis warnings.
+- Full-precision CSV and batch scalars, overlap-safe ROI conversion, case-safe
+  prefixes, explicit one-channel cross-function statuses, optional-capture
+  validation, complete batch analysis controls, and undefined singleton sample
+  standard deviations.

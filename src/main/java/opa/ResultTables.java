@@ -12,6 +12,7 @@ import opa.geometry.NeighborMeasurement;
 import opa.geometry.ObjectGeometry;
 import opa.geometry.ObjectMeasurement;
 import opa.spatial.MonteCarloResult;
+import opa.spatial.PatternFunction;
 import opa.spatial.RectangularWindow;
 
 import java.nio.charset.StandardCharsets;
@@ -331,7 +332,9 @@ final class ResultTables {
         return tables;
     }
 
-    static ResultsTable patternSummary(List<PatternResult> patterns) {
+    static ResultsTable patternSummary(List<PatternResult> patterns,
+                                       OPAParameters parameters,
+                                       List<ChannelGeometry> channels) {
         ResultsTable table = new ResultsTable();
         for (PatternResult pattern : patterns) {
             MonteCarloResult result = pattern.getStatistics();
@@ -354,7 +357,61 @@ final class ResultTables {
             table.addValue("Radius_Unit", pattern.getUnit());
             table.addValue("Value_Unit", pattern.getValueUnit());
         }
+        if (parameters.isRunPattern() && channels.size() < 2) {
+            ChannelGeometry channel = channels.get(0);
+            for (PatternFunction function
+                    : parameters.getPatternFunctions()) {
+                if (!function.isBivariate()) continue;
+                table.incrementCounter();
+                table.addValue("Source_Channel", channel.getName());
+                table.addValue("Target_Channel", "");
+                table.addValue("Function", function.name());
+                table.addValue("Status",
+                        "NOT_APPLICABLE_REQUIRES_TWO_CHANNELS");
+                table.addValue(
+                        "Maximum_Absolute_Deviation", Double.NaN);
+                table.addValue(
+                        "Radius_At_Maximum_Deviation", Double.NaN);
+                table.addValue("Global_P", Double.NaN);
+                table.addValue(
+                        "Simulations", parameters.getSimulations());
+                table.addValue(
+                        "Minimum_Achievable_P",
+                        1.0 / (parameters.getSimulations() + 1.0));
+                table.addValue("Global_Rank_N", 0);
+                table.addValue(
+                        "Seed", Long.toString(parameters.getSeed()));
+                table.addValue(
+                        "Radius_Unit",
+                        channel.getCalibration().getUnit());
+                table.addValue(
+                        "Value_Unit",
+                        patternValueUnit(
+                                function,
+                                channel.getCalibration().getUnit()));
+            }
+        }
         return table;
+    }
+
+    private static String patternValueUnit(PatternFunction function,
+                                           String radiusUnit) {
+        switch (function) {
+            case K:
+            case CROSS_K:
+                return radiusUnit + "^2";
+            case L:
+            case L_MINUS_R:
+            case CROSS_L:
+                return radiusUnit;
+            case G:
+            case CROSS_G:
+            case PAIR_CORRELATION:
+                return "dimensionless";
+            default:
+                throw new IllegalArgumentException(
+                        "Unsupported pattern function: " + function);
+        }
     }
 
     private static ResultsTable histogram(double[] values,
@@ -462,7 +519,7 @@ final class ResultTables {
     }
 
     private static double standardDeviation(double[] values) {
-        if (values.length < 2) return 0.0;
+        if (values.length < 2) return Double.NaN;
         double mean = mean(values);
         double sumSquares = 0.0;
         for (double value : values) {

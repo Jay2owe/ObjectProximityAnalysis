@@ -630,6 +630,81 @@ public class OPABatchRunnerTest {
         }
     }
 
+    @Test
+    public void optionalUnmatchedChannelCaptureBecomesInvalidGroup()
+            throws Exception {
+        File directory = Files.createTempDirectory(
+                "opa-batch-optional-capture").toFile();
+        try {
+            assertTrue(new File(directory, "sample_.tif").createNewFile());
+            OPABatchParameters parameters = OPABatchParameters.builder(
+                            directory,
+                            "(sample)_([AB])?\\.tif",
+                            2)
+                    .recursive(false)
+                    .autoSave(false)
+                    .build();
+
+            String preview = OPABatchRunner.preview(parameters);
+            OPABatchResult result = OPABatchRunner.run(parameters);
+
+            assertTrue(preview.contains("0 runnable"));
+            assertTrue(preview.contains(
+                    "empty or duplicate channel names"));
+            assertEquals(1, result.getTotalGroups());
+            assertEquals(0, result.getValidGroups());
+            assertEquals(1, result.getSkippedGroups());
+            assertEquals("SKIPPED_INVALID", result.getGroupManifest()
+                    .getStringValue("Outcome", 0));
+        } finally {
+            deleteChildren(directory);
+        }
+    }
+
+    @Test
+    public void batchPreservesPrecisionAndSingletonSpreadIsUndefined()
+            throws Exception {
+        File directory = Files.createTempDirectory(
+                "opa-batch-precision").toFile();
+        try {
+            saveDiagonalLabels(new File(directory, "sample_A.tif"));
+            OPAParameters options = OPAParameters.builder()
+                    .distanceModes(EnumSet.of(
+                            DistanceMode.CENTRE_TO_CENTRE))
+                    .patternFunctions(EnumSet.of(PatternFunction.K))
+                    .radii(new double[]{1.0})
+                    .simulations(1)
+                    .build();
+            OPABatchParameters parameters = OPABatchParameters.builder(
+                            directory,
+                            "(sample)_([A])\\.tif",
+                            2)
+                    .recursive(false)
+                    .analysisTemplate(options)
+                    .autoSave(false)
+                    .build();
+
+            OPABatchResult result = OPABatchRunner.run(parameters);
+
+            assertEquals(Math.sqrt(2.0), result.getDistanceSummary()
+                    .getValue("Mean", 0), 0.0);
+            ij.measure.ResultsTable curve =
+                    result.getMeanCurveTables().values()
+                            .iterator().next();
+            assertEquals(1.0, curve.getValue("Group_N", 0), 0.0);
+            assertTrue(Double.isNaN(
+                    curve.getValue("SD_Observed", 0)));
+            ij.measure.ResultsTable ecdf =
+                    result.getMeanEcdfTables().values()
+                            .iterator().next();
+            assertEquals(1.0, ecdf.getValue("Group_N", 0), 0.0);
+            assertTrue(Double.isNaN(
+                    ecdf.getValue("SD_ECDF", 0)));
+        } finally {
+            deleteChildren(directory);
+        }
+    }
+
     private static void saveLabel(File file, int x, int y) {
         ImagePlus image = new ImagePlus("labels", new ByteProcessor(8, 8));
         image.getProcessor().set(x, y, 1);
@@ -640,6 +715,15 @@ public class OPABatchRunnerTest {
     private static void saveEmptyLabel(File file) {
         ImagePlus image = new ImagePlus(
                 "empty-labels", new ByteProcessor(8, 8));
+        IJ.saveAsTiff(image, file.getAbsolutePath());
+        image.close();
+    }
+
+    private static void saveDiagonalLabels(File file) {
+        ImagePlus image = new ImagePlus(
+                "diagonal-labels", new ByteProcessor(8, 8));
+        image.getProcessor().set(1, 1, 1);
+        image.getProcessor().set(2, 2, 2);
         IJ.saveAsTiff(image, file.getAbsolutePath());
         image.close();
     }
