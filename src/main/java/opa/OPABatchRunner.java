@@ -13,6 +13,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.nio.charset.StandardCharsets;
@@ -103,9 +105,9 @@ public final class OPABatchRunner {
                         .build();
                 OPAResult result = OPA.run(analysis);
                 appendTable(distanceSummary, result.getDistanceSummaryTable(),
-                        group.relativeFolder, group.displayName());
+                        group.relativeFolder, group.displayName(), group.identity());
                 appendTable(patternSummary, result.getPatternSummaryTable(),
-                        group.relativeFolder, group.displayName());
+                        group.relativeFolder, group.displayName(), group.identity());
                 curves.add(result.getCurveTables());
                 ecdfs.add(result.getEcdfTables());
                 if (parameters.isAutoSave()) {
@@ -314,13 +316,15 @@ public final class OPABatchRunner {
     private static void appendTable(ResultsTable target,
                                     ResultsTable source,
                                     String folder,
-                                    String group) {
+                                    String group,
+                                    String groupIdentity) {
         if (source == null) return;
         String[] headings = source.getHeadings();
         for (int row = 0; row < source.size(); row++) {
             target.incrementCounter();
             target.addValue("Folder", folder);
             target.addValue("Group", group);
+            target.addValue("Group_Identity", groupIdentity);
             for (String heading : headings) {
                 if (heading == null || heading.trim().isEmpty()) continue;
                 String value = source.getStringValue(heading, row);
@@ -365,13 +369,15 @@ public final class OPABatchRunner {
         for (Map.Entry<String, ResultsTable> entry : curves.entrySet()) {
             entry.getValue().saveAs(new File(
                     folder,
-                    "OPA_Batch_Mean_Curve__" + safe(entry.getKey()) + ".csv")
+                    aggregateFilename(
+                            "OPA_Batch_Mean_Curve__", entry.getKey()))
                     .getAbsolutePath());
         }
         for (Map.Entry<String, ResultsTable> entry : ecdfs.entrySet()) {
             entry.getValue().saveAs(new File(
                     folder,
-                    "OPA_Batch_Mean_ECDF__" + safe(entry.getKey()) + ".csv")
+                    aggregateFilename(
+                            "OPA_Batch_Mean_ECDF__", entry.getKey()))
                     .getAbsolutePath());
         }
         Writer readme = new FileWriter(new File(folder, "README.txt"));
@@ -396,6 +402,28 @@ public final class OPABatchRunner {
         return value.replaceAll("[^A-Za-z0-9._-]+", "_");
     }
 
+    private static String aggregateFilename(String prefix, String identity) {
+        String label = safe(identity);
+        if (label.length() > 80) label = label.substring(0, 80);
+        return prefix + label + "__" + sha256(identity) + ".csv";
+    }
+
+    private static String sha256(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(
+                    value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder text = new StringBuilder(hash.length * 2);
+            for (byte item : hash) {
+                text.append(String.format("%02x", item & 0xff));
+            }
+            return text.toString();
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException(
+                    "This Java runtime does not provide SHA-256.", exception);
+        }
+    }
+
     private static String aggregateKey(String base,
                                        String firstUnit,
                                        String secondUnit) {
@@ -418,6 +446,10 @@ public final class OPABatchRunner {
         String base = first < 0 ? key : key.substring(0, first);
         String[] units = unitsFromAggregateKey(key);
         return base + "__" + units[0] + "__" + units[1];
+    }
+
+    private static String aggregateResultKey(String key) {
+        return displayAggregateKey(key) + "__" + sha256(key);
     }
 
     private static final class Compiled {
@@ -467,18 +499,25 @@ public final class OPABatchRunner {
             return name.isEmpty() ? "batch" : name;
         }
 
+        private String identity() {
+            return relativeFolder.isEmpty()
+                    ? key
+                    : relativeFolder + "/" + key;
+        }
+
         private String outputPrefix() {
-            String identity = relativeFolder + "\u0000" + key;
+            String tokenIdentity = relativeFolder + "\u0000" + key;
             String token = Base64.getUrlEncoder()
                     .withoutPadding()
-                    .encodeToString(identity.getBytes(StandardCharsets.UTF_8));
+                    .encodeToString(
+                            tokenIdentity.getBytes(StandardCharsets.UTF_8));
             return displayName() + "__" + token;
         }
     }
 
     private static final class CurveAccumulator {
-        private final Map<String, TreeMap<Double, List<Double>>> values =
-                new LinkedHashMap<String, TreeMap<Double, List<Double>>>();
+        private final Map<String, List<TreeMap<Double, Double>>> values =
+                new LinkedHashMap<String, List<TreeMap<Double, Double>>>();
 
         private void add(Map<String, ResultsTable> tables) {
             for (Map.Entry<String, ResultsTable> entry : tables.entrySet()) {
@@ -488,48 +527,96 @@ public final class OPABatchRunner {
                 String valueUnit = table.getStringValue("Value_Unit", 0);
                 String aggregateKey = aggregateKey(
                         entry.getKey(), radiusUnit, valueUnit);
-                TreeMap<Double, List<Double>> byRadius = values.get(aggregateKey);
-                if (byRadius == null) {
-                    byRadius = new TreeMap<Double, List<Double>>();
-                    values.put(aggregateKey, byRadius);
+                List<TreeMap<Double, Double>> curves = values.get(aggregateKey);
+                if (curves == null) {
+                    curves = new ArrayList<TreeMap<Double, Double>>();
+                    values.put(aggregateKey, curves);
                 }
+                TreeMap<Double, Double> curve = new TreeMap<Double, Double>();
                 for (int row = 0; row < table.size(); row++) {
                     double radius = table.getValue("Radius", row);
                     double observed = table.getValue("Observed", row);
                     if (!Double.isFinite(radius) || !Double.isFinite(observed)) continue;
-                    List<Double> samples = byRadius.get(radius);
-                    if (samples == null) {
-                        samples = new ArrayList<Double>();
-                        byRadius.put(radius, samples);
-                    }
-                    samples.add(observed);
+                    curve.put(radius, observed);
                 }
+                if (!curve.isEmpty()) curves.add(curve);
             }
         }
 
         private Map<String, ResultsTable> tables() {
             Map<String, ResultsTable> result =
                     new LinkedHashMap<String, ResultsTable>();
-            for (Map.Entry<String, TreeMap<Double, List<Double>>> entry
+            for (Map.Entry<String, List<TreeMap<Double, Double>>> entry
                     : values.entrySet()) {
                 ResultsTable table = new ResultsTable();
-                for (Map.Entry<Double, List<Double>> radius
-                        : entry.getValue().entrySet()) {
-                    Stats stats = Stats.of(radius.getValue());
+                List<TreeMap<Double, Double>> curves = entry.getValue();
+                double sharedMinimum = Double.NEGATIVE_INFINITY;
+                double sharedMaximum = Double.POSITIVE_INFINITY;
+                int gridCount = 0;
+                for (TreeMap<Double, Double> curve : curves) {
+                    sharedMinimum = Math.max(
+                            sharedMinimum, curve.firstKey());
+                    sharedMaximum = Math.min(
+                            sharedMaximum, curve.lastKey());
+                    gridCount = Math.max(gridCount, curve.size());
+                }
+                if (curves.isEmpty() || sharedMinimum > sharedMaximum) {
                     table.incrementCounter();
-                    table.addValue("Radius", radius.getKey());
+                    table.addValue("Radius", Double.NaN);
+                    table.addValue("Mean_Observed", Double.NaN);
+                    table.addValue("SD_Observed", Double.NaN);
+                    table.addValue("Mean_Minus_SD", Double.NaN);
+                    table.addValue("Mean_Plus_SD", Double.NaN);
+                    table.addValue("Group_N", 0);
+                    table.addValue("Aggregation_Status",
+                            "NO_SHARED_RADIUS_RANGE");
+                    String[] units = unitsFromAggregateKey(entry.getKey());
+                    table.addValue("Radius_Unit", units[0]);
+                    table.addValue("Value_Unit", units[1]);
+                    result.put(aggregateResultKey(entry.getKey()), table);
+                    continue;
+                }
+                if (sharedMinimum == sharedMaximum) gridCount = 1;
+                for (int grid = 0; grid < gridCount; grid++) {
+                    double radius = gridCount == 1
+                            ? sharedMinimum
+                            : sharedMinimum
+                                    + (sharedMaximum - sharedMinimum)
+                                    * grid / (gridCount - 1);
+                    List<Double> samples = new ArrayList<Double>(curves.size());
+                    for (TreeMap<Double, Double> curve : curves) {
+                        samples.add(interpolate(curve, radius));
+                    }
+                    Stats stats = Stats.of(samples);
+                    table.incrementCounter();
+                    table.addValue("Radius", radius);
                     table.addValue("Mean_Observed", stats.mean);
                     table.addValue("SD_Observed", stats.sd);
                     table.addValue("Mean_Minus_SD", stats.mean - stats.sd);
                     table.addValue("Mean_Plus_SD", stats.mean + stats.sd);
                     table.addValue("Group_N", stats.count);
+                    table.addValue("Aggregation_Status", "OK");
                     String[] units = unitsFromAggregateKey(entry.getKey());
                     table.addValue("Radius_Unit", units[0]);
                     table.addValue("Value_Unit", units[1]);
                 }
-                result.put(displayAggregateKey(entry.getKey()), table);
+                result.put(aggregateResultKey(entry.getKey()), table);
             }
             return result;
+        }
+
+        private static double interpolate(TreeMap<Double, Double> curve,
+                                          double radius) {
+            Map.Entry<Double, Double> floor = curve.floorEntry(radius);
+            Map.Entry<Double, Double> ceiling = curve.ceilingEntry(radius);
+            if (floor == null || ceiling == null) return Double.NaN;
+            if (floor.getKey().doubleValue() == ceiling.getKey().doubleValue()) {
+                return floor.getValue();
+            }
+            double fraction = (radius - floor.getKey())
+                    / (ceiling.getKey() - floor.getKey());
+            return floor.getValue()
+                    + fraction * (ceiling.getValue() - floor.getValue());
         }
     }
 
@@ -571,7 +658,7 @@ public final class OPABatchRunner {
                 }
                 ResultsTable table = new ResultsTable();
                 if (!Double.isFinite(minimum) || !Double.isFinite(maximum)) {
-                    result.put(displayAggregateKey(entry.getKey()), table);
+                    result.put(aggregateResultKey(entry.getKey()), table);
                     continue;
                 }
                 int gridCount = minimum == maximum ? 1 : 101;
@@ -599,7 +686,7 @@ public final class OPABatchRunner {
                     table.addValue("Value_Unit", units[0]);
                     table.addValue("ECDF_Unit", "dimensionless");
                 }
-                result.put(displayAggregateKey(entry.getKey()), table);
+                result.put(aggregateResultKey(entry.getKey()), table);
             }
             return result;
         }

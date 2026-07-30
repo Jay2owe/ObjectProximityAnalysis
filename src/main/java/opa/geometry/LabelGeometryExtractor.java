@@ -41,9 +41,14 @@ public final class LabelGeometryExtractor {
         if (image == null || image.getStack() == null) {
             throw new IllegalArgumentException("Label image must contain an image stack.");
         }
+        if (image.getNChannels() != 1 || image.getNFrames() != 1) {
+            throw new IllegalArgumentException(
+                    "Each label input must contain exactly one channel and one time frame; "
+                            + "split channels or frames into separate label images first.");
+        }
         int width = image.getWidth();
         int height = image.getHeight();
-        int depth = Math.max(1, image.getStackSize());
+        int depth = Math.max(1, image.getNSlices());
         if (width <= 0 || height <= 0) {
             throw new IllegalArgumentException("Label image dimensions must be positive.");
         }

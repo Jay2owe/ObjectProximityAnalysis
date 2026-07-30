@@ -170,7 +170,7 @@ public final class Object_Proximity_Analysis implements PlugIn {
                             "Each label channel must use a different open image.");
                 }
                 images.add(image);
-                names.add(image.getTitle());
+                names.add(labelChoices[i]);
             }
         }
 
@@ -326,7 +326,7 @@ public final class Object_Proximity_Analysis implements PlugIn {
                     .append(calibration.getPixelWidth())
                     .append(" x ")
                     .append(calibration.getPixelHeight());
-            if (image.getStackSize() > 1) {
+            if (image.getNSlices() > 1) {
                 text.append(" x ").append(calibration.getPixelDepth());
             }
             text.append(" ").append(calibration.getUnit());

@@ -16,7 +16,9 @@ import opa.spatial.PatternFunction;
 import opa.spatial.RectangularWindow;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Public Java facade for dialog-free, display-free analysis.
@@ -55,17 +57,35 @@ public final class OPA {
 
     private static List<ChannelGeometry> extractChannels(OPAParameters parameters) {
         List<ChannelGeometry> channels = new ArrayList<ChannelGeometry>();
+        List<String> names = effectiveChannelNames(parameters);
         for (int i = 0; i < parameters.getImages().size(); i++) {
             ImagePlus image = parameters.getImages().get(i);
-            String name = i < parameters.getChannelNames().size()
-                    ? parameters.getChannelNames().get(i)
-                    : image.getTitle();
-            if (name == null || name.trim().isEmpty()) {
-                name = "Channel_" + (i + 1);
-            }
-            channels.add(LabelGeometryExtractor.extract(image, name));
+            channels.add(LabelGeometryExtractor.extract(image, names.get(i)));
         }
         return channels;
+    }
+
+    private static List<String> effectiveChannelNames(OPAParameters parameters) {
+        List<String> names =
+                new ArrayList<String>(parameters.getImages().size());
+        Set<String> used = new HashSet<String>();
+        for (int i = 0; i < parameters.getImages().size(); i++) {
+            ImagePlus image = parameters.getImages().get(i);
+            String candidate = i < parameters.getChannelNames().size()
+                    ? parameters.getChannelNames().get(i)
+                    : image.getTitle();
+            String base = candidate == null || candidate.trim().isEmpty()
+                    ? "Channel_" + (i + 1)
+                    : candidate.trim();
+            String unique = base;
+            int suffix = 2;
+            while (!used.add(unique)) {
+                unique = base + " [channel " + suffix + "]";
+                suffix++;
+            }
+            names.add(unique);
+        }
+        return names;
     }
 
     private static List<DirectionResult> analyzeDistances(
@@ -198,6 +218,13 @@ public final class OPA {
                 && parameters.getDistanceModes().isEmpty()) {
             throw new IllegalArgumentException(
                     "At least one distance mode must be enabled.");
+        }
+        if (parameters.isRunDistances()
+                && images.size() == 1
+                && !parameters.isIncludeSelfDistances()) {
+            throw new IllegalArgumentException(
+                    "A one-channel distance analysis requires self-distances; "
+                            + "enable self-distances or disable distance analysis.");
         }
         if (parameters.isRunPattern()
                 && parameters.getPatternFunctions().isEmpty()) {

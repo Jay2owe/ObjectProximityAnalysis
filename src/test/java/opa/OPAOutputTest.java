@@ -10,8 +10,12 @@ import ij.process.ByteProcessor;
 import org.junit.Test;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.EnumSet;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class OPAOutputTest {
@@ -36,6 +40,40 @@ public class OPAOutputTest {
             assertTrue(new File(
                     new File(root, "Objects"),
                     "sample__Distance_Summary.csv").isFile());
+        } finally {
+            delete(parent);
+        }
+    }
+
+    @Test
+    public void duplicateChannelTitlesRemainDistinctInSavedOutputs()
+            throws Exception {
+        ImagePlus first = new ImagePlus(
+                "Labels", new ByteProcessor(6, 6));
+        ImagePlus second = new ImagePlus(
+                "Labels", new ByteProcessor(6, 6));
+        first.getProcessor().set(2, 2, 1);
+        second.getProcessor().set(4, 4, 1);
+        OPAResult result = OPA.run(OPAParameters.builder(first, second)
+                .channelNames(Arrays.asList("Labels", "Labels"))
+                .runPattern(false)
+                .distanceModes(EnumSet.of(DistanceMode.CENTRE_TO_CENTRE))
+                .build());
+        File parent = Files.createTempDirectory(
+                "opa-output-duplicate-names").toFile();
+        try {
+            File root = OPAOutput.save(result, parent, "sample");
+            File objects = new File(root, "Objects");
+            File[] tables = objects.listFiles((directory, name) ->
+                    name.endsWith(".csv")
+                            && !name.endsWith("__Distance_Summary.csv"));
+            assertTrue(tables != null);
+            assertEquals(4, tables.length);
+            String summary = new String(Files.readAllBytes(new File(
+                            objects,
+                            "sample__Distance_Summary.csv").toPath()),
+                    StandardCharsets.UTF_8);
+            assertTrue(summary.contains("Labels [channel 2]"));
         } finally {
             delete(parent);
         }

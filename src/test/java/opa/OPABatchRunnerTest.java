@@ -15,6 +15,8 @@ import org.junit.Test;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -167,6 +169,102 @@ public class OPABatchRunnerTest {
             assertTrue(summaries != null);
             assertEquals(2, summaries.length);
             assertFalse(summaries[0].getName().equals(summaries[1].getName()));
+            Set<String> groupIdentities = new HashSet<String>();
+            for (int row = 0; row < result.getDistanceSummary().size(); row++) {
+                groupIdentities.add(result.getDistanceSummary()
+                        .getStringValue("Group_Identity", row));
+            }
+            assertEquals(2, groupIdentities.size());
+        } finally {
+            deleteChildren(input);
+            deleteChildren(output);
+        }
+    }
+
+    @Test
+    public void meanCurvesInterpolateOntoACommonSharedRadiusGrid()
+            throws Exception {
+        File directory = Files.createTempDirectory(
+                "opa-batch-curve-grid").toFile();
+        try {
+            saveTwoLabels(
+                    new File(directory, "sample1_A.tif"),
+                    "pixel", 8, 8);
+            saveTwoLabels(
+                    new File(directory, "sample2_A.tif"),
+                    "pixel", 20, 20);
+
+            OPAParameters options = OPAParameters.builder()
+                    .runDistances(false)
+                    .patternFunctions(EnumSet.of(PatternFunction.K))
+                    .radiusBins(4)
+                    .simulations(1)
+                    .build();
+            OPABatchParameters parameters = OPABatchParameters.builder(
+                            directory,
+                            "(sample\\d+)_([A])\\.tif",
+                            2)
+                    .recursive(false)
+                    .analysisTemplate(options)
+                    .autoSave(false)
+                    .build();
+
+            OPABatchResult result = OPABatchRunner.run(parameters);
+
+            assertEquals(2, result.getProcessedGroups());
+            assertEquals(1, result.getMeanCurveTables().size());
+            ij.measure.ResultsTable table =
+                    result.getMeanCurveTables().values().iterator().next();
+            assertEquals(4, table.size());
+            for (int row = 0; row < table.size(); row++) {
+                assertEquals(2.0, table.getValue("Group_N", row), 0.0);
+                assertEquals("OK",
+                        table.getStringValue("Aggregation_Status", row));
+            }
+        } finally {
+            deleteChildren(directory);
+        }
+    }
+
+    @Test
+    public void aggregateFilesRemainDistinctWhenUnitsSanitizeTheSame()
+            throws Exception {
+        File input = Files.createTempDirectory(
+                "opa-batch-unit-filenames-input").toFile();
+        File output = Files.createTempDirectory(
+                "opa-batch-unit-filenames-output").toFile();
+        try {
+            saveTwoLabels(new File(input, "sample1_A.tif"), "a/b");
+            saveTwoLabels(new File(input, "sample2_A.tif"), "a?b");
+
+            OPAParameters options = OPAParameters.builder()
+                    .runDistances(false)
+                    .patternFunctions(EnumSet.of(PatternFunction.K))
+                    .radii(new double[]{1.0})
+                    .simulations(1)
+                    .build();
+            OPABatchParameters parameters = OPABatchParameters.builder(
+                            input,
+                            "(sample\\d+)_([A])\\.tif",
+                            2)
+                    .recursive(false)
+                    .analysisTemplate(options)
+                    .autoSave(true)
+                    .outputDirectory(output)
+                    .build();
+
+            OPABatchResult result = OPABatchRunner.run(parameters);
+
+            assertEquals(2, result.getProcessedGroups());
+            assertEquals(2, result.getMeanCurveTables().size());
+            File folder = new File(
+                    new File(output, "Object Proximity Analysis"), "Folder");
+            File[] curves = folder.listFiles((directory, name) ->
+                    name.startsWith("OPA_Batch_Mean_Curve__")
+                            && name.endsWith(".csv"));
+            assertTrue(curves != null);
+            assertEquals(2, curves.length);
+            assertFalse(curves[0].getName().equals(curves[1].getName()));
         } finally {
             deleteChildren(input);
             deleteChildren(output);
@@ -181,9 +279,23 @@ public class OPABatchRunnerTest {
     }
 
     private static void saveTwoLabels(File file, String unit) {
-        ImagePlus image = new ImagePlus("labels", new ByteProcessor(8, 8));
-        image.getProcessor().set(2, 2, 1);
-        image.getProcessor().set(5, 5, 2);
+        saveTwoLabels(file, unit, 8, 8);
+    }
+
+    private static void saveTwoLabels(File file,
+                                      String unit,
+                                      int width,
+                                      int height) {
+        ImagePlus image = new ImagePlus(
+                "labels", new ByteProcessor(width, height));
+        image.getProcessor().set(
+                Math.max(1, width / 4),
+                Math.max(1, height / 4),
+                1);
+        image.getProcessor().set(
+                Math.min(width - 2, 3 * width / 4),
+                Math.min(height - 2, 3 * height / 4),
+                2);
         if (!"pixel".equals(unit)) {
             Calibration calibration = new Calibration();
             calibration.pixelWidth = 1.0;

@@ -15,6 +15,8 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -187,6 +189,59 @@ public class OPATest {
         assertTrue(choices[1].contains("Labels"));
         assertTrue(choices[2].contains("Labels"));
         assertEquals("Reference", choices[3]);
+    }
+
+    @Test
+    public void duplicateApiChannelNamesGetDistinctOutputIdentities() {
+        ImagePlus first = labels("Labels", 7, 3, 1);
+        ImagePlus second = labels("Labels", 7, 3, 1);
+        first.getProcessor().set(1, 1, 1);
+        second.getProcessor().set(5, 1, 1);
+
+        OPAResult result = OPA.run(OPAParameters.builder(first, second)
+                .channelNames(Arrays.asList("Labels", "Labels"))
+                .runPattern(false)
+                .distanceModes(EnumSet.of(DistanceMode.CENTRE_TO_CENTRE))
+                .build());
+
+        Set<String> names = new HashSet<String>();
+        names.add(result.getChannels().get(0).getName());
+        names.add(result.getChannels().get(1).getName());
+        assertEquals(2, names.size());
+        for (int row = 0; row < result.getDistanceSummaryTable().size(); row++) {
+            assertTrue(names.contains(result.getDistanceSummaryTable()
+                    .getStringValue("Source_Channel", row)));
+            assertTrue(names.contains(result.getDistanceSummaryTable()
+                    .getStringValue("Target_Channel", row)));
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void multichannelHyperstackIsRejected() {
+        ImagePlus image = labels("channels", 5, 5, 2);
+        image.setDimensions(2, 1, 1);
+        OPA.run(OPAParameters.builder(image)
+                .runPattern(false)
+                .build());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void timeSeriesIsRejected() {
+        ImagePlus image = labels("frames", 5, 5, 2);
+        image.setDimensions(1, 1, 2);
+        OPA.run(OPAParameters.builder(image)
+                .runPattern(false)
+                .build());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void singleChannelDistanceAnalysisRequiresSelfDistances() {
+        ImagePlus image = labels("single", 5, 5, 1);
+        image.getProcessor().set(2, 2, 1);
+        OPA.run(OPAParameters.builder(image)
+                .runPattern(false)
+                .includeSelfDistances(false)
+                .build());
     }
 
     @Test

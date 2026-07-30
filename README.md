@@ -46,7 +46,10 @@ Distance measurements remain fully 3D.
   Distance modes are ranked smallest first.
 
 Label images must contain positive integer object labels on a zero background.
-All channels must have identical dimensions and voxel calibration.
+Each input must contain one ImageJ channel and one time frame; split
+multichannel or time-series data into separate label images first. All inputs
+must have identical dimensions and voxel calibration. Duplicate image or API
+channel names receive distinct effective names in every output.
 
 ## Calibration and observation window
 
@@ -141,7 +144,12 @@ OPABatchResult result = OPABatchRunner.run(batch);
 The selected capture group is the channel name. Replacing that group with `*`
 forms the sample group, so `sample1_A.tif` and `sample1_B.tif` run together.
 Saved batch prefixes include a lossless group-identity token, preventing groups
-whose human-readable names are similar from overwriting one another.
+whose human-readable names are similar from overwriting one another. Aggregate
+summary rows include the raw `Group_Identity`. Mean curves are linearly
+interpolated onto a common grid over the radius range shared by every group;
+`Group_N` therefore represents the number of contributing curves at every
+reported radius. Aggregate filenames include a SHA-256 identity digest so
+different raw units or names cannot collide after filename sanitisation.
 
 ## Macro use
 

@@ -13,3 +13,7 @@
 - Collision-safe result-table names and explicit incomplete Monte Carlo ranks.
 - Observation-window validation for G functions, disambiguated ImageJ window
   choices, effective-window edge flags, and overwrite-safe batch group names.
+- Unique output identities for duplicate channel titles, explicit rejection of
+  channel/time hyperstacks, and validation against empty distance requests.
+- Traceable batch group identities, common-grid curve interpolation, and
+  hash-protected aggregate filenames.
