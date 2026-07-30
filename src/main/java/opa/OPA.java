@@ -231,6 +231,13 @@ public final class OPA {
             throw new IllegalArgumentException(
                     "At least one point-pattern function must be enabled.");
         }
+        if (parameters.isRunPattern()
+                && !hasExecutablePatternFunction(
+                        parameters.getPatternFunctions(), images.size())) {
+            throw new IllegalArgumentException(
+                    "Cross-pattern functions require at least two label images; "
+                            + "enable a univariate function or add another image.");
+        }
         if (parameters.getNeighborCount() < 1) {
             throw new IllegalArgumentException(
                     "Neighbor count must be at least 1.");
@@ -262,6 +269,15 @@ public final class OPA {
                         "Label image " + (i + 1) + " has no image stack.");
             }
         }
+    }
+
+    private static boolean hasExecutablePatternFunction(
+            Iterable<PatternFunction> functions,
+            int imageCount) {
+        for (PatternFunction function : functions) {
+            if (!function.isBivariate() || imageCount > 1) return true;
+        }
+        return false;
     }
 
     private static void validateChannels(OPAParameters parameters,

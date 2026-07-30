@@ -103,6 +103,6 @@ public final class OPABatchResult {
     }
 
     public boolean hasErrors() {
-        return errorGroups > 0;
+        return !errors.isEmpty();
     }
 }

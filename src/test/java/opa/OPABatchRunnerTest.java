@@ -271,6 +271,140 @@ public class OPABatchRunnerTest {
         }
     }
 
+    @Test
+    public void aggregatesKeepRawChannelNamesThatSanitizeTheSame()
+            throws Exception {
+        File directory = Files.createTempDirectory(
+                "opa-batch-channel-identities").toFile();
+        try {
+            saveTwoLabels(new File(directory, "sample1_A B.tif"), "pixel");
+            saveTwoLabels(new File(directory, "sample2_A_B.tif"), "pixel");
+
+            OPAParameters options = OPAParameters.builder()
+                    .distanceModes(EnumSet.of(DistanceMode.CENTRE_TO_CENTRE))
+                    .patternFunctions(EnumSet.of(PatternFunction.K))
+                    .radii(new double[]{1.0, 2.0})
+                    .simulations(1)
+                    .build();
+            OPABatchParameters parameters = OPABatchParameters.builder(
+                            directory,
+                            "(sample\\d+)_([^.]*)\\.tif",
+                            2)
+                    .recursive(false)
+                    .analysisTemplate(options)
+                    .autoSave(false)
+                    .build();
+
+            OPABatchResult result = OPABatchRunner.run(parameters);
+
+            assertEquals(2, result.getProcessedGroups());
+            assertEquals(2, result.getMeanCurveTables().size());
+            assertEquals(2, result.getMeanEcdfTables().size());
+            Set<String> curveSources = new HashSet<String>();
+            for (ij.measure.ResultsTable table
+                    : result.getMeanCurveTables().values()) {
+                curveSources.add(
+                        table.getStringValue("Source_Channel", 0));
+                assertEquals(1.0, table.getValue("Group_N", 0), 0.0);
+            }
+            assertTrue(curveSources.contains("A B"));
+            assertTrue(curveSources.contains("A_B"));
+            Set<String> ecdfSources = new HashSet<String>();
+            for (ij.measure.ResultsTable table
+                    : result.getMeanEcdfTables().values()) {
+                ecdfSources.add(
+                        table.getStringValue("Source_Channel", 0));
+            }
+            assertEquals(curveSources, ecdfSources);
+        } finally {
+            deleteChildren(directory);
+        }
+    }
+
+    @Test
+    public void previewSkipsImpossibleOneChannelDistanceGroups()
+            throws Exception {
+        File directory = Files.createTempDirectory(
+                "opa-batch-impossible-preview").toFile();
+        try {
+            saveTwoLabels(new File(directory, "sample_A.tif"), "pixel");
+            OPAParameters options = OPAParameters.builder()
+                    .runPattern(false)
+                    .includeSelfDistances(false)
+                    .build();
+            OPABatchParameters parameters = OPABatchParameters.builder(
+                            directory,
+                            "(sample)_([A])\\.tif",
+                            2)
+                    .recursive(false)
+                    .analysisTemplate(options)
+                    .autoSave(false)
+                    .build();
+
+            String preview = OPABatchRunner.preview(parameters);
+            OPABatchResult result = OPABatchRunner.run(parameters);
+
+            assertTrue(preview.contains("0 runnable"));
+            assertTrue(preview.contains(
+                    "one-channel distances require self-distances"));
+            assertEquals(0, result.getValidGroups());
+            assertEquals(0, result.getProcessedGroups());
+            assertEquals(1, result.getSkippedGroups());
+            assertEquals(0, result.getErrorGroups());
+        } finally {
+            deleteChildren(directory);
+        }
+    }
+
+    @Test
+    public void failedGroupSaveDoesNotContaminateAggregatesOrErrorCount()
+            throws Exception {
+        File input = Files.createTempDirectory(
+                "opa-batch-failed-save-input").toFile();
+        File output = Files.createTempDirectory(
+                "opa-batch-failed-save-output").toFile();
+        try {
+            saveTwoLabels(new File(input, "sample_A.tif"), "pixel");
+            assertTrue(new File(
+                    output, "Object Proximity Analysis").createNewFile());
+            OPAParameters options = OPAParameters.builder()
+                    .patternFunctions(EnumSet.of(PatternFunction.K))
+                    .radii(new double[]{1.0})
+                    .simulations(1)
+                    .build();
+            OPABatchParameters parameters = OPABatchParameters.builder(
+                            input,
+                            "(sample)_([A])\\.tif",
+                            2)
+                    .recursive(false)
+                    .analysisTemplate(options)
+                    .autoSave(true)
+                    .outputDirectory(output)
+                    .build();
+
+            OPABatchResult result = OPABatchRunner.run(parameters);
+
+            assertEquals(1, result.getTotalGroups());
+            assertEquals(1, result.getValidGroups());
+            assertEquals(0, result.getProcessedGroups());
+            assertEquals(0, result.getSkippedGroups());
+            assertEquals(1, result.getErrorGroups());
+            assertEquals(result.getTotalGroups(),
+                    result.getProcessedGroups()
+                            + result.getSkippedGroups()
+                            + result.getErrorGroups());
+            assertEquals(0, result.getDistanceSummary().size());
+            assertEquals(0, result.getPatternSummary().size());
+            assertTrue(result.getMeanCurveTables().isEmpty());
+            assertTrue(result.getMeanEcdfTables().isEmpty());
+            assertTrue(result.hasErrors());
+            assertEquals(2, result.getErrors().size());
+        } finally {
+            deleteChildren(input);
+            deleteChildren(output);
+        }
+    }
+
     private static void saveLabel(File file, int x, int y) {
         ImagePlus image = new ImagePlus("labels", new ByteProcessor(8, 8));
         image.getProcessor().set(x, y, 1);

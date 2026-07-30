@@ -244,6 +244,18 @@ public class OPATest {
                 .build());
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void singleChannelCrossOnlyPatternAnalysisIsRejected() {
+        ImagePlus image = labels("single-cross", 5, 5, 1);
+        image.getProcessor().set(2, 2, 1);
+        OPA.run(OPAParameters.builder(image)
+                .runDistances(false)
+                .patternFunctions(EnumSet.of(PatternFunction.CROSS_K))
+                .radii(new double[]{1.0})
+                .simulations(1)
+                .build());
+    }
+
     @Test
     public void customWindowMarksObjectsCrossingItsBoundaryAsEdgeObjects() {
         ImagePlus image = labels("custom-window", 10, 6, 1);

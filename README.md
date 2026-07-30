@@ -95,6 +95,10 @@ separate tables. A global rank is marked `INCOMPLETE_MONTE_CARLO` and its
 p-value is undefined unless every requested simulation contributes a valid
 curve.
 
+A one-channel run cannot request distances with self-distances disabled or
+request only cross-pattern functions; the API rejects both configurations
+instead of returning empty output.
+
 ## Java API
 
 The core call opens no dialogs, shows no windows, and writes no files:
@@ -150,6 +154,12 @@ interpolated onto a common grid over the radius range shared by every group;
 `Group_N` therefore represents the number of contributing curves at every
 reported radius. Aggregate filenames include a SHA-256 identity digest so
 different raw units or names cannot collide after filename sanitisation.
+Curve and distribution tables also carry raw source, target, function, mode,
+and rank fields. Batch aggregation uses those raw fields rather than sanitised
+display names. The preview marks groups that cannot run under the selected
+analysis options. A group is added to summaries and aggregates only after its
+required per-group save succeeds; batch-level aggregate-save errors are
+reported separately and do not inflate the failed-group count.
 
 ## Macro use
 

@@ -17,3 +17,7 @@
   channel/time hyperstacks, and validation against empty distance requests.
 - Traceable batch group identities, common-grid curve interpolation, and
   hash-protected aggregate filenames.
+- Raw analysis identities for collision-proof aggregation, template-aware
+  batch preview, transactional group aggregation, and honest group error
+  counts.
+- Rejection of single-channel cross-only pattern requests.

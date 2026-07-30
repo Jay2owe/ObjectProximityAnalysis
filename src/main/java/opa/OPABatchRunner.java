@@ -8,6 +8,7 @@ package opa;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.measure.ResultsTable;
+import opa.spatial.PatternFunction;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -37,6 +38,7 @@ import java.util.regex.PatternSyntaxException;
  */
 public final class OPABatchRunner {
 
+    private static final char IDENTITY_SEPARATOR = '\u001e';
     private static final char UNIT_SEPARATOR = '\u001f';
 
     private OPABatchRunner() {
@@ -44,7 +46,9 @@ public final class OPABatchRunner {
 
     public static String preview(OPABatchParameters parameters) {
         Compiled compiled = compile(parameters);
-        return preview(scan(parameters, compiled.pattern));
+        return preview(
+                scan(parameters, compiled.pattern),
+                parameters.getAnalysisTemplate());
     }
 
     public static OPABatchResult run(OPABatchParameters parameters) {
@@ -57,7 +61,7 @@ public final class OPABatchRunner {
 
         int validGroups = 0;
         for (Group group : groups) {
-            if (group.isRunnable()) validGroups++;
+            if (group.isRunnable(parameters.getAnalysisTemplate())) validGroups++;
         }
         int processed = 0;
         int skipped = 0;
@@ -78,7 +82,7 @@ public final class OPABatchRunner {
                 break;
             }
             Group group = groups.get(groupIndex);
-            if (!group.isRunnable()) {
+            if (!group.isRunnable(parameters.getAnalysisTemplate())) {
                 skipped++;
                 continue;
             }
@@ -104,16 +108,16 @@ public final class OPABatchRunner {
                         .channelNames(channelNames)
                         .build();
                 OPAResult result = OPA.run(analysis);
+                if (parameters.isAutoSave()) {
+                    OPAOutput.save(
+                            result, output, group.outputPrefix());
+                }
                 appendTable(distanceSummary, result.getDistanceSummaryTable(),
                         group.relativeFolder, group.displayName(), group.identity());
                 appendTable(patternSummary, result.getPatternSummaryTable(),
                         group.relativeFolder, group.displayName(), group.identity());
                 curves.add(result.getCurveTables());
                 ecdfs.add(result.getEcdfTables());
-                if (parameters.isAutoSave()) {
-                    OPAOutput.save(
-                            result, output, group.outputPrefix());
-                }
                 processed++;
             } catch (Exception exception) {
                 errors++;
@@ -141,7 +145,6 @@ public final class OPABatchRunner {
                         meanEcdfs,
                         errorMessages);
             } catch (IOException exception) {
-                errors++;
                 errorMessages.add("Saving batch aggregates: "
                         + exception.getMessage());
             }
@@ -284,26 +287,30 @@ public final class OPABatchRunner {
         }
     }
 
-    private static String preview(List<Group> groups) {
+    private static String preview(List<Group> groups,
+                                  OPAParameters analysisTemplate) {
         if (groups.isEmpty()) return "No matching files found.";
         int runnable = 0;
         int fileCount = 0;
         StringBuilder text = new StringBuilder();
         for (Group group : groups) {
-            if (group.isRunnable()) runnable++;
+            if (group.isRunnable(analysisTemplate)) runnable++;
             fileCount += group.files.size();
         }
         text.append(groups.size()).append(" group(s), ")
                 .append(runnable).append(" runnable, ")
                 .append(fileCount).append(" file(s)\n\n");
         for (Group group : groups) {
+            String rejection = group.rejectionReason(analysisTemplate);
             text.append(group.relativeFolder.isEmpty()
                             ? "(root)/"
                             : group.relativeFolder + "/")
                     .append(group.key)
                     .append("  (")
                     .append(group.files.size())
-                    .append(group.isRunnable() ? "" : " - SKIP")
+                    .append(rejection == null
+                            ? ""
+                            : " - SKIP: " + rejection)
                     .append(")\n");
             for (BatchFile file : group.files) {
                 text.append("  [").append(file.channel).append("] ")
@@ -424,11 +431,13 @@ public final class OPABatchRunner {
         }
     }
 
-    private static String aggregateKey(String base,
+    private static String aggregateKey(String displayLabel,
+                                       String rawIdentity,
                                        String firstUnit,
                                        String secondUnit) {
-        return base + UNIT_SEPARATOR + firstUnit
-                + UNIT_SEPARATOR + secondUnit;
+        return displayLabel + IDENTITY_SEPARATOR + rawIdentity
+                + UNIT_SEPARATOR + encodeIdentityPart(firstUnit)
+                + UNIT_SEPARATOR + encodeIdentityPart(secondUnit);
     }
 
     private static String[] unitsFromAggregateKey(String key) {
@@ -436,20 +445,67 @@ public final class OPABatchRunner {
         int first = last < 0 ? -1 : key.lastIndexOf(UNIT_SEPARATOR, last - 1);
         if (first < 0 || last < 0) return new String[]{"", ""};
         return new String[]{
-                key.substring(first + 1, last),
-                key.substring(last + 1)
+                decodeIdentityPart(key.substring(first + 1, last)),
+                decodeIdentityPart(key.substring(last + 1))
         };
     }
 
     private static String displayAggregateKey(String key) {
         int first = key.indexOf(UNIT_SEPARATOR);
         String base = first < 0 ? key : key.substring(0, first);
+        int identity = base.indexOf(IDENTITY_SEPARATOR);
+        if (identity >= 0) base = base.substring(0, identity);
         String[] units = unitsFromAggregateKey(key);
         return base + "__" + units[0] + "__" + units[1];
     }
 
     private static String aggregateResultKey(String key) {
         return displayAggregateKey(key) + "__" + sha256(key);
+    }
+
+    private static String canonicalIdentity(String kind,
+                                            String... fields) {
+        StringBuilder identity = new StringBuilder();
+        appendIdentityField(identity, kind);
+        for (String field : fields) {
+            appendIdentityField(identity, field == null ? "" : field);
+        }
+        return identity.toString();
+    }
+
+    private static void appendIdentityField(StringBuilder identity,
+                                            String value) {
+        identity.append(value.length()).append(':').append(value);
+    }
+
+    private static String encodeIdentityPart(String value) {
+        return Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(value.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String decodeIdentityPart(String value) {
+        return new String(
+                Base64.getUrlDecoder().decode(value),
+                StandardCharsets.UTF_8);
+    }
+
+    private static String curveDisplayLabel(String source,
+                                            String target,
+                                            String function) {
+        String channels = safe(source);
+        if (target != null && !target.isEmpty()) {
+            channels += "_to_" + safe(target);
+        }
+        return channels + "__" + safe(function);
+    }
+
+    private static String distributionDisplayLabel(String source,
+                                                   String target,
+                                                   String mode,
+                                                   String rank) {
+        return safe(source) + "_to_" + safe(target)
+                + "__" + safe(mode) + "__NN" + rank;
     }
 
     private static final class Compiled {
@@ -480,16 +536,42 @@ public final class OPABatchRunner {
             this.key = key;
         }
 
-        private boolean isRunnable() {
-            if (files.isEmpty() || files.size() > OPAParameters.MAX_IMAGES) return false;
+        private boolean isRunnable(OPAParameters analysisTemplate) {
+            return rejectionReason(analysisTemplate) == null;
+        }
+
+        private String rejectionReason(OPAParameters analysisTemplate) {
+            if (files.isEmpty()) return "no channel files";
+            if (files.size() > OPAParameters.MAX_IMAGES) {
+                return "more than " + OPAParameters.MAX_IMAGES + " channels";
+            }
             Set<String> channels = new HashSet<String>();
             for (BatchFile file : files) {
                 if (file.channel == null || file.channel.trim().isEmpty()
                         || !channels.add(file.channel)) {
-                    return false;
+                    return "empty or duplicate channel names";
                 }
             }
-            return true;
+            if (analysisTemplate.isRunDistances()
+                    && files.size() == 1
+                    && !analysisTemplate.isIncludeSelfDistances()) {
+                return "one-channel distances require self-distances";
+            }
+            if (analysisTemplate.isRunPattern()
+                    && files.size() == 1) {
+                boolean hasUnivariate = false;
+                for (PatternFunction function
+                        : analysisTemplate.getPatternFunctions()) {
+                    if (!function.isBivariate()) {
+                        hasUnivariate = true;
+                        break;
+                    }
+                }
+                if (!hasUnivariate) {
+                    return "cross-pattern functions require at least two channels";
+                }
+            }
+            return null;
         }
 
         private String displayName() {
@@ -518,6 +600,8 @@ public final class OPABatchRunner {
     private static final class CurveAccumulator {
         private final Map<String, List<TreeMap<Double, Double>>> values =
                 new LinkedHashMap<String, List<TreeMap<Double, Double>>>();
+        private final Map<String, String[]> identities =
+                new LinkedHashMap<String, String[]>();
 
         private void add(Map<String, ResultsTable> tables) {
             for (Map.Entry<String, ResultsTable> entry : tables.entrySet()) {
@@ -525,8 +609,18 @@ public final class OPABatchRunner {
                 if (table.size() == 0) continue;
                 String radiusUnit = table.getStringValue("Radius_Unit", 0);
                 String valueUnit = table.getStringValue("Value_Unit", 0);
+                String source = table.getStringValue("Source_Channel", 0);
+                String target = table.getStringValue("Target_Channel", 0);
+                String function = table.getStringValue("Function", 0);
                 String aggregateKey = aggregateKey(
-                        entry.getKey(), radiusUnit, valueUnit);
+                        curveDisplayLabel(source, target, function),
+                        canonicalIdentity(
+                                "CURVE",
+                                source, target, function),
+                        radiusUnit,
+                        valueUnit);
+                identities.put(aggregateKey,
+                        new String[]{source, target, function});
                 List<TreeMap<Double, Double>> curves = values.get(aggregateKey);
                 if (curves == null) {
                     curves = new ArrayList<TreeMap<Double, Double>>();
@@ -570,6 +664,7 @@ public final class OPABatchRunner {
                     table.addValue("Group_N", 0);
                     table.addValue("Aggregation_Status",
                             "NO_SHARED_RADIUS_RANGE");
+                    addIdentity(table, entry.getKey());
                     String[] units = unitsFromAggregateKey(entry.getKey());
                     table.addValue("Radius_Unit", units[0]);
                     table.addValue("Value_Unit", units[1]);
@@ -596,6 +691,7 @@ public final class OPABatchRunner {
                     table.addValue("Mean_Plus_SD", stats.mean + stats.sd);
                     table.addValue("Group_N", stats.count);
                     table.addValue("Aggregation_Status", "OK");
+                    addIdentity(table, entry.getKey());
                     String[] units = unitsFromAggregateKey(entry.getKey());
                     table.addValue("Radius_Unit", units[0]);
                     table.addValue("Value_Unit", units[1]);
@@ -603,6 +699,13 @@ public final class OPABatchRunner {
                 result.put(aggregateResultKey(entry.getKey()), table);
             }
             return result;
+        }
+
+        private void addIdentity(ResultsTable table, String key) {
+            String[] identity = identities.get(key);
+            table.addValue("Source_Channel", identity[0]);
+            table.addValue("Target_Channel", identity[1]);
+            table.addValue("Function", identity[2]);
         }
 
         private static double interpolate(TreeMap<Double, Double> curve,
@@ -623,6 +726,8 @@ public final class OPABatchRunner {
     private static final class EcdfAccumulator {
         private final Map<String, List<double[]>> samples =
                 new LinkedHashMap<String, List<double[]>>();
+        private final Map<String, String[]> identities =
+                new LinkedHashMap<String, String[]>();
 
         private void add(Map<String, ResultsTable> tables) {
             for (Map.Entry<String, ResultsTable> entry : tables.entrySet()) {
@@ -633,8 +738,23 @@ public final class OPABatchRunner {
                 }
                 Arrays.sort(values);
                 String unit = entry.getValue().getStringValue("Unit", 0);
+                String source = entry.getValue().getStringValue(
+                        "Source_Channel", 0);
+                String target = entry.getValue().getStringValue(
+                        "Target_Channel", 0);
+                String mode = entry.getValue().getStringValue("Mode", 0);
+                String rank = Integer.toString((int) entry.getValue()
+                        .getValue("Rank", 0));
                 String aggregateKey = aggregateKey(
-                        entry.getKey(), unit, "ECDF");
+                        distributionDisplayLabel(
+                                source, target, mode, rank),
+                        canonicalIdentity(
+                                "ECDF",
+                                source, target, mode, rank),
+                        unit,
+                        "ECDF");
+                identities.put(aggregateKey,
+                        new String[]{source, target, mode, rank});
                 List<double[]> groups = samples.get(aggregateKey);
                 if (groups == null) {
                     groups = new ArrayList<double[]>();
@@ -682,6 +802,7 @@ public final class OPABatchRunner {
                     table.addValue("Mean_Plus_SD",
                             Math.min(1.0, stats.mean + stats.sd));
                     table.addValue("Group_N", stats.count);
+                    addIdentity(table, entry.getKey());
                     String[] units = unitsFromAggregateKey(entry.getKey());
                     table.addValue("Value_Unit", units[0]);
                     table.addValue("ECDF_Unit", "dimensionless");
@@ -689,6 +810,14 @@ public final class OPABatchRunner {
                 result.put(aggregateResultKey(entry.getKey()), table);
             }
             return result;
+        }
+
+        private void addIdentity(ResultsTable table, String key) {
+            String[] identity = identities.get(key);
+            table.addValue("Source_Channel", identity[0]);
+            table.addValue("Target_Channel", identity[1]);
+            table.addValue("Mode", identity[2]);
+            table.addValue("Rank", Integer.parseInt(identity[3]));
         }
 
         private static double ecdf(double[] sorted, double value) {

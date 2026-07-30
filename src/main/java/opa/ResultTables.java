@@ -11,6 +11,9 @@ import opa.geometry.NeighborMeasurement;
 import opa.geometry.ObjectMeasurement;
 import opa.spatial.MonteCarloResult;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -32,6 +35,7 @@ final class ResultTables {
             ResultsTable table = new ResultsTable();
             for (ObjectMeasurement object : direction.getMeasurements()) {
                 table.incrementCounter();
+                addDirectionIdentity(table, direction);
                 table.addValue("Source_Label", object.getSourceLabel());
                 table.addValue("Edge_Object", object.isEdgeObject() ? 1 : 0);
                 table.addValue("Distance_Unit", direction.getUnit());
@@ -100,7 +104,8 @@ final class ResultTables {
                     if (values.isEmpty()) break;
                     double[] sorted = sorted(values);
                     ResultsTable table = histogram(
-                            sorted, binCount, measurementUnit(direction, mode));
+                            sorted, binCount, measurementUnit(direction, mode),
+                            direction, mode, rank);
                     putUnique(
                             tables,
                             directionKey(direction) + "__"
@@ -126,6 +131,8 @@ final class ResultTables {
                         table.addValue("Value", sorted[i]);
                         table.addValue("ECDF", (i + 1.0) / sorted.length);
                         table.addValue("Unit", measurementUnit(direction, mode));
+                        addDistributionIdentity(
+                                table, direction, mode, rank);
                     }
                     putUnique(
                             tables,
@@ -162,6 +169,12 @@ final class ResultTables {
                 table.addValue("Global_P", result.getGlobalPValue());
                 table.addValue("Status", result.getStatus().name());
                 table.addValue("Global_Rank_N", result.getRankSampleCount());
+                table.addValue("Source_Channel", pattern.getSourceChannel());
+                table.addValue("Target_Channel",
+                        pattern.isBivariate()
+                                ? pattern.getTargetChannel()
+                                : "");
+                table.addValue("Function", result.getFunction().name());
             }
             putUnique(tables, patternKey(pattern), table);
         }
@@ -196,7 +209,10 @@ final class ResultTables {
 
     private static ResultsTable histogram(double[] values,
                                           int binCount,
-                                          String unit) {
+                                          String unit,
+                                          DirectionResult direction,
+                                          DistanceMode mode,
+                                          int rank) {
         ResultsTable table = new ResultsTable();
         double minimum = values[0];
         double maximum = values[values.length - 1];
@@ -208,6 +224,7 @@ final class ResultTables {
             table.addValue("Count", values.length);
             table.addValue("Fraction", 1.0);
             table.addValue("Unit", unit);
+            addDistributionIdentity(table, direction, mode, rank);
             return table;
         }
         double width = (maximum - minimum) / binCount;
@@ -227,8 +244,24 @@ final class ResultTables {
             table.addValue("Count", counts[bin]);
             table.addValue("Fraction", counts[bin] / (double) values.length);
             table.addValue("Unit", unit);
+            addDistributionIdentity(table, direction, mode, rank);
         }
         return table;
+    }
+
+    private static void addDirectionIdentity(ResultsTable table,
+                                             DirectionResult direction) {
+        table.addValue("Source_Channel", direction.getSourceChannel());
+        table.addValue("Target_Channel", direction.getTargetChannel());
+    }
+
+    private static void addDistributionIdentity(ResultsTable table,
+                                                DirectionResult direction,
+                                                DistanceMode mode,
+                                                int rank) {
+        addDirectionIdentity(table, direction);
+        table.addValue("Mode", mode.getColumnName());
+        table.addValue("Rank", rank);
     }
 
     private static List<Double> values(DirectionResult direction,
@@ -290,8 +323,12 @@ final class ResultTables {
     }
 
     private static String directionKey(DirectionResult direction) {
-        return safe(direction.getSourceChannel()) + "_to_"
+        String readable = safe(direction.getSourceChannel()) + "_to_"
                 + safe(direction.getTargetChannel());
+        return readable + "__" + identityHash(
+                "DIRECTION",
+                direction.getSourceChannel(),
+                direction.getTargetChannel());
     }
 
     private static String patternKey(PatternResult result) {
@@ -299,7 +336,12 @@ final class ResultTables {
         if (result.isBivariate()) {
             channels += "_to_" + safe(result.getTargetChannel());
         }
-        return channels + "__" + result.getStatistics().getFunction().name();
+        return channels + "__" + result.getStatistics().getFunction().name()
+                + "__" + identityHash(
+                        "PATTERN",
+                        result.getSourceChannel(),
+                        result.isBivariate() ? result.getTargetChannel() : "",
+                        result.getStatistics().getFunction().name());
     }
 
     private static String measurementUnit(DirectionResult direction,
@@ -311,6 +353,27 @@ final class ResultTables {
     private static String safe(String value) {
         if (value == null || value.trim().isEmpty()) return "Channel";
         return value.trim().replaceAll("[^A-Za-z0-9._-]+", "_");
+    }
+
+    private static String identityHash(String... fields) {
+        StringBuilder identity = new StringBuilder();
+        for (String field : fields) {
+            String value = field == null ? "" : field;
+            identity.append(value.length()).append(':').append(value);
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(
+                    identity.toString().getBytes(StandardCharsets.UTF_8));
+            StringBuilder text = new StringBuilder(hash.length * 2);
+            for (byte item : hash) {
+                text.append(String.format("%02x", item & 0xff));
+            }
+            return text.toString();
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException(
+                    "This Java runtime does not provide SHA-256.", exception);
+        }
     }
 
     private static void putUnique(Map<String, ResultsTable> tables,
