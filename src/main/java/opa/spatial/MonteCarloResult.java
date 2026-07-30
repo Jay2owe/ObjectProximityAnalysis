@@ -111,7 +111,9 @@ public final class MonteCarloResult {
     }
 
     public double getMinimumAchievablePValue() {
-        return rankSampleCount > 0 ? 1.0 / rankSampleCount : Double.NaN;
+        return status == PatternStatus.OK && rankSampleCount > 0
+                ? 1.0 / rankSampleCount
+                : Double.NaN;
     }
 
     private static double[] copy(double[] values) {

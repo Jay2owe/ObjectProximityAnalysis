@@ -140,9 +140,10 @@ public final class MonteCarloAnalyzer {
                 if (simulatedMaximum >= observedMaximum) asOrMoreExtreme++;
             }
         }
-        double globalP = rankSampleCount == 0
-                ? Double.NaN
-                : asOrMoreExtreme / (double) rankSampleCount;
+        boolean completeRank = rankSampleCount == simulations + 1;
+        double globalP = completeRank
+                ? asOrMoreExtreme / (double) rankSampleCount
+                : Double.NaN;
 
         int maximumIndex = -1;
         double maximumDeviation = Double.NaN;
@@ -172,7 +173,9 @@ public final class MonteCarloAnalyzer {
                 seed,
                 rankSampleCount == 0
                         ? PatternStatus.NO_VALID_RADII
-                        : PatternStatus.OK,
+                        : completeRank
+                                ? PatternStatus.OK
+                                : PatternStatus.INCOMPLETE_MONTE_CARLO,
                 rankSampleCount);
     }
 

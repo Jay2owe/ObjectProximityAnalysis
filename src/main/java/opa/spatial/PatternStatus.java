@@ -11,5 +11,6 @@ package opa.spatial;
 public enum PatternStatus {
     OK,
     INSUFFICIENT_POINTS,
-    NO_VALID_RADII
+    NO_VALID_RADII,
+    INCOMPLETE_MONTE_CARLO
 }

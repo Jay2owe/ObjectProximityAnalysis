@@ -54,7 +54,7 @@ final class ResultTables {
                     }
                 }
             }
-            tables.put(directionKey(direction), table);
+            putUnique(tables, directionKey(direction), table);
         }
         return tables;
     }
@@ -101,8 +101,11 @@ final class ResultTables {
                     double[] sorted = sorted(values);
                     ResultsTable table = histogram(
                             sorted, binCount, measurementUnit(direction, mode));
-                    tables.put(directionKey(direction) + "__"
-                            + safe(mode.getColumnName()) + "__NN" + rank, table);
+                    putUnique(
+                            tables,
+                            directionKey(direction) + "__"
+                                    + safe(mode.getColumnName()) + "__NN" + rank,
+                            table);
                 }
             }
         }
@@ -124,8 +127,11 @@ final class ResultTables {
                         table.addValue("ECDF", (i + 1.0) / sorted.length);
                         table.addValue("Unit", measurementUnit(direction, mode));
                     }
-                    tables.put(directionKey(direction) + "__"
-                            + safe(mode.getColumnName()) + "__NN" + rank, table);
+                    putUnique(
+                            tables,
+                            directionKey(direction) + "__"
+                                    + safe(mode.getColumnName()) + "__NN" + rank,
+                            table);
                 }
             }
         }
@@ -157,7 +163,7 @@ final class ResultTables {
                 table.addValue("Status", result.getStatus().name());
                 table.addValue("Global_Rank_N", result.getRankSampleCount());
             }
-            tables.put(patternKey(pattern), table);
+            putUnique(tables, patternKey(pattern), table);
         }
         return tables;
     }
@@ -305,5 +311,16 @@ final class ResultTables {
     private static String safe(String value) {
         if (value == null || value.trim().isEmpty()) return "Channel";
         return value.trim().replaceAll("[^A-Za-z0-9._-]+", "_");
+    }
+
+    private static void putUnique(Map<String, ResultsTable> tables,
+                                  String preferredKey,
+                                  ResultsTable table) {
+        String key = preferredKey;
+        int suffix = 2;
+        while (tables.containsKey(key)) {
+            key = preferredKey + "__" + suffix++;
+        }
+        tables.put(key, table);
     }
 }

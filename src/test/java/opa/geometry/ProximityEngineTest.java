@@ -152,6 +152,22 @@ public class ProximityEngineTest {
         LabelGeometryExtractor.extract(image);
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void rejectsNearIntegerFractionalLabels() {
+        ImagePlus image = new ImagePlus(
+                "bad-near-integer", new FloatProcessor(3, 3));
+        image.getProcessor().setf(1, 1, 1.00005f);
+        LabelGeometryExtractor.extract(image);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void rejectsLabelsAboveIntegerRange() {
+        ImagePlus image = new ImagePlus(
+                "bad-range", new FloatProcessor(3, 3));
+        image.getProcessor().setf(1, 1, 2147483648.0f);
+        LabelGeometryExtractor.extract(image);
+    }
+
     @Test
     public void flagsObjectsTouchingTheObservationWindow() {
         ImagePlus image = labels("edge", 5, 5, 1);

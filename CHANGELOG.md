@@ -10,3 +10,4 @@
 - Unit-safe batch curve/ECDF aggregation and summaries for every requested
   neighbour rank.
 - Strict validation of voxel calibration and label-image values.
+- Collision-safe result-table names and explicit incomplete Monte Carlo ranks.

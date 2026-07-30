@@ -150,6 +150,27 @@ public class OPATest {
                 .getValue("Rank", 1), 0.0);
     }
 
+    @Test
+    public void sanitizedChannelNameCollisionsDoNotOverwriteResultTables() {
+        ImagePlus first = labels("first", 7, 3, 1);
+        ImagePlus second = labels("second", 7, 3, 1);
+        first.getProcessor().set(1, 1, 1);
+        first.getProcessor().set(5, 1, 2);
+        second.getProcessor().set(2, 1, 1);
+        second.getProcessor().set(6, 1, 2);
+
+        OPAResult result = OPA.run(OPAParameters.builder(first, second)
+                .channelNames(Arrays.asList("A B", "A_B"))
+                .runPattern(false)
+                .distanceModes(EnumSet.of(DistanceMode.CENTRE_TO_CENTRE))
+                .build());
+
+        assertEquals(4, result.getDirectionResults().size());
+        assertEquals(4, result.getPerObjectTables().size());
+        assertEquals(4, result.getHistogramTables().size());
+        assertEquals(4, result.getEcdfTables().size());
+    }
+
     private static ImagePlus labels(String title, int width, int height, int depth) {
         ImageStack stack = new ImageStack(width, height);
         for (int z = 0; z < depth; z++) {

@@ -87,7 +87,9 @@ Pattern outputs carry separate radius and curve-value units: K is area, L is
 length, and G/pair-correlation are dimensionless. Requests with too few points
 are marked `INSUFFICIENT_POINTS` and return undefined values rather than
 apparently valid zero curves. Batch aggregates keep incompatible units in
-separate tables.
+separate tables. A global rank is marked `INCOMPLETE_MONTE_CARLO` and its
+p-value is undefined unless every requested simulation contributes a valid
+curve.
 
 ## Java API
 

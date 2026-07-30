@@ -248,4 +248,22 @@ public class SpatialStatisticsTest {
         assertTrue(Double.isNaN(result.getMaximumDeviation()));
         assertEquals(0, result.getRankSampleCount());
     }
+
+    @Test
+    public void observedOnlyMonteCarloRankIsMarkedIncomplete() {
+        double[][] points = {{5.0, 5.0}, {6.0, 5.0}};
+        MonteCarloResult result = MonteCarloAnalyzer.analyzeUnivariate(
+                PatternFunction.K,
+                points,
+                WINDOW,
+                new double[]{5.0},
+                EdgeCorrection.BORDER,
+                9,
+                19L);
+
+        assertEquals(PatternStatus.INCOMPLETE_MONTE_CARLO, result.getStatus());
+        assertEquals(1, result.getRankSampleCount());
+        assertTrue(Double.isNaN(result.getGlobalPValue()));
+        assertTrue(Double.isNaN(result.getMinimumAchievablePValue()));
+    }
 }

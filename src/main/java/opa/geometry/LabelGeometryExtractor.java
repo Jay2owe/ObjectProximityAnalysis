@@ -208,14 +208,15 @@ public final class LabelGeometryExtractor {
         if (!Float.isFinite(value) || value < 0.0f) {
             throw invalidLabel(value, x, y, z);
         }
-        if (value > Integer.MAX_VALUE) {
+        double numericValue = value;
+        if (numericValue > Integer.MAX_VALUE) {
             throw invalidLabel(value, x, y, z);
         }
-        int rounded = Math.round(value);
-        if (rounded <= 0 || Math.abs(value - rounded) > 1.0e-4f) {
+        double rounded = Math.rint(numericValue);
+        if (rounded <= 0.0 || numericValue != rounded) {
             throw invalidLabel(value, x, y, z);
         }
-        return rounded;
+        return (int) rounded;
     }
 
     private static IllegalArgumentException invalidLabel(float value, int x, int y, int z) {
