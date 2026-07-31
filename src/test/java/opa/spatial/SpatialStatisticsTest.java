@@ -5,6 +5,7 @@
  */
 package opa.spatial;
 
+import opa.OPAParameters;
 import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -121,6 +122,34 @@ public class SpatialStatisticsTest {
                 WINDOW,
                 new double[]{1.0, 2.0},
                 EdgeCorrection.BORDER);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void pairCorrelationRejectsDecreasingKValues() {
+        SpatialStatistics.pairCorrelationFromK(
+                new double[]{4.0, 3.0},
+                new double[]{1.0, 2.0});
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void spatialFunctionsRejectDuplicateRadii() {
+        SpatialStatistics.computeK(
+                new double[][]{{2.0, 2.0}, {4.0, 4.0}},
+                WINDOW,
+                new double[]{1.0, 1.0},
+                EdgeCorrection.NONE);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void monteCarloRejectsOversizedSampleMatrixBeforeAllocation() {
+        MonteCarloAnalyzer.analyzeUnivariate(
+                PatternFunction.K,
+                new double[][]{{2.0, 2.0}, {4.0, 4.0}},
+                WINDOW,
+                new double[OPAParameters.MAX_RADIUS_BINS],
+                EdgeCorrection.NONE,
+                OPAParameters.MAX_SIMULATIONS,
+                1L);
     }
 
     @Test

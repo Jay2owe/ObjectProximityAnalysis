@@ -6,6 +6,7 @@
 package opa;
 
 import ij.ImagePlus;
+import ij.measure.ResultsTable;
 import ij.process.ByteProcessor;
 import opa.spatial.PatternFunction;
 import opa.spatial.RectangularWindow;
@@ -16,6 +17,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -245,6 +248,75 @@ public class OPAOutputTest {
             assertEquals(2, summaries.length);
             assertTrue(!summaries[0].getName().equals(
                     summaries[1].getName()));
+        } finally {
+            delete(parent);
+        }
+    }
+
+    @Test
+    public void tableSetIsFullyStagedBeforeAnyExistingFileIsReplaced()
+            throws Exception {
+        File parent = Files.createTempDirectory(
+                "opa-atomic-output").toFile();
+        try {
+            File first = new File(parent, "first.csv");
+            Files.write(
+                    first.toPath(),
+                    "previous".getBytes(StandardCharsets.UTF_8));
+            File invalidTarget = new File(parent, "not-a-file.csv");
+            assertTrue(invalidTarget.mkdir());
+
+            ResultsTable table = new ResultsTable();
+            table.incrementCounter();
+            table.addValue("Value", 42.0);
+            Map<File, ResultsTable> tables =
+                    new LinkedHashMap<File, ResultsTable>();
+            tables.put(first, table);
+            tables.put(invalidTarget, table);
+
+            boolean rejected = false;
+            try {
+                OPAOutput.saveTablesAtomically(tables);
+            } catch (java.io.IOException expected) {
+                rejected = true;
+            }
+            assertTrue(rejected);
+            assertEquals(
+                    "previous",
+                    new String(
+                            Files.readAllBytes(first.toPath()),
+                            StandardCharsets.UTF_8));
+            File[] temporary = parent.listFiles(
+                    (directory, name) ->
+                            name.startsWith("opa-") && name.endsWith(".tmp"));
+            assertTrue(temporary != null);
+            assertEquals(0, temporary.length);
+        } finally {
+            delete(parent);
+        }
+    }
+
+    @Test
+    public void atomicSaveReplacesAnExistingTable() throws Exception {
+        File parent = Files.createTempDirectory(
+                "opa-atomic-replace").toFile();
+        try {
+            File target = new File(parent, "table.csv");
+            ResultsTable first = new ResultsTable();
+            first.incrementCounter();
+            first.addValue("Value", 1.0);
+            OPAOutput.saveTable(first, target);
+
+            ResultsTable second = new ResultsTable();
+            second.incrementCounter();
+            second.addValue("Value", 2.0);
+            OPAOutput.saveTable(second, target);
+
+            String csv = new String(
+                    Files.readAllBytes(target.toPath()),
+                    StandardCharsets.UTF_8);
+            assertTrue(csv.contains("2.0"));
+            assertTrue(!csv.contains("1.0"));
         } finally {
             delete(parent);
         }

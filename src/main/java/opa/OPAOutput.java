@@ -10,13 +10,18 @@ import ij.measure.ResultsTable;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -44,47 +49,58 @@ public final class OPAOutput {
         File distributions = directory(root, "Distributions");
         File curves = directory(root, "Curves");
         File folder = directory(root, "Folder");
+        Map<File, ResultsTable> tables =
+                new LinkedHashMap<File, ResultsTable>();
 
         for (Map.Entry<String, ResultsTable> entry
                 : result.getCentroidTables().entrySet()) {
-            saveTable(entry.getValue(), new File(
+            tables.put(new File(
                     objects, csvName(
-                            safePrefix + "__" + safe(entry.getKey()))));
+                            safePrefix + "__" + safe(entry.getKey()))),
+                    entry.getValue());
         }
-        saveTable(result.getProvenanceTable(), new File(
-                objects, csvName(safePrefix + "__Provenance")));
+        tables.put(new File(
+                        objects, csvName(safePrefix + "__Provenance")),
+                result.getProvenanceTable());
         for (Map.Entry<String, ResultsTable> entry
                 : result.getPerObjectTables().entrySet()) {
-            saveTable(entry.getValue(), new File(
+            tables.put(new File(
                     objects, csvName(
-                            safePrefix + "__" + safe(entry.getKey()))));
+                            safePrefix + "__" + safe(entry.getKey()))),
+                    entry.getValue());
         }
-        saveTable(result.getDistanceSummaryTable(), new File(
-                objects, csvName(safePrefix + "__Distance_Summary")));
+        tables.put(new File(
+                        objects, csvName(safePrefix + "__Distance_Summary")),
+                result.getDistanceSummaryTable());
 
         for (Map.Entry<String, ResultsTable> entry
                 : result.getHistogramTables().entrySet()) {
-            saveTable(entry.getValue(), new File(
+            tables.put(new File(
                     distributions,
                     csvName(safePrefix + "__" + safe(entry.getKey())
-                            + "__Histogram")));
+                            + "__Histogram")),
+                    entry.getValue());
         }
         for (Map.Entry<String, ResultsTable> entry
                 : result.getEcdfTables().entrySet()) {
-            saveTable(entry.getValue(), new File(
+            tables.put(new File(
                     distributions,
                     csvName(safePrefix + "__" + safe(entry.getKey())
-                            + "__ECDF")));
+                            + "__ECDF")),
+                    entry.getValue());
         }
 
         for (Map.Entry<String, ResultsTable> entry
                 : result.getCurveTables().entrySet()) {
-            saveTable(entry.getValue(), new File(
+            tables.put(new File(
                     curves, csvName(
-                            safePrefix + "__" + safe(entry.getKey()))));
+                            safePrefix + "__" + safe(entry.getKey()))),
+                    entry.getValue());
         }
-        saveTable(result.getPatternSummaryTable(), new File(
-                curves, csvName(safePrefix + "__Pattern_Summary")));
+        tables.put(new File(
+                        curves, csvName(safePrefix + "__Pattern_Summary")),
+                result.getPatternSummaryTable());
+        saveTablesAtomically(tables);
 
         writeReadme(objects,
                 "Filtered centroid inputs, analysis provenance, per-object proximity "
@@ -111,7 +127,40 @@ public final class OPAOutput {
 
     static void saveTable(ResultsTable table, File file)
             throws IOException {
-        if (table == null) return;
+        Map<File, ResultsTable> tables =
+                new LinkedHashMap<File, ResultsTable>();
+        tables.put(file, table);
+        saveTablesAtomically(tables);
+    }
+
+    static void saveTablesAtomically(Map<File, ResultsTable> tables)
+            throws IOException {
+        if (tables == null) {
+            throw new IllegalArgumentException("Output tables must not be null.");
+        }
+        List<StagedFile> staged = new ArrayList<StagedFile>();
+        try {
+            for (Map.Entry<File, ResultsTable> entry : tables.entrySet()) {
+                if (entry.getValue() == null) continue;
+                File target = entry.getKey();
+                validateTarget(target);
+                File temporary = File.createTempFile(
+                        "opa-", ".tmp", target.getParentFile());
+                staged.add(new StagedFile(temporary, target));
+                writeTable(entry.getValue(), temporary);
+            }
+            for (StagedFile file : staged) {
+                replaceAtomically(file.temporary, file.target);
+            }
+        } finally {
+            for (StagedFile file : staged) {
+                Files.deleteIfExists(file.temporary.toPath());
+            }
+        }
+    }
+
+    private static void writeTable(ResultsTable table, File file)
+            throws IOException {
         Writer writer = new BufferedWriter(new OutputStreamWriter(
                 new FileOutputStream(file), StandardCharsets.UTF_8));
         try {
@@ -155,12 +204,65 @@ public final class OPAOutput {
 
     private static void writeReadme(File directory, String text)
             throws IOException {
-        Writer writer = new FileWriter(new File(directory, "README.txt"));
+        writeTextAtomically(
+                new File(directory, "README.txt"),
+                text + System.lineSeparator());
+    }
+
+    static void writeTextAtomically(File file, String text)
+            throws IOException {
+        validateTarget(file);
+        File temporary = File.createTempFile(
+                "opa-", ".tmp", file.getParentFile());
         try {
-            writer.write(text);
-            writer.write(System.lineSeparator());
+            Writer writer = new BufferedWriter(new OutputStreamWriter(
+                    new FileOutputStream(temporary), StandardCharsets.UTF_8));
+            try {
+                writer.write(text == null ? "" : text);
+            } finally {
+                writer.close();
+            }
+            replaceAtomically(temporary, file);
         } finally {
-            writer.close();
+            Files.deleteIfExists(temporary.toPath());
+        }
+    }
+
+    private static void validateTarget(File file) throws IOException {
+        if (file == null || file.getParentFile() == null
+                || !file.getParentFile().isDirectory()) {
+            throw new IOException("Output file must have an existing parent folder.");
+        }
+        if (file.exists() && !file.isFile()) {
+            throw new IOException(
+                    "Output path is not a file: " + file.getAbsolutePath());
+        }
+    }
+
+    private static void replaceAtomically(File temporary, File target)
+            throws IOException {
+        try {
+            Files.move(
+                    temporary.toPath(),
+                    target.toPath(),
+                    StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING);
+        } catch (AtomicMoveNotSupportedException exception) {
+            throw new IOException(
+                    "Atomic output replacement is unavailable for "
+                            + target.getAbsolutePath()
+                            + "; existing output was left unchanged.",
+                    exception);
+        }
+    }
+
+    private static final class StagedFile {
+        private final File temporary;
+        private final File target;
+
+        private StagedFile(File temporary, File target) {
+            this.temporary = temporary;
+            this.target = target;
         }
     }
 

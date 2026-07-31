@@ -7,6 +7,8 @@ package opa.spatial;
 
 import ij.IJ;
 import opa.AnalysisCancelledException;
+import opa.OPAParameters;
+import opa.OPAProgressListener;
 
 import java.util.Arrays;
 import java.util.Random;
@@ -26,16 +28,36 @@ public final class MonteCarloAnalyzer {
                                                      EdgeCorrection correction,
                                                      int simulations,
                                                      long seed) {
+        return analyzeUnivariate(
+                function,
+                points,
+                window,
+                radii,
+                correction,
+                simulations,
+                seed,
+                null);
+    }
+
+    public static MonteCarloResult analyzeUnivariate(PatternFunction function,
+                                                     double[][] points,
+                                                     RectangularWindow window,
+                                                     double[] radii,
+                                                     EdgeCorrection correction,
+                                                     int simulations,
+                                                     long seed,
+                                                     OPAProgressListener progress) {
         if (function == null || function.isBivariate()) {
             throw new IllegalArgumentException(
                     "A univariate pattern function is required.");
         }
-        validateSimulationCount(simulations);
+        validateSimulationWork(simulations, radii);
         double[] observed = SpatialStatistics.evaluate(
                 function, points, null, window, radii, correction);
         double intensity = points.length / window.area();
         double[] expected = SpatialStatistics.expected(function, radii, intensity);
         if (points.length < 2) {
+            reportProgress(progress, 1.0, "Point pattern is undefined");
             return undefined(
                     function,
                     radii,
@@ -54,6 +76,12 @@ public final class MonteCarloAnalyzer {
                     points.length, window, random);
             samples[simulation] = SpatialStatistics.evaluate(
                     function, randomPoints, null, window, radii, correction);
+            checkCancelled();
+            reportProgress(
+                    progress,
+                    (simulation + 1.0) / simulations,
+                    "Monte Carlo simulation " + (simulation + 1)
+                            + " of " + simulations);
         }
         return summarize(
                 function, radii, observed, expected, samples, simulations, seed);
@@ -67,17 +95,39 @@ public final class MonteCarloAnalyzer {
                                                     EdgeCorrection correction,
                                                     int simulations,
                                                     long seed) {
+        return analyzeBivariate(
+                function,
+                source,
+                target,
+                window,
+                radii,
+                correction,
+                simulations,
+                seed,
+                null);
+    }
+
+    public static MonteCarloResult analyzeBivariate(PatternFunction function,
+                                                    double[][] source,
+                                                    double[][] target,
+                                                    RectangularWindow window,
+                                                    double[] radii,
+                                                    EdgeCorrection correction,
+                                                    int simulations,
+                                                    long seed,
+                                                    OPAProgressListener progress) {
         if (function == null || !function.isBivariate()) {
             throw new IllegalArgumentException(
                     "A bivariate pattern function is required.");
         }
-        validateSimulationCount(simulations);
+        validateSimulationWork(simulations, radii);
         double[] observed = SpatialStatistics.evaluate(
                 function, source, target, window, radii, correction);
         double targetIntensity = target.length / window.area();
         double[] expected = SpatialStatistics.expected(
                 function, radii, targetIntensity);
         if (source.length == 0 || target.length == 0) {
+            reportProgress(progress, 1.0, "Point pattern is undefined");
             return undefined(
                     function,
                     radii,
@@ -101,6 +151,12 @@ public final class MonteCarloAnalyzer {
                     window,
                     radii,
                     correction);
+            checkCancelled();
+            reportProgress(
+                    progress,
+                    (simulation + 1.0) / simulations,
+                    "Monte Carlo simulation " + (simulation + 1)
+                            + " of " + simulations);
         }
         return summarize(
                 function, radii, observed, expected, samples, simulations, seed);
@@ -315,11 +371,38 @@ public final class MonteCarloAnalyzer {
         return Math.sqrt(sumSquares / (values.length - 1));
     }
 
-    private static void validateSimulationCount(int simulations) {
-        if (simulations < 1) {
+    private static void validateSimulationWork(int simulations,
+                                               double[] radii) {
+        if (simulations < 1 || simulations > OPAParameters.MAX_SIMULATIONS) {
             throw new IllegalArgumentException(
-                    "Simulation count must be at least 1.");
+                    "Simulation count must be between 1 and "
+                            + OPAParameters.MAX_SIMULATIONS + ".");
         }
+        if (radii == null) {
+            throw new IllegalArgumentException("Radii must not be null.");
+        }
+        if (radii.length == 0) {
+            throw new IllegalArgumentException(
+                    "At least one pattern radius is required.");
+        }
+        if (radii.length > OPAParameters.MAX_RADIUS_BINS) {
+            throw new IllegalArgumentException(
+                    "Pattern radius count must not exceed "
+                            + OPAParameters.MAX_RADIUS_BINS + ".");
+        }
+        if ((long) simulations * radii.length
+                > OPAParameters.MAX_MONTE_CARLO_VALUES) {
+            throw new IllegalArgumentException(
+                    "Monte Carlo simulations multiplied by radius count "
+                            + "must not exceed "
+                            + OPAParameters.MAX_MONTE_CARLO_VALUES + ".");
+        }
+    }
+
+    private static void reportProgress(OPAProgressListener progress,
+                                       double fraction,
+                                       String message) {
+        if (progress != null) progress.onProgress(fraction, message);
     }
 
     private static void checkCancelled() {

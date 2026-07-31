@@ -10,9 +10,7 @@ import ij.ImagePlus;
 import ij.measure.ResultsTable;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.Writer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -108,10 +106,25 @@ public final class OPABatchRunner {
                     images.add(image);
                     channelNames.add(batchFile.channel);
                 }
+                final int progressGroupIndex = groupIndex;
+                final int progressGroupCount = groups.size();
+                final String progressGroupName = group.displayName();
                 OPAParameters analysis = OPAParameters.builderFrom(
                                 parameters.getAnalysisTemplate())
                         .images(images)
                         .channelNames(channelNames)
+                        .progressListener(new OPAProgressListener() {
+                            @Override
+                            public void onProgress(
+                                    double fraction, String message) {
+                                IJ.showProgress(
+                                        (progressGroupIndex + fraction)
+                                                / progressGroupCount);
+                                IJ.showStatus(
+                                        "OPA batch: " + progressGroupName
+                                                + " — " + message);
+                            }
+                        })
                         .build();
                 OPAResult result = OPA.run(analysis);
                 String calibrationWarning = result.hasPhysicalCalibration()
@@ -520,16 +533,11 @@ public final class OPABatchRunner {
                     "Could not create batch root folder: "
                             + batchRoot.getAbsolutePath());
         }
-        Writer rootReadme = new FileWriter(
-                new File(batchRoot, "README.txt"));
-        try {
-            rootReadme.write(
-                    "Each Batch__ subfolder is one input-root, settings, "
-                            + "and output-shape identity.");
-            rootReadme.write(System.lineSeparator());
-        } finally {
-            rootReadme.close();
-        }
+        OPAOutput.writeTextAtomically(
+                new File(batchRoot, "README.txt"),
+                "Each Batch__ subfolder is one input-root, settings, "
+                        + "and output-shape identity."
+                        + System.lineSeparator());
         File folder = new File(
                 batchRoot,
                 batchRunDirectory(
@@ -543,45 +551,51 @@ public final class OPABatchRunner {
             throw new IOException(
                     "Could not create batch folder: " + folder.getAbsolutePath());
         }
-        OPAOutput.saveTable(distanceSummary, new File(
-                folder, "OPA_Batch_Distance_Summary.csv"));
-        OPAOutput.saveTable(patternSummary, new File(
-                folder, "OPA_Batch_Pattern_Summary.csv"));
-        OPAOutput.saveTable(groupManifest, new File(
-                folder, "OPA_Batch_Group_Manifest.csv"));
+        Map<File, ResultsTable> outputTables =
+                new LinkedHashMap<File, ResultsTable>();
+        outputTables.put(new File(
+                folder, "OPA_Batch_Distance_Summary.csv"), distanceSummary);
+        outputTables.put(new File(
+                folder, "OPA_Batch_Pattern_Summary.csv"), patternSummary);
+        outputTables.put(new File(
+                folder, "OPA_Batch_Group_Manifest.csv"), groupManifest);
         for (Map.Entry<String, ResultsTable> entry : curves.entrySet()) {
-            OPAOutput.saveTable(entry.getValue(), new File(
+            outputTables.put(new File(
                     folder,
                     aggregateFilename(
-                            "OPA_Batch_Mean_Curve__", entry.getKey())));
+                            "OPA_Batch_Mean_Curve__", entry.getKey())),
+                    entry.getValue());
         }
         for (Map.Entry<String, ResultsTable> entry : ecdfs.entrySet()) {
-            OPAOutput.saveTable(entry.getValue(), new File(
+            outputTables.put(new File(
                     folder,
                     aggregateFilename(
-                            "OPA_Batch_Mean_ECDF__", entry.getKey())));
+                            "OPA_Batch_Mean_ECDF__", entry.getKey())),
+                    entry.getValue());
         }
-        Writer readme = new FileWriter(new File(folder, "README.txt"));
-        try {
-            readme.write("Folder-batch scalar summaries, mean point-pattern curves, "
-                    + "and mean ECDFs. Spread columns are between-group sample SD.");
-            readme.write(System.lineSeparator());
-            readme.write("Status: " + (cancelled ? "CANCELLED" : "COMPLETE")
-                    + "; processed=" + processed
-                    + "; skipped=" + skipped
-                    + "; group_errors=" + groupErrors + ".");
-            readme.write(System.lineSeparator());
-            if (!errors.isEmpty()) {
-                readme.write(System.lineSeparator());
-                readme.write("Errors:");
-                readme.write(System.lineSeparator());
-                for (String error : errors) {
-                    readme.write("- " + error + System.lineSeparator());
-                }
+        OPAOutput.saveTablesAtomically(outputTables);
+        StringBuilder readme = new StringBuilder();
+        readme.append(
+                "Folder-batch scalar summaries, mean point-pattern curves, "
+                        + "and mean ECDFs. Spread columns are between-group sample SD.");
+        readme.append(System.lineSeparator());
+        readme.append("Status: ")
+                .append(cancelled ? "CANCELLED" : "COMPLETE")
+                .append("; processed=").append(processed)
+                .append("; skipped=").append(skipped)
+                .append("; group_errors=").append(groupErrors).append(".");
+        readme.append(System.lineSeparator());
+        if (!errors.isEmpty()) {
+            readme.append(System.lineSeparator());
+            readme.append("Errors:");
+            readme.append(System.lineSeparator());
+            for (String error : errors) {
+                readme.append("- ").append(error)
+                        .append(System.lineSeparator());
             }
-        } finally {
-            readme.close();
         }
+        OPAOutput.writeTextAtomically(
+                new File(folder, "README.txt"), readme.toString());
     }
 
     private static String safe(String value) {

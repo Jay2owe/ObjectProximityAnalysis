@@ -58,10 +58,12 @@ public final class ProximityEngine {
                 AnalysisCancelledException.check();
                 List<PairMeasurement> ranked = new ArrayList<PairMeasurement>(pairs);
                 Collections.sort(ranked, comparator(mode));
+                AnalysisCancelledException.check();
                 int count = Math.min(neighborCount, ranked.size());
                 List<NeighborMeasurement> neighbors =
                         new ArrayList<NeighborMeasurement>(count);
                 for (int i = 0; i < count; i++) {
+                    AnalysisCancelledException.check();
                     PairMeasurement pair = ranked.get(i);
                     neighbors.add(new NeighborMeasurement(
                             mode,
@@ -74,10 +76,12 @@ public final class ProximityEngine {
                 }
                 byMode.put(mode, Collections.unmodifiableList(neighbors));
             }
+            AnalysisCancelledException.check();
             output.add(new ObjectMeasurement(
                     sourceObject.getLabel(), sourceObject.isEdgeObject(), byMode));
         }
 
+        AnalysisCancelledException.check();
         return new DirectionResult(
                 source.getName(),
                 target.getName(),

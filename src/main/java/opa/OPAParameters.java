@@ -23,6 +23,11 @@ public final class OPAParameters {
     public static final int MIN_IMAGES = 1;
     public static final int MAX_IMAGES = 5;
     public static final long DEFAULT_SEED = 0x0B1EC7L;
+    public static final int MAX_NEIGHBOR_COUNT = 1000;
+    public static final int MAX_HISTOGRAM_BINS = 10000;
+    public static final int MAX_RADIUS_BINS = 10000;
+    public static final int MAX_SIMULATIONS = 10000;
+    public static final long MAX_MONTE_CARLO_VALUES = 10000000L;
 
     private final List<ImagePlus> images;
     private final List<String> channelNames;
@@ -43,6 +48,7 @@ public final class OPAParameters {
     private final int histogramBins;
     private final boolean requirePhysicalCalibration;
     private final RectangularWindow observationWindow;
+    private final OPAProgressListener progressListener;
 
     private OPAParameters(Builder builder) {
         this.images = immutableCopy(builder.images);
@@ -64,6 +70,7 @@ public final class OPAParameters {
         this.histogramBins = builder.histogramBins;
         this.requirePhysicalCalibration = builder.requirePhysicalCalibration;
         this.observationWindow = builder.observationWindow;
+        this.progressListener = builder.progressListener;
     }
 
     public static Builder builder(List<ImagePlus> images) {
@@ -100,7 +107,8 @@ public final class OPAParameters {
                 .project3DToXY(template.project3DToXY)
                 .histogramBins(template.histogramBins)
                 .requirePhysicalCalibration(template.requirePhysicalCalibration)
-                .observationWindow(template.observationWindow);
+                .observationWindow(template.observationWindow)
+                .progressListener(template.progressListener);
     }
 
     public static Builder builder(ImagePlus image) {
@@ -196,6 +204,10 @@ public final class OPAParameters {
         return observationWindow;
     }
 
+    public OPAProgressListener getProgressListener() {
+        return progressListener;
+    }
+
     private static <T> List<T> immutableCopy(List<T> input) {
         if (input == null) return Collections.emptyList();
         return Collections.unmodifiableList(new ArrayList<T>(input));
@@ -227,6 +239,7 @@ public final class OPAParameters {
         private int histogramBins = 20;
         private boolean requirePhysicalCalibration = false;
         private RectangularWindow observationWindow;
+        private OPAProgressListener progressListener;
 
         private Builder() {
         }
@@ -331,6 +344,11 @@ public final class OPAParameters {
 
         public Builder observationWindow(RectangularWindow observationWindow) {
             this.observationWindow = observationWindow;
+            return this;
+        }
+
+        public Builder progressListener(OPAProgressListener progressListener) {
+            this.progressListener = progressListener;
             return this;
         }
 

@@ -40,3 +40,6 @@
 - Non-negative pair-correlation safeguards, executable Unix Maven wrapper,
   fully origin-aware coordinates and windows, end-to-end Escape cancellation,
   and area-only observation-window ROIs.
+- Bounded exact-integer controls, staged atomic output replacement,
+  within-analysis progress callbacks, final-stage cancellation checks,
+  guarded dialog calibration errors, and strict pair-correlation inputs.

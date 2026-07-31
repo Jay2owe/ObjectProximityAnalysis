@@ -135,6 +135,9 @@ OPAParameters parameters = OPAParameters.builder(labelA, labelB)
         .contactDistance(2.0)
         .simulations(999)
         .seed(12345L)
+        .progressListener((fraction, message) -> {
+            // Update a calling application's status display if desired.
+        })
         .build();
 
 OPAResult result = OPA.run(parameters);
@@ -146,6 +149,11 @@ observation-window bounds, edge correction, projection, seed, contact
 threshold, requested analysis settings, and the radii actually used after
 automatic or maximum-radius resolution. The provenance table is shown for both
 distance and pattern runs.
+
+Whole-number dialog fields reject fractional and out-of-range values instead of
+truncating them. Resource limits are 1,000 neighbours, 10,000 histogram bins,
+10,000 radius bins, and 10,000 simulations, with at most 10,000,000 stored
+simulation-radius values in one Monte Carlo analysis.
 
 ROI conversion is also dialog-free:
 
@@ -203,6 +211,8 @@ use bounded readable stems plus SHA-256 identity digests. Pressing Escape stops
 geometry extraction, distance and surface calculations, or Monte Carlo work,
 sets `OPABatchResult.isCancelled()`, marks unprocessed groups
 as `CANCELLED`, and writes `Status: CANCELLED` into partial batch output.
+Fiji progress updates continue within each Monte Carlo analysis, including
+single-group batches.
 Every user-supplied save prefix gains a SHA-256 identity digest, so names that
 differ only by punctuation or case cannot overwrite each other on Windows.
 The digest also includes the exact output shape; reusing a prefix for a run
@@ -210,7 +220,9 @@ with different requested tables creates a distinct run identity instead of
 leaving obsolete files under the current identity.
 CSV output writes the full stored double value rather than ImageJ's rounded
 display form. The group manifest records non-OK distance or pattern statuses
-in `Analysis_Warnings`.
+in `Analysis_Warnings`. A complete table set is staged before publication, and
+each final CSV or README replaces its predecessor with a same-directory atomic
+move, so a failed write does not truncate the prior valid file.
 
 ## Macro use
 
@@ -245,6 +257,8 @@ global rank test.
 Pair correlation supports translation edge correction (or no edge correction).
 Border correction is rejected because its risk-set weighting is not valid for
 this pair-correlation estimator and can otherwise produce negative estimates.
+Radii must be strictly increasing. The public K-to-pair-correlation helper also
+rejects negative, infinite, or materially decreasing K values.
 
 ## Build
 

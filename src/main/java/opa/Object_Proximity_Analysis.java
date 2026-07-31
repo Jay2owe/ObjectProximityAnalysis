@@ -41,12 +41,11 @@ public final class Object_Proximity_Analysis implements PlugIn {
                     "Open at least one label or reference image first.");
             return;
         }
-        String[] imageChoices = imageChoices(imageIds);
-        GenericDialog dialog = buildDialog(imageIds, imageChoices);
-        dialog.showDialog();
-        if (dialog.wasCanceled()) return;
-
         try {
+            String[] imageChoices = imageChoices(imageIds);
+            GenericDialog dialog = buildDialog(imageIds, imageChoices);
+            dialog.showDialog();
+            if (dialog.wasCanceled()) return;
             DialogValues values = readDialog(dialog, imageIds, imageChoices);
             OPAResult result = OPA.run(values.parameters);
             if (!result.hasPhysicalCalibration()) {
@@ -137,7 +136,8 @@ public final class Object_Proximity_Analysis implements PlugIn {
                                            String[] imageChoices)
             throws Exception {
         String inputMode = dialog.getNextChoice();
-        int channelCount = (int) dialog.getNextNumber();
+        int channelCount = DialogNumbers.wholeNumber(
+                dialog.getNextNumber(), "Channel count");
         String referenceChoice = dialog.getNextChoice();
         if (channelCount < 1 || channelCount > OPAParameters.MAX_IMAGES) {
             throw new IllegalArgumentException("Channel count must be between 1 and 5.");
@@ -180,7 +180,8 @@ public final class Object_Proximity_Analysis implements PlugIn {
 
         boolean runDistances = dialog.getNextBoolean();
         boolean selfDistances = dialog.getNextBoolean();
-        int neighborCount = (int) dialog.getNextNumber();
+        int neighborCount = DialogNumbers.wholeNumber(
+                dialog.getNextNumber(), "Nearest-neighbour count");
         double contactDistance = dialog.getNextNumber();
         EnumSet<DistanceMode> distanceModes =
                 EnumSet.noneOf(DistanceMode.class);
@@ -195,8 +196,10 @@ public final class Object_Proximity_Analysis implements PlugIn {
             if (dialog.getNextBoolean()) patternFunctions.add(function);
         }
         double maximumRadius = dialog.getNextNumber();
-        int radiusBins = (int) dialog.getNextNumber();
-        int simulations = (int) dialog.getNextNumber();
+        int radiusBins = DialogNumbers.wholeNumber(
+                dialog.getNextNumber(), "Radius bin count");
+        int simulations = DialogNumbers.wholeNumber(
+                dialog.getNextNumber(), "Monte Carlo simulation count");
         long seed;
         try {
             seed = Long.parseLong(dialog.getNextString().trim());
@@ -207,7 +210,8 @@ public final class Object_Proximity_Analysis implements PlugIn {
                 EdgeCorrection.valueOf(dialog.getNextChoice());
         boolean project3D = dialog.getNextBoolean();
 
-        int histogramBins = (int) dialog.getNextNumber();
+        int histogramBins = DialogNumbers.wholeNumber(
+                dialog.getNextNumber(), "Histogram bin count");
         boolean autoSave = dialog.getNextBoolean();
         String outputDirectory = dialog.getNextString().trim();
         String outputPrefix = dialog.getNextString().trim();
@@ -228,7 +232,14 @@ public final class Object_Proximity_Analysis implements PlugIn {
                 .seed(seed)
                 .edgeCorrection(correction)
                 .project3DToXY(project3D)
-                .histogramBins(histogramBins);
+                .histogramBins(histogramBins)
+                .progressListener(new OPAProgressListener() {
+                    @Override
+                    public void onProgress(double fraction, String message) {
+                        IJ.showProgress(fraction);
+                        IJ.showStatus("Object Proximity Analysis: " + message);
+                    }
+                });
         if (!observationRoiPath.isEmpty()) {
             RectangularWindow window = LabelUtils.boundingWindow(
                     images.get(0), LabelUtils.loadRoiSet(observationRoiPath));

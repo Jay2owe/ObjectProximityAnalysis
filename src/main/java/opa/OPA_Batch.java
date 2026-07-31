@@ -74,11 +74,13 @@ public final class OPA_Batch implements PlugIn {
         try {
             File input = new File(dialog.getNextString().trim());
             String regex = dialog.getNextString();
-            int channelGroup = (int) dialog.getNextNumber();
+            int channelGroup = DialogNumbers.wholeNumber(
+                    dialog.getNextNumber(), "Channel capture group");
             boolean recursive = dialog.getNextBoolean();
             boolean distances = dialog.getNextBoolean();
             boolean self = dialog.getNextBoolean();
-            int neighbors = (int) dialog.getNextNumber();
+            int neighbors = DialogNumbers.wholeNumber(
+                    dialog.getNextNumber(), "Nearest-neighbour count");
             double contact = dialog.getNextNumber();
             EnumSet<DistanceMode> distanceModes =
                     EnumSet.noneOf(DistanceMode.class);
@@ -94,8 +96,10 @@ public final class OPA_Batch implements PlugIn {
                 }
             }
             double maximumRadius = dialog.getNextNumber();
-            int radiusBins = (int) dialog.getNextNumber();
-            int simulations = (int) dialog.getNextNumber();
+            int radiusBins = DialogNumbers.wholeNumber(
+                    dialog.getNextNumber(), "Radius bin count");
+            int simulations = DialogNumbers.wholeNumber(
+                    dialog.getNextNumber(), "Monte Carlo simulation count");
             long seed;
             try {
                 seed = Long.parseLong(dialog.getNextString().trim());
@@ -106,7 +110,8 @@ public final class OPA_Batch implements PlugIn {
             EdgeCorrection correction =
                     EdgeCorrection.valueOf(dialog.getNextChoice());
             boolean project3D = dialog.getNextBoolean();
-            int histogramBins = (int) dialog.getNextNumber();
+            int histogramBins = DialogNumbers.wholeNumber(
+                    dialog.getNextNumber(), "Histogram bin count");
             boolean autoSave = dialog.getNextBoolean();
             File output = new File(dialog.getNextString().trim());
             boolean hideDisplay = dialog.getNextBoolean();

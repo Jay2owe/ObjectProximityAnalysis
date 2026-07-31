@@ -15,9 +15,11 @@ import opa.spatial.RectangularWindow;
 import org.junit.Test;
 
 import java.awt.event.KeyEvent;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
@@ -187,6 +189,95 @@ public class OPATest {
                     "Pair correlation cannot use border correction"));
         }
         assertTrue(rejected);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void duplicatePatternRadiiAreRejected() {
+        ImagePlus image = labels("duplicate-radii", 8, 8, 1);
+        image.getProcessor().set(2, 2, 1);
+        image.getProcessor().set(5, 5, 2);
+        OPA.run(OPAParameters.builder(image)
+                .runDistances(false)
+                .patternFunctions(EnumSet.of(PatternFunction.K))
+                .radii(new double[]{1.0, 1.0})
+                .simulations(1)
+                .build());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void excessiveMonteCarloMatrixIsRejectedBeforeAllocation() {
+        ImagePlus image = labels("oversized-monte-carlo", 8, 8, 1);
+        OPA.run(OPAParameters.builder(image)
+                .runDistances(false)
+                .patternFunctions(EnumSet.of(PatternFunction.K))
+                .radiusBins(OPAParameters.MAX_RADIUS_BINS)
+                .simulations(OPAParameters.MAX_SIMULATIONS)
+                .build());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void excessiveNeighborCountIsRejected() {
+        ImagePlus image = labels("oversized-neighbors", 8, 8, 1);
+        OPA.run(OPAParameters.builder(image)
+                .runPattern(false)
+                .neighborCount(OPAParameters.MAX_NEIGHBOR_COUNT + 1)
+                .build());
+    }
+
+    @Test
+    public void reportsMonotonicMonteCarloProgress() {
+        ImagePlus image = labels("progress", 8, 8, 1);
+        image.getProcessor().set(2, 2, 1);
+        image.getProcessor().set(5, 5, 2);
+        final List<Double> fractions = new ArrayList<Double>();
+        final List<String> messages = new ArrayList<String>();
+
+        OPA.run(OPAParameters.builder(image)
+                .runDistances(false)
+                .patternFunctions(EnumSet.of(PatternFunction.K))
+                .radii(new double[]{1.0, 2.0})
+                .simulations(3)
+                .progressListener(new OPAProgressListener() {
+                    @Override
+                    public void onProgress(double fraction, String message) {
+                        fractions.add(fraction);
+                        messages.add(message);
+                    }
+                })
+                .build());
+
+        assertFalse(fractions.isEmpty());
+        assertEquals(0.0, fractions.get(0), 1.0e-12);
+        assertEquals(1.0, fractions.get(fractions.size() - 1), 1.0e-12);
+        for (int i = 1; i < fractions.size(); i++) {
+            assertTrue(fractions.get(i) >= fractions.get(i - 1));
+        }
+        assertTrue(messages.toString().contains(
+                "Monte Carlo simulation 3 of 3"));
+    }
+
+    @Test
+    public void nonzeroZOriginCalibratesCentroidAndContainmentLookup() {
+        ImagePlus image = labels("z-origin", 5, 5, 3);
+        image.getStack().getProcessor(2).set(2, 3, 1);
+        Calibration calibration = new Calibration();
+        calibration.pixelWidth = 1.0;
+        calibration.pixelHeight = 1.0;
+        calibration.pixelDepth = 4.0;
+        calibration.zOrigin = 5.0;
+        calibration.setUnit("um");
+        image.setCalibration(calibration);
+
+        OPAResult result = OPA.run(OPAParameters.builder(image)
+                .runPattern(false)
+                .build());
+
+        opa.geometry.ChannelGeometry channel = result.getChannels().get(0);
+        opa.geometry.ObjectGeometry object = channel.getObjects().get(0);
+        assertEquals(-14.0, object.getCentroidZ(), 1.0e-12);
+        assertEquals(
+                1,
+                channel.getCalibration().pixelZ(object.getCentroidZ()));
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -584,6 +675,34 @@ public class OPATest {
             IJ.setKeyDown(KeyEvent.VK_ESCAPE);
             OPA.run(OPAParameters.builder(image)
                     .runPattern(false)
+                    .build());
+        } catch (AnalysisCancelledException expected) {
+            cancelled = true;
+        } finally {
+            IJ.resetEscape();
+            IJ.setKeyUp(KeyEvent.VK_ESCAPE);
+        }
+        assertTrue(cancelled);
+    }
+
+    @Test
+    public void escapeAfterFinalDistanceDirectionCannotReturnSuccess() {
+        ImagePlus image = labels("cancel-after-distance", 5, 5, 1);
+        image.getProcessor().set(1, 1, 1);
+        image.getProcessor().set(3, 3, 2);
+        boolean cancelled = false;
+        try {
+            OPA.run(OPAParameters.builder(image)
+                    .runPattern(false)
+                    .progressListener(new OPAProgressListener() {
+                        @Override
+                        public void onProgress(
+                                double fraction, String message) {
+                            if (message.startsWith("Distance direction")) {
+                                IJ.setKeyDown(KeyEvent.VK_ESCAPE);
+                            }
+                        }
+                    })
                     .build());
         } catch (AnalysisCancelledException expected) {
             cancelled = true;

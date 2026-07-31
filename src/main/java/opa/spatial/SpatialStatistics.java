@@ -141,16 +141,33 @@ public final class SpatialStatistics {
         double previousK = 0.0;
         double previousRadius = 0.0;
         for (int i = 0; i < radii.length; i++) {
+            double currentK = kValues[i];
+            if (!Double.isNaN(currentK)
+                    && (!Double.isFinite(currentK) || currentK < 0.0)) {
+                throw new IllegalArgumentException(
+                        "K values must be non-negative finite values or NaN.");
+            }
             double annulusArea = Math.PI
                     * (radii[i] * radii[i] - previousRadius * previousRadius);
             if (annulusArea <= 0.0
-                    || Double.isNaN(kValues[i])
+                    || Double.isNaN(currentK)
                     || Double.isNaN(previousK)) {
                 values[i] = Double.NaN;
             } else {
-                values[i] = (kValues[i] - previousK) / annulusArea;
+                double tolerance = 1.0e-12 * Math.max(
+                        1.0, Math.max(Math.abs(previousK), Math.abs(currentK)));
+                if (currentK < previousK - tolerance) {
+                    throw new IllegalArgumentException(
+                            "K values must be non-decreasing.");
+                }
+                values[i] = Math.max(0.0, currentK - previousK)
+                        / annulusArea;
             }
-            previousK = kValues[i];
+            if (Double.isNaN(previousK) || Double.isNaN(currentK)) {
+                previousK = Double.NaN;
+            } else {
+                previousK = Math.max(previousK, currentK);
+            }
             previousRadius = radii[i];
         }
         return values;
@@ -381,15 +398,19 @@ public final class SpatialStatistics {
         if (radii == null) {
             throw new IllegalArgumentException("Radii must not be null.");
         }
+        if (radii.length == 0) {
+            throw new IllegalArgumentException(
+                    "At least one radius is required.");
+        }
         double previous = -1.0;
         for (int i = 0; i < radii.length; i++) {
             if (!Double.isFinite(radii[i]) || radii[i] < 0.0) {
                 throw new IllegalArgumentException(
                         "Radii must be finite and non-negative.");
             }
-            if (radii[i] < previous) {
+            if (radii[i] <= previous) {
                 throw new IllegalArgumentException(
-                        "Radii must be sorted in ascending order.");
+                        "Radii must be strictly increasing.");
             }
             previous = radii[i];
         }

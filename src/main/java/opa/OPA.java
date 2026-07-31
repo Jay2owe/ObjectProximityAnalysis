@@ -43,19 +43,29 @@ public final class OPA {
 
     public static OPAResult run(OPAParameters parameters) {
         AnalysisCancelledException.check();
+        reportProgress(parameters, 0.0, "Validating inputs");
         validate(parameters);
         List<ChannelGeometry> channels = extractChannels(parameters);
         AnalysisCancelledException.check();
         validateChannels(parameters, channels);
         channels = applyObservationWindow(parameters, channels);
+        reportProgress(parameters, 0.1, "Input geometry extracted");
 
+        double distanceEnd = parameters.isRunPattern() ? 0.3 : 0.95;
         List<DirectionResult> directions = parameters.isRunDistances()
-                ? analyzeDistances(parameters, channels)
+                ? analyzeDistances(parameters, channels, 0.1, distanceEnd)
                 : new ArrayList<DirectionResult>();
+        AnalysisCancelledException.check();
+        double patternStart = parameters.isRunDistances() ? distanceEnd : 0.1;
         List<PatternResult> patterns = parameters.isRunPattern()
-                ? analyzePatterns(parameters, channels)
+                ? analyzePatterns(parameters, channels, patternStart, 0.98)
                 : new ArrayList<PatternResult>();
-        return new OPAResult(parameters, channels, directions, patterns);
+        AnalysisCancelledException.check();
+        OPAResult result = new OPAResult(
+                parameters, channels, directions, patterns);
+        AnalysisCancelledException.check();
+        reportProgress(parameters, 1.0, "Analysis complete");
+        return result;
     }
 
     private static List<ChannelGeometry> extractChannels(OPAParameters parameters) {
@@ -94,8 +104,13 @@ public final class OPA {
 
     private static List<DirectionResult> analyzeDistances(
             OPAParameters parameters,
-            List<ChannelGeometry> channels) {
+            List<ChannelGeometry> channels,
+            double progressStart,
+            double progressEnd) {
         List<DirectionResult> results = new ArrayList<DirectionResult>();
+        int total = channels.size() * (channels.size() - 1)
+                + (parameters.isIncludeSelfDistances() ? channels.size() : 0);
+        int completed = 0;
         for (int source = 0; source < channels.size(); source++) {
             AnalysisCancelledException.check();
             if (parameters.isIncludeSelfDistances()) {
@@ -105,6 +120,10 @@ public final class OPA {
                         parameters.getDistanceModes(),
                         parameters.getNeighborCount(),
                         parameters.getContactDistance()));
+                completed++;
+                reportProgress(parameters,
+                        progress(progressStart, progressEnd, completed, total),
+                        "Distance direction " + completed + " of " + total);
             }
             for (int target = 0; target < channels.size(); target++) {
                 if (source == target) continue;
@@ -114,6 +133,10 @@ public final class OPA {
                         parameters.getDistanceModes(),
                         parameters.getNeighborCount(),
                         parameters.getContactDistance()));
+                completed++;
+                reportProgress(parameters,
+                        progress(progressStart, progressEnd, completed, total),
+                        "Distance direction " + completed + " of " + total);
             }
         }
         return results;
@@ -133,7 +156,9 @@ public final class OPA {
 
     private static List<PatternResult> analyzePatterns(
             OPAParameters parameters,
-            List<ChannelGeometry> channels) {
+            List<ChannelGeometry> channels,
+            double progressStart,
+            double progressEnd) {
         ChannelGeometry first = channels.get(0);
         RectangularWindow window = parameters.getObservationWindow() == null
                 ? new RectangularWindow(
@@ -144,10 +169,20 @@ public final class OPA {
                 : parameters.getObservationWindow();
         double[] radii = resolveRadii(parameters, window);
         List<PatternResult> results = new ArrayList<PatternResult>();
+        int totalJobs = patternJobCount(
+                parameters.getPatternFunctions(), channels.size());
+        int completedJobs = 0;
 
         for (PatternFunction function : parameters.getPatternFunctions()) {
+            AnalysisCancelledException.check();
             if (!function.isBivariate()) {
                 for (ChannelGeometry channel : channels) {
+                    OPAProgressListener listener = progressSegment(
+                            parameters,
+                            progressStart,
+                            progressEnd,
+                            completedJobs,
+                            totalJobs);
                     MonteCarloResult statistics =
                             MonteCarloAnalyzer.analyzeUnivariate(
                                     function,
@@ -156,17 +191,25 @@ public final class OPA {
                                     radii,
                                     parameters.getEdgeCorrection(),
                                     parameters.getSimulations(),
-                                    parameters.getSeed());
+                                    parameters.getSeed(),
+                                    listener);
                     results.add(new PatternResult(
                             channel.getName(),
                             null,
                             channel.getCalibration().getUnit(),
                             statistics));
+                    completedJobs++;
                 }
             } else {
                 for (int source = 0; source < channels.size(); source++) {
                     for (int target = 0; target < channels.size(); target++) {
                         if (source == target) continue;
+                        OPAProgressListener listener = progressSegment(
+                                parameters,
+                                progressStart,
+                                progressEnd,
+                                completedJobs,
+                                totalJobs);
                         ChannelGeometry sourceChannel = channels.get(source);
                         ChannelGeometry targetChannel = channels.get(target);
                         MonteCarloResult statistics =
@@ -178,17 +221,73 @@ public final class OPA {
                                         radii,
                                         parameters.getEdgeCorrection(),
                                         parameters.getSimulations(),
-                                        parameters.getSeed());
+                                        parameters.getSeed(),
+                                        listener);
                         results.add(new PatternResult(
                                 sourceChannel.getName(),
                                 targetChannel.getName(),
                                 sourceChannel.getCalibration().getUnit(),
                                 statistics));
+                        completedJobs++;
                     }
                 }
             }
         }
+        reportProgress(parameters, progressEnd, "Point-pattern analysis complete");
         return results;
+    }
+
+    private static int patternJobCount(Iterable<PatternFunction> functions,
+                                       int channelCount) {
+        int count = 0;
+        for (PatternFunction function : functions) {
+            count += function.isBivariate()
+                    ? channelCount * (channelCount - 1)
+                    : channelCount;
+        }
+        return count;
+    }
+
+    private static OPAProgressListener progressSegment(
+            final OPAParameters parameters,
+            final double start,
+            final double end,
+            int jobIndex,
+            int jobCount) {
+        if (parameters.getProgressListener() == null || jobCount == 0) {
+            return null;
+        }
+        final double jobStart = progress(start, end, jobIndex, jobCount);
+        final double jobEnd = progress(start, end, jobIndex + 1, jobCount);
+        return new OPAProgressListener() {
+            @Override
+            public void onProgress(double fraction, String message) {
+                reportProgress(
+                        parameters,
+                        jobStart + (jobEnd - jobStart) * fraction,
+                        message);
+            }
+        };
+    }
+
+    private static double progress(double start,
+                                   double end,
+                                   int completed,
+                                   int total) {
+        return total == 0
+                ? end
+                : start + (end - start) * completed / total;
+    }
+
+    private static void reportProgress(OPAParameters parameters,
+                                       double fraction,
+                                       String message) {
+        if (parameters == null || parameters.getProgressListener() == null) {
+            return;
+        }
+        parameters.getProgressListener().onProgress(
+                Math.max(0.0, Math.min(1.0, fraction)),
+                message);
     }
 
     private static double[] resolveRadii(OPAParameters parameters,
@@ -247,18 +346,24 @@ public final class OPA {
                         "A one-channel distance analysis requires self-distances; "
                                 + "enable self-distances or disable distance analysis.");
             }
-            if (parameters.getNeighborCount() < 1) {
+            if (parameters.getNeighborCount() < 1
+                    || parameters.getNeighborCount()
+                    > OPAParameters.MAX_NEIGHBOR_COUNT) {
                 throw new IllegalArgumentException(
-                        "Neighbor count must be at least 1.");
+                        "Neighbor count must be between 1 and "
+                                + OPAParameters.MAX_NEIGHBOR_COUNT + ".");
             }
             if (!Double.isFinite(parameters.getContactDistance())
                     || parameters.getContactDistance() < 0.0) {
                 throw new IllegalArgumentException(
                         "Contact distance must be finite and non-negative.");
             }
-            if (parameters.getHistogramBins() < 1) {
+            if (parameters.getHistogramBins() < 1
+                    || parameters.getHistogramBins()
+                    > OPAParameters.MAX_HISTOGRAM_BINS) {
                 throw new IllegalArgumentException(
-                        "Histogram bin count must be at least 1.");
+                        "Histogram bin count must be between 1 and "
+                                + OPAParameters.MAX_HISTOGRAM_BINS + ".");
             }
         }
         if (parameters.isRunPattern()) {
@@ -272,9 +377,12 @@ public final class OPA {
                         "Cross-pattern functions require at least two label images; "
                                 + "enable a univariate function or add another image.");
             }
-            if (parameters.getSimulations() < 1) {
+            if (parameters.getSimulations() < 1
+                    || parameters.getSimulations()
+                    > OPAParameters.MAX_SIMULATIONS) {
                 throw new IllegalArgumentException(
-                        "Simulation count must be at least 1.");
+                        "Simulation count must be between 1 and "
+                                + OPAParameters.MAX_SIMULATIONS + ".");
             }
             if (parameters.getEdgeCorrection() == null) {
                 throw new IllegalArgumentException(
@@ -291,9 +399,12 @@ public final class OPA {
             }
             double[] radii = parameters.getRadii();
             if (radii == null) {
-                if (parameters.getRadiusBins() < 1) {
+                if (parameters.getRadiusBins() < 1
+                        || parameters.getRadiusBins()
+                        > OPAParameters.MAX_RADIUS_BINS) {
                     throw new IllegalArgumentException(
-                            "Radius bin count must be at least 1.");
+                            "Radius bin count must be between 1 and "
+                                    + OPAParameters.MAX_RADIUS_BINS + ".");
                 }
                 if (!Double.isFinite(parameters.getMaximumRadius())
                         || parameters.getMaximumRadius() < 0.0) {
@@ -302,6 +413,21 @@ public final class OPA {
                 }
             } else {
                 validateRadii(radii);
+                if (radii.length > OPAParameters.MAX_RADIUS_BINS) {
+                    throw new IllegalArgumentException(
+                            "Pattern radius count must not exceed "
+                                    + OPAParameters.MAX_RADIUS_BINS + ".");
+                }
+            }
+            int radiusCount = radii == null
+                    ? parameters.getRadiusBins()
+                    : radii.length;
+            if ((long) parameters.getSimulations() * radiusCount
+                    > OPAParameters.MAX_MONTE_CARLO_VALUES) {
+                throw new IllegalArgumentException(
+                        "Monte Carlo simulations multiplied by radius count "
+                                + "must not exceed "
+                                + OPAParameters.MAX_MONTE_CARLO_VALUES + ".");
             }
         }
     }
@@ -314,10 +440,10 @@ public final class OPA {
         double previous = Double.NEGATIVE_INFINITY;
         for (double radius : radii) {
             if (!Double.isFinite(radius) || radius < 0.0
-                    || radius < previous) {
+                    || radius <= previous) {
                 throw new IllegalArgumentException(
                         "Pattern radii must be finite, non-negative, "
-                                + "and sorted in ascending order.");
+                                + "and strictly increasing.");
             }
             previous = radius;
         }
