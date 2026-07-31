@@ -49,3 +49,5 @@
   metadata, and the BSD licence packaged inside the plugin JAR.
 - Cancellation-safe skipped/terminal batch progress and continuous-integration
   checks of the actual JAR licence and source commit.
+- Correct cancellation outcomes for every unvisited batch group, including
+  groups already known to have invalid inputs.

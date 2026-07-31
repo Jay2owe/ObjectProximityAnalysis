@@ -282,6 +282,61 @@ public class OPABatchRunnerTest {
     }
 
     @Test
+    public void escapeFromInvalidGroupMarksEveryUnvisitedGroupCancelled()
+            throws Exception {
+        File directory = Files.createTempDirectory(
+                "opa-batch-cancel-mixed-progress").toFile();
+        try {
+            for (char channel = 'A'; channel <= 'F'; channel++) {
+                assertTrue(new File(
+                        directory, "a_" + channel + ".tif")
+                        .createNewFile());
+                assertTrue(new File(
+                        directory, "c_" + channel + ".tif")
+                        .createNewFile());
+            }
+            saveDiagonalLabels(new File(directory, "b_A.tif"));
+            OPAParameters options = OPAParameters.builder()
+                    .progressListener(new OPAProgressListener() {
+                        @Override
+                        public void onProgress(
+                                double fraction, String message) {
+                            if (message.contains("skipped invalid group")) {
+                                IJ.setKeyDown(KeyEvent.VK_ESCAPE);
+                            }
+                        }
+                    })
+                    .build();
+
+            OPABatchResult result = OPABatchRunner.run(
+                    OPABatchParameters.builder(
+                                    directory,
+                                    "([abc])_([A-F])\\.tif",
+                                    2)
+                            .recursive(false)
+                            .analysisTemplate(options)
+                            .autoSave(false)
+                            .build());
+
+            assertTrue(result.isCancelled());
+            assertEquals(3, result.getTotalGroups());
+            assertEquals(1, result.getValidGroups());
+            assertEquals(3, result.getSkippedGroups());
+            assertEquals("SKIPPED_INVALID", result.getGroupManifest()
+                    .getStringValue("Outcome", 0));
+            assertEquals("CANCELLED", result.getGroupManifest()
+                    .getStringValue("Outcome", 1));
+            assertEquals("CANCELLED", result.getGroupManifest()
+                    .getStringValue("Outcome", 2));
+            assertFalse(IJ.escapePressed());
+        } finally {
+            IJ.resetEscape();
+            IJ.setKeyUp(KeyEvent.VK_ESCAPE);
+            deleteChildren(directory);
+        }
+    }
+
+    @Test
     public void escapeFromTerminalBatchProgressSavesCancelledStatus()
             throws Exception {
         File input = Files.createTempDirectory(

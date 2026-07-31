@@ -524,10 +524,7 @@ public final class OPABatchRunner {
                                       int firstRow,
                                       int rowCount) {
         for (int row = firstRow; row < rowCount; row++) {
-            if ("PENDING".equals(
-                    manifest.getStringValue("Outcome", row))) {
-                manifest.setValue("Outcome", row, "CANCELLED");
-            }
+            manifest.setValue("Outcome", row, "CANCELLED");
         }
     }
 
