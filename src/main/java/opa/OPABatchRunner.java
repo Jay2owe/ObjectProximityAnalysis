@@ -109,6 +109,8 @@ public final class OPABatchRunner {
                 final int progressGroupIndex = groupIndex;
                 final int progressGroupCount = groups.size();
                 final String progressGroupName = group.displayName();
+                final OPAProgressListener callerProgress =
+                        parameters.getAnalysisTemplate().getProgressListener();
                 OPAParameters analysis = OPAParameters.builderFrom(
                                 parameters.getAnalysisTemplate())
                         .images(images)
@@ -117,12 +119,24 @@ public final class OPABatchRunner {
                             @Override
                             public void onProgress(
                                     double fraction, String message) {
-                                IJ.showProgress(
+                                double batchFraction =
                                         (progressGroupIndex + fraction)
-                                                / progressGroupCount);
+                                                / progressGroupCount;
+                                String batchMessage =
+                                        "Batch group "
+                                                + (progressGroupIndex + 1)
+                                                + " of " + progressGroupCount
+                                                + " (" + progressGroupName + "): "
+                                                + message;
+                                if (callerProgress != null) {
+                                    callerProgress.onProgress(
+                                            batchFraction, batchMessage);
+                                }
+                                IJ.showProgress(
+                                        batchFraction);
                                 IJ.showStatus(
                                         "OPA batch: " + progressGroupName
-                                                + " — " + message);
+                                                + ": " + message);
                             }
                         })
                         .build();

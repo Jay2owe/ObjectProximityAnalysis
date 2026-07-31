@@ -65,6 +65,7 @@ public final class OPA {
                 parameters, channels, directions, patterns);
         AnalysisCancelledException.check();
         reportProgress(parameters, 1.0, "Analysis complete");
+        AnalysisCancelledException.check();
         return result;
     }
 

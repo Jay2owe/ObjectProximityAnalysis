@@ -5,8 +5,13 @@
  */
 package opa.spatial;
 
+import ij.IJ;
+import opa.AnalysisCancelledException;
 import opa.OPAParameters;
+import opa.OPAProgressListener;
 import org.junit.Test;
+
+import java.awt.event.KeyEvent;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -150,6 +155,36 @@ public class SpatialStatisticsTest {
                 EdgeCorrection.NONE,
                 OPAParameters.MAX_SIMULATIONS,
                 1L);
+    }
+
+    @Test
+    public void terminalUndefinedProgressCallbackCanCancelDirectApi() {
+        boolean cancelled = false;
+        try {
+            MonteCarloAnalyzer.analyzeUnivariate(
+                    PatternFunction.K,
+                    new double[][]{{2.0, 2.0}},
+                    WINDOW,
+                    new double[]{1.0},
+                    EdgeCorrection.NONE,
+                    1,
+                    1L,
+                    new OPAProgressListener() {
+                        @Override
+                        public void onProgress(
+                                double fraction, String message) {
+                            if (fraction == 1.0) {
+                                IJ.setKeyDown(KeyEvent.VK_ESCAPE);
+                            }
+                        }
+                    });
+        } catch (AnalysisCancelledException expected) {
+            cancelled = true;
+        } finally {
+            IJ.resetEscape();
+            IJ.setKeyUp(KeyEvent.VK_ESCAPE);
+        }
+        assertTrue(cancelled);
     }
 
     @Test

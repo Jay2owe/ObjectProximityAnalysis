@@ -43,3 +43,5 @@
 - Bounded exact-integer controls, staged atomic output replacement,
   within-analysis progress callbacks, final-stage cancellation checks,
   guarded dialog calibration errors, and strict pair-correlation inputs.
+- Terminal-callback cancellation, composed headless batch progress, and
+  always-refreshed JAR build provenance.

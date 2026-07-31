@@ -714,6 +714,34 @@ public class OPATest {
     }
 
     @Test
+    public void escapeFromTerminalProgressCallbackCannotReturnSuccess() {
+        ImagePlus image = labels("cancel-at-complete", 5, 5, 1);
+        image.getProcessor().set(1, 1, 1);
+        image.getProcessor().set(3, 3, 2);
+        boolean cancelled = false;
+        try {
+            OPA.run(OPAParameters.builder(image)
+                    .runPattern(false)
+                    .progressListener(new OPAProgressListener() {
+                        @Override
+                        public void onProgress(
+                                double fraction, String message) {
+                            if (fraction == 1.0) {
+                                IJ.setKeyDown(KeyEvent.VK_ESCAPE);
+                            }
+                        }
+                    })
+                    .build());
+        } catch (AnalysisCancelledException expected) {
+            cancelled = true;
+        } finally {
+            IJ.resetEscape();
+            IJ.setKeyUp(KeyEvent.VK_ESCAPE);
+        }
+        assertTrue(cancelled);
+    }
+
+    @Test
     public void customWindowMarksObjectsCrossingItsBoundaryAsEdgeObjects() {
         ImagePlus image = labels("custom-window", 10, 6, 1);
         image.getProcessor().set(3, 2, 1);

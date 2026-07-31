@@ -58,7 +58,8 @@ public final class MonteCarloAnalyzer {
         double[] expected = SpatialStatistics.expected(function, radii, intensity);
         if (points.length < 2) {
             reportProgress(progress, 1.0, "Point pattern is undefined");
-            return undefined(
+            checkCancelled();
+            MonteCarloResult result = undefined(
                     function,
                     radii,
                     observed,
@@ -66,6 +67,8 @@ public final class MonteCarloAnalyzer {
                     simulations,
                     seed,
                     PatternStatus.INSUFFICIENT_POINTS);
+            checkCancelled();
+            return result;
         }
 
         Random random = new Random(seed);
@@ -82,9 +85,12 @@ public final class MonteCarloAnalyzer {
                     (simulation + 1.0) / simulations,
                     "Monte Carlo simulation " + (simulation + 1)
                             + " of " + simulations);
+            checkCancelled();
         }
-        return summarize(
+        MonteCarloResult result = summarize(
                 function, radii, observed, expected, samples, simulations, seed);
+        checkCancelled();
+        return result;
     }
 
     public static MonteCarloResult analyzeBivariate(PatternFunction function,
@@ -128,7 +134,8 @@ public final class MonteCarloAnalyzer {
                 function, radii, targetIntensity);
         if (source.length == 0 || target.length == 0) {
             reportProgress(progress, 1.0, "Point pattern is undefined");
-            return undefined(
+            checkCancelled();
+            MonteCarloResult result = undefined(
                     function,
                     radii,
                     observed,
@@ -136,6 +143,8 @@ public final class MonteCarloAnalyzer {
                     simulations,
                     seed,
                     PatternStatus.INSUFFICIENT_POINTS);
+            checkCancelled();
+            return result;
         }
 
         Random random = new Random(seed);
@@ -157,9 +166,12 @@ public final class MonteCarloAnalyzer {
                     (simulation + 1.0) / simulations,
                     "Monte Carlo simulation " + (simulation + 1)
                             + " of " + simulations);
+            checkCancelled();
         }
-        return summarize(
+        MonteCarloResult result = summarize(
                 function, radii, observed, expected, samples, simulations, seed);
+        checkCancelled();
+        return result;
     }
 
     private static MonteCarloResult summarize(PatternFunction function,

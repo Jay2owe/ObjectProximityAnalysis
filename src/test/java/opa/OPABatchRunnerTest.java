@@ -15,8 +15,10 @@ import org.junit.Test;
 import java.awt.event.KeyEvent;
 import java.io.File;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
@@ -83,6 +85,52 @@ public class OPABatchRunnerTest {
             assertTrue(result.getDistanceSummary().size() > 0);
             assertFalse(result.getMeanCurveTables().isEmpty());
             assertFalse(result.getMeanEcdfTables().isEmpty());
+        } finally {
+            deleteChildren(directory);
+        }
+    }
+
+    @Test
+    public void batchComposesCallerProgressWithOverallGroupProgress()
+            throws Exception {
+        File directory = Files.createTempDirectory(
+                "opa-batch-progress").toFile();
+        try {
+            saveDiagonalLabels(new File(directory, "sample_A.tif"));
+            final List<Double> fractions = new ArrayList<Double>();
+            final List<String> messages = new ArrayList<String>();
+            OPAParameters options = OPAParameters.builder()
+                    .runPattern(false)
+                    .distanceModes(EnumSet.of(
+                            DistanceMode.CENTRE_TO_CENTRE))
+                    .progressListener(new OPAProgressListener() {
+                        @Override
+                        public void onProgress(
+                                double fraction, String message) {
+                            fractions.add(fraction);
+                            messages.add(message);
+                        }
+                    })
+                    .build();
+            OPABatchParameters parameters = OPABatchParameters.builder(
+                            directory,
+                            "(sample)_([A])\\.tif",
+                            2)
+                    .recursive(false)
+                    .analysisTemplate(options)
+                    .autoSave(false)
+                    .build();
+
+            OPABatchResult result = OPABatchRunner.run(parameters);
+
+            assertEquals(1, result.getProcessedGroups());
+            assertFalse(fractions.isEmpty());
+            assertEquals(
+                    1.0,
+                    fractions.get(fractions.size() - 1),
+                    1.0e-12);
+            assertTrue(messages.toString().contains(
+                    "Batch group 1 of 1"));
         } finally {
             deleteChildren(directory);
         }

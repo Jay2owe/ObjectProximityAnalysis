@@ -265,16 +265,18 @@ rejects negative, infinite, or materially decreasing K values.
 macOS/Linux:
 
 ```text
-./mvnw test
+./mvnw clean verify
 ```
 
 Windows:
 
 ```text
-mvnw.cmd test
+mvnw.cmd clean verify
 ```
 
 The packaged JAR is written to `target/Object_Proximity_Analysis-<version>.jar`.
+The JAR is forced to rebuild during `package`/`verify` so its manifest cannot
+retain stale source-control commit metadata after a new commit.
 
 ## Licence
 
