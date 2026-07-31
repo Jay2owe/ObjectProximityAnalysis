@@ -137,6 +137,104 @@ public class OPABatchRunnerTest {
     }
 
     @Test
+    public void trailingInvalidGroupStillCompletesCallerProgress()
+            throws Exception {
+        File directory = Files.createTempDirectory(
+                "opa-batch-progress-trailing-invalid").toFile();
+        try {
+            saveDiagonalLabels(new File(directory, "a_A.tif"));
+            for (char channel = 'A'; channel <= 'F'; channel++) {
+                assertTrue(new File(
+                        directory, "b_" + channel + ".tif").createNewFile());
+            }
+            final List<Double> fractions = new ArrayList<Double>();
+            final List<String> messages = new ArrayList<String>();
+            OPAParameters options = OPAParameters.builder()
+                    .runPattern(false)
+                    .distanceModes(EnumSet.of(
+                            DistanceMode.CENTRE_TO_CENTRE))
+                    .progressListener(new OPAProgressListener() {
+                        @Override
+                        public void onProgress(
+                                double fraction, String message) {
+                            fractions.add(fraction);
+                            messages.add(message);
+                        }
+                    })
+                    .build();
+            OPABatchResult result = OPABatchRunner.run(
+                    OPABatchParameters.builder(
+                                    directory,
+                                    "([ab])_([A-F])\\.tif",
+                                    2)
+                            .recursive(false)
+                            .analysisTemplate(options)
+                            .autoSave(false)
+                            .build());
+
+            assertEquals(1, result.getProcessedGroups());
+            assertEquals(1, result.getSkippedGroups());
+            assertEquals(
+                    1.0,
+                    fractions.get(fractions.size() - 1),
+                    1.0e-12);
+            assertTrue(messages.toString().contains(
+                    "skipped invalid group"));
+            assertTrue(messages.get(messages.size() - 1).startsWith(
+                    "Batch complete"));
+        } finally {
+            deleteChildren(directory);
+        }
+    }
+
+    @Test
+    public void allInvalidGroupsStillNotifyCallerOfCompletion()
+            throws Exception {
+        File directory = Files.createTempDirectory(
+                "opa-batch-progress-all-invalid").toFile();
+        try {
+            for (char channel = 'A'; channel <= 'F'; channel++) {
+                assertTrue(new File(
+                        directory, "sample_" + channel + ".tif")
+                        .createNewFile());
+            }
+            final List<Double> fractions = new ArrayList<Double>();
+            final List<String> messages = new ArrayList<String>();
+            OPAParameters options = OPAParameters.builder()
+                    .progressListener(new OPAProgressListener() {
+                        @Override
+                        public void onProgress(
+                                double fraction, String message) {
+                            fractions.add(fraction);
+                            messages.add(message);
+                        }
+                    })
+                    .build();
+            OPABatchResult result = OPABatchRunner.run(
+                    OPABatchParameters.builder(
+                                    directory,
+                                    "(sample)_([A-F])\\.tif",
+                                    2)
+                            .recursive(false)
+                            .analysisTemplate(options)
+                            .autoSave(false)
+                            .build());
+
+            assertEquals(0, result.getProcessedGroups());
+            assertEquals(1, result.getSkippedGroups());
+            assertFalse(fractions.isEmpty());
+            assertEquals(
+                    1.0,
+                    fractions.get(fractions.size() - 1),
+                    1.0e-12);
+            assertTrue(messages.get(messages.size() - 1).startsWith(
+                    "Batch complete"));
+        } finally {
+            deleteChildren(directory);
+        }
+    }
+
+    @Test
     public void keepsIncompatibleBatchUnitsInSeparateAggregates()
             throws Exception {
         File directory = Files.createTempDirectory("opa-batch-units").toFile();

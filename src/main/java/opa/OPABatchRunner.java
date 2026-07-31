@@ -76,6 +76,8 @@ public final class OPABatchRunner {
         File output = parameters.getOutputDirectory() == null
                 ? parameters.getInputFolder()
                 : parameters.getOutputDirectory();
+        final OPAProgressListener callerProgress =
+                parameters.getAnalysisTemplate().getProgressListener();
 
         for (int groupIndex = 0; groupIndex < groups.size(); groupIndex++) {
             if (IJ.escapePressed()) {
@@ -88,6 +90,14 @@ public final class OPABatchRunner {
             Group group = groups.get(groupIndex);
             if (!group.isRunnable(parameters.getAnalysisTemplate())) {
                 skipped++;
+                reportCallerProgress(
+                        callerProgress,
+                        (groupIndex + 1.0) / groups.size(),
+                        "Batch group " + (groupIndex + 1)
+                                + " of " + groups.size()
+                                + " (" + group.displayName()
+                                + "): skipped invalid group");
+                IJ.showProgress(groupIndex + 1, groups.size());
                 continue;
             }
             IJ.showStatus("OPA batch: " + group.displayName()
@@ -109,8 +119,6 @@ public final class OPABatchRunner {
                 final int progressGroupIndex = groupIndex;
                 final int progressGroupCount = groups.size();
                 final String progressGroupName = group.displayName();
-                final OPAProgressListener callerProgress =
-                        parameters.getAnalysisTemplate().getProgressListener();
                 OPAParameters analysis = OPAParameters.builderFrom(
                                 parameters.getAnalysisTemplate())
                         .images(images)
@@ -128,10 +136,10 @@ public final class OPABatchRunner {
                                                 + " of " + progressGroupCount
                                                 + " (" + progressGroupName + "): "
                                                 + message;
-                                if (callerProgress != null) {
-                                    callerProgress.onProgress(
-                                            batchFraction, batchMessage);
-                                }
+                                reportCallerProgress(
+                                        callerProgress,
+                                        batchFraction,
+                                        batchMessage);
                                 IJ.showProgress(
                                         batchFraction);
                                 IJ.showStatus(
@@ -220,6 +228,13 @@ public final class OPABatchRunner {
             IJ.log("OPA batch cancelled: " + processed + " processed, "
                     + skipped + " skipped, " + errors + " errors.");
             IJ.showStatus("OPA batch cancelled");
+        } else {
+            reportCallerProgress(
+                    callerProgress,
+                    1.0,
+                    "Batch complete: " + processed + " processed, "
+                            + skipped + " skipped, " + errors
+                            + " group errors");
         }
         IJ.showProgress(1.0);
         return new OPABatchResult(
@@ -236,6 +251,17 @@ public final class OPABatchRunner {
                 meanCurves,
                 meanEcdfs,
                 errorMessages);
+    }
+
+    private static void reportCallerProgress(
+            OPAProgressListener listener,
+            double fraction,
+            String message) {
+        if (listener != null) {
+            listener.onProgress(
+                    Math.max(0.0, Math.min(1.0, fraction)),
+                    message);
+        }
     }
 
     private static Compiled compile(OPABatchParameters parameters) {
