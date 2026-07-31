@@ -14,6 +14,7 @@ import org.junit.Test;
 
 import java.awt.event.KeyEvent;
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -23,6 +24,7 @@ import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 public class OPABatchRunnerTest {
@@ -231,6 +233,109 @@ public class OPABatchRunnerTest {
                     "Batch complete"));
         } finally {
             deleteChildren(directory);
+        }
+    }
+
+    @Test
+    public void escapeFromInvalidGroupProgressCancelsBatch()
+            throws Exception {
+        File directory = Files.createTempDirectory(
+                "opa-batch-cancel-invalid-progress").toFile();
+        try {
+            for (char channel = 'A'; channel <= 'F'; channel++) {
+                assertTrue(new File(
+                        directory, "sample_" + channel + ".tif")
+                        .createNewFile());
+            }
+            OPAParameters options = OPAParameters.builder()
+                    .progressListener(new OPAProgressListener() {
+                        @Override
+                        public void onProgress(
+                                double fraction, String message) {
+                            if (message.contains("skipped invalid group")) {
+                                IJ.setKeyDown(KeyEvent.VK_ESCAPE);
+                            }
+                        }
+                    })
+                    .build();
+
+            OPABatchResult result = OPABatchRunner.run(
+                    OPABatchParameters.builder(
+                                    directory,
+                                    "(sample)_([A-F])\\.tif",
+                                    2)
+                            .recursive(false)
+                            .analysisTemplate(options)
+                            .autoSave(false)
+                            .build());
+
+            assertTrue(result.isCancelled());
+            assertEquals(1, result.getSkippedGroups());
+            assertEquals("SKIPPED_INVALID", result.getGroupManifest()
+                    .getStringValue("Outcome", 0));
+            assertFalse(IJ.escapePressed());
+        } finally {
+            IJ.resetEscape();
+            IJ.setKeyUp(KeyEvent.VK_ESCAPE);
+            deleteChildren(directory);
+        }
+    }
+
+    @Test
+    public void escapeFromTerminalBatchProgressSavesCancelledStatus()
+            throws Exception {
+        File input = Files.createTempDirectory(
+                "opa-batch-cancel-terminal-input").toFile();
+        File output = Files.createTempDirectory(
+                "opa-batch-cancel-terminal-output").toFile();
+        try {
+            saveDiagonalLabels(new File(input, "sample_A.tif"));
+            OPAParameters options = OPAParameters.builder()
+                    .runPattern(false)
+                    .distanceModes(EnumSet.of(
+                            DistanceMode.CENTRE_TO_CENTRE))
+                    .progressListener(new OPAProgressListener() {
+                        @Override
+                        public void onProgress(
+                                double fraction, String message) {
+                            if (message.startsWith("Batch complete")) {
+                                IJ.setKeyDown(KeyEvent.VK_ESCAPE);
+                            }
+                        }
+                    })
+                    .build();
+
+            OPABatchResult result = OPABatchRunner.run(
+                    OPABatchParameters.builder(
+                                    input,
+                                    "(sample)_([A])\\.tif",
+                                    2)
+                            .recursive(false)
+                            .analysisTemplate(options)
+                            .autoSave(true)
+                            .outputDirectory(output)
+                            .build());
+
+            assertTrue(result.isCancelled());
+            assertEquals(1, result.getProcessedGroups());
+            File batchRoot = new File(
+                    output, "Object Proximity Analysis/Folder");
+            File[] runFolders = batchRoot.listFiles(
+                    (directory, name) ->
+                            name.startsWith("Batch__"));
+            assertNotNull(runFolders);
+            assertEquals(1, runFolders.length);
+            String readme = new String(
+                    Files.readAllBytes(
+                            new File(runFolders[0], "README.txt").toPath()),
+                    StandardCharsets.UTF_8);
+            assertTrue(readme.contains("Status: CANCELLED"));
+            assertFalse(IJ.escapePressed());
+        } finally {
+            IJ.resetEscape();
+            IJ.setKeyUp(KeyEvent.VK_ESCAPE);
+            deleteChildren(input);
+            deleteChildren(output);
         }
     }
 

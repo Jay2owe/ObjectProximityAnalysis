@@ -98,6 +98,15 @@ public final class OPABatchRunner {
                                 + " (" + group.displayName()
                                 + "): skipped invalid group");
                 IJ.showProgress(groupIndex + 1, groups.size());
+                if (IJ.escapePressed()) {
+                    IJ.resetEscape();
+                    cancelled = true;
+                    int remaining = groups.size() - groupIndex - 1;
+                    skipped += remaining;
+                    markCancelled(
+                            groupManifest, groupIndex + 1, groups.size());
+                    break;
+                }
                 continue;
             }
             IJ.showStatus("OPA batch: " + group.displayName()
@@ -204,6 +213,18 @@ public final class OPABatchRunner {
 
         Map<String, ResultsTable> meanCurves = curves.tables();
         Map<String, ResultsTable> meanEcdfs = ecdfs.tables();
+        if (!cancelled) {
+            reportCallerProgress(
+                    callerProgress,
+                    1.0,
+                    "Batch complete: " + processed + " processed, "
+                            + skipped + " skipped, " + errors
+                            + " group errors");
+            if (IJ.escapePressed()) {
+                IJ.resetEscape();
+                cancelled = true;
+            }
+        }
         if (parameters.isAutoSave()) {
             try {
                 saveAggregates(
@@ -228,13 +249,6 @@ public final class OPABatchRunner {
             IJ.log("OPA batch cancelled: " + processed + " processed, "
                     + skipped + " skipped, " + errors + " errors.");
             IJ.showStatus("OPA batch cancelled");
-        } else {
-            reportCallerProgress(
-                    callerProgress,
-                    1.0,
-                    "Batch complete: " + processed + " processed, "
-                            + skipped + " skipped, " + errors
-                            + " group errors");
         }
         IJ.showProgress(1.0);
         return new OPABatchResult(

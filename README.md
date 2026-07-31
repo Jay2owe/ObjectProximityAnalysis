@@ -277,7 +277,9 @@ mvnw.cmd clean verify
 The packaged JAR is written to `target/Object_Proximity_Analysis-<version>.jar`.
 The JAR is forced to rebuild during `package`/`verify` so its manifest cannot
 retain stale source-control commit metadata after a new commit. It includes the
-BSD 3-Clause licence at `META-INF/LICENSE`.
+BSD 3-Clause licence at `META-INF/LICENSE`. The post-package integration test
+byte-compares that entry with `LICENSE` and checks the manifest commit against
+Git HEAD; continuous integration runs the full `clean verify` lifecycle.
 
 ## Licence
 

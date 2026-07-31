@@ -47,3 +47,5 @@
   always-refreshed JAR build provenance.
 - Complete progress for skipped/all-invalid batches, development-safe citation
   metadata, and the BSD licence packaged inside the plugin JAR.
+- Cancellation-safe skipped/terminal batch progress and continuous-integration
+  checks of the actual JAR licence and source commit.
