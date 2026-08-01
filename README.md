@@ -40,6 +40,12 @@ spatial index. Runtime grows with the square of the object count and the square
 of the per-object surface size, so a few hundred large 3D objects per channel can
 take minutes to hours per channel pair. Press Escape to stop a run.
 
+Label images are held as one `int` per voxel regardless of input bit depth, plus
+roughly 400 bytes per labelled voxel of extracted geometry. A 2048 x 2048 x 100
+stack with five per cent of voxels labelled therefore needs several gigabytes;
+raise Fiji's memory in `Edit > Options > Memory & Threads` or crop first. Inputs
+above 2,147,483,647 voxels are rejected outright.
+
 ## Measurement definitions
 
 - Centre-edge is zero when the source centre lies inside the target object.
@@ -49,7 +55,11 @@ take minutes to hours per channel pair. Press Escape to stop a run.
 - Exact contact counts source boundary faces directly adjacent to the selected
   target label.
 - Apposed surface counts source boundary faces within the chosen contact
-  distance of an oppositely facing target surface.
+  distance of an oppositely facing target surface. A face is counted whole once
+  any part of it is within range, so two objects meeting only at a corner still
+  contribute their full adjacent faces even at contact distance zero, where
+  exact contact is correctly zero. Compare the two columns rather than reading
+  apposed surface alone.
 - Surface-contact partners are ranked by apposed surface measure, largest first.
   Distance modes are ranked smallest first.
 
