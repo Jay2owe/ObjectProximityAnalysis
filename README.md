@@ -261,9 +261,21 @@ Pointwise envelopes are emitted only when all requested simulations contribute
 at that radius. Curve tables record `Envelope_N` and `Envelope_Status` for each
 radius; incomplete bounds are `NaN` without invalidating an otherwise complete
 global rank test.
+The cross-function null randomises both patterns independently, so a significant
+cross-K, cross-L, or cross-G rejects "both patterns are complete spatial
+randomness and independent of each other". It does not isolate dependence: a
+clustered but genuinely independent pair can reject. Conditioning on the
+observed marginal patterns, by random labelling or toroidal shifts, is not
+implemented in v0.1.0.
+
 A radius where fewer than two of the observed and simulated curves are estimable
 carries no comparative information and is excluded from the global
-maximum-deviation statistic for every curve alike. Under border correction this
+maximum-deviation statistic for every curve alike. A radius where every
+estimable curve took the same value is excluded for the same reason: the
+observed curve is exactly typical of the null there, however far the shared
+value sits from the theoretical expectation. Nearest-neighbour G does this at
+every radius past saturation at 1, and K and its derived curves do it at a
+smallest radius closer than any pair in the pattern. Under border correction this
 is what happens at radii larger than almost every point's distance to the window
 boundary. `Radius_At_Maximum_Deviation` is therefore the radius at which the
 ranked standardised statistic peaks, and `Maximum_Absolute_Deviation` is the raw

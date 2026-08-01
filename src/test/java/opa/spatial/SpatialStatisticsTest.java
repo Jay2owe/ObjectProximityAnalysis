@@ -443,6 +443,76 @@ public class SpatialStatisticsTest {
                 result.getMaximumDeviationRadius() < 4.9);
     }
 
+    /**
+     * A radius where the observed curve and every simulation take the same
+     * value has zero pooled spread. It discriminates nothing, so it must
+     * contribute nothing. Treating it as infinitely extreme would saturate the
+     * statistic for every curve alike, tie them, and force the p-value to 1.
+     * Nearest-neighbour G does this at every radius past saturation at 1.
+     */
+    @Test
+    public void zeroSpreadRadiiDoNotDestroyTheGlobalTest() {
+        RectangularWindow window = new RectangularWindow(0.0, 0.0, 100.0, 100.0);
+        // A radius below every nearest-neighbour distance, then the default
+        // grid out to a quarter of the window.
+        double[] radii = new double[51];
+        radii[0] = 0.01;
+        for (int i = 1; i < radii.length; i++) {
+            radii[i] = 25.0 * i / (radii.length - 1);
+        }
+
+        MonteCarloResult result = MonteCarloAnalyzer.analyzeUnivariate(
+                PatternFunction.G,
+                fourTightClusters(),
+                window,
+                radii,
+                EdgeCorrection.TRANSLATION,
+                99,
+                4242L);
+
+        int last = radii.length - 1;
+        // Both ends are degenerate: every curve agrees exactly, yet the
+        // theoretical expectation differs, so the deviation is non-zero while
+        // the pooled spread is zero.
+        assertEquals(0.0, result.getObserved()[0], 0.0);
+        assertEquals(0.0, result.getLower()[0], 0.0);
+        assertEquals(0.0, result.getUpper()[0], 0.0);
+        assertTrue(result.getExpected()[0] > 0.0);
+        assertEquals(1.0, result.getObserved()[last], 0.0);
+        assertEquals(1.0, result.getLower()[last], 0.0);
+        assertEquals(1.0, result.getUpper()[last], 0.0);
+        assertTrue(result.getExpected()[last] < 1.0);
+
+        assertEquals(PatternStatus.OK, result.getStatus());
+        assertTrue("four tight clusters must be detected, but p was "
+                        + result.getGlobalPValue(),
+                result.getGlobalPValue() <= 0.05);
+        assertTrue("a zero-spread radius must not be reported as the maximum",
+                result.getMaximumDeviationRadius() > 0.01
+                        && result.getMaximumDeviationRadius() < 25.0);
+    }
+
+    /**
+     * Four tightly packed 5x5 lattices in a 100x100 window. Deterministic, and
+     * unambiguously clustered at every scale the default radius grid covers.
+     */
+    private static double[][] fourTightClusters() {
+        double[][] centres = {{25.0, 25.0}, {75.0, 25.0},
+                {25.0, 75.0}, {75.0, 75.0}};
+        double[][] points = new double[centres.length * 25][2];
+        int index = 0;
+        for (double[] centre : centres) {
+            for (int row = 0; row < 5; row++) {
+                for (int column = 0; column < 5; column++) {
+                    points[index][0] = centre[0] + (column - 2) * 0.5;
+                    points[index][1] = centre[1] + (row - 2) * 0.5;
+                    index++;
+                }
+            }
+        }
+        return points;
+    }
+
     private static MonteCarloResult borderAnalysis(double[][] points,
                                                    double[] radii) {
         return MonteCarloAnalyzer.analyzeUnivariate(

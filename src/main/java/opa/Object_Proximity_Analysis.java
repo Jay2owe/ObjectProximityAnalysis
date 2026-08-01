@@ -160,10 +160,20 @@ public final class Object_Proximity_Analysis implements PlugIn {
         if (ROI_INPUT.equals(inputMode)) {
             ImagePlus reference = selectedImage(
                     referenceChoice, imageIds, imageChoices);
+            // Each call builds a fresh ImagePlus, so a repeated path would not
+            // be caught by the identity check the label branch relies on. Two
+            // channels loaded from one ROI set would report every distance as
+            // zero without any warning.
+            Set<String> usedRoiPaths = new HashSet<String>();
             for (int i = 0; i < channelCount; i++) {
                 if (roiPaths[i].isEmpty()) {
                     throw new IllegalArgumentException(
                             "ROI set " + (i + 1) + " is required.");
+                }
+                if (!usedRoiPaths.add(canonicalPath(roiPaths[i]))) {
+                    throw new IllegalArgumentException(
+                            "Each label channel must use a different ROI set; "
+                                    + roiPaths[i] + " is used more than once.");
                 }
                 ImagePlus labels = OPALabelImages.fromRoiSet(reference, roiPaths[i]);
                 images.add(labels);
@@ -259,6 +269,18 @@ public final class Object_Proximity_Analysis implements PlugIn {
                 outputDirectory,
                 outputPrefix,
                 hideDisplay);
+    }
+
+    /**
+     * Identity of a path on disk, so the same ROI set written two different
+     * ways is still recognised as a repeat.
+     */
+    private static String canonicalPath(String path) {
+        try {
+            return new File(path).getCanonicalPath();
+        } catch (java.io.IOException exception) {
+            return new File(path).getAbsolutePath();
+        }
     }
 
     private static void show(OPAResult result) {

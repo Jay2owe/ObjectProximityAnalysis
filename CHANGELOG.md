@@ -54,3 +54,6 @@
 - Exact voxel-face contact at non-dyadic pixel sizes, comparison-free radii
   excluded from the global Monte Carlo statistic, interpolation endpoints
   pinned to every contributing batch curve, and honest aggregate group counts.
+- Zero-spread radii excluded from the global Monte Carlo statistic, so a
+  saturated G curve can no longer force every p-value to 1, and rejection of
+  duplicate ROI sets across channels.

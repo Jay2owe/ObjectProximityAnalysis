@@ -252,9 +252,7 @@ public final class MonteCarloAnalyzer {
             } else if (!Double.isFinite(scale)) {
                 continue;
             } else {
-                score = scale > 0.0
-                        ? deviation / scale
-                        : deviation == 0.0 ? 0.0 : Double.POSITIVE_INFINITY;
+                score = standardize(deviation, scale);
             }
             if (maximumIndex < 0 || score > maximumScore) {
                 maximumIndex = i;
@@ -289,6 +287,23 @@ public final class MonteCarloAnalyzer {
                                         ? PatternStatus.NO_VALID_RADII
                                         : PatternStatus.INCOMPLETE_MONTE_CARLO,
                 rankSampleCount);
+    }
+
+    /**
+     * Deviation expressed in units of the pooled spread at one radius.
+     *
+     * <p>A zero spread means every estimable curve took the same value there,
+     * so the observed curve is exactly typical of the null however far the
+     * shared value sits from the theoretical expectation. Such a radius
+     * discriminates nothing and contributes nothing to the maximum. Mapping it
+     * to infinity instead would saturate the statistic for the observed curve
+     * and every simulation alike, tie them all, and force the p-value to 1.
+     * Nearest-neighbour G does exactly this at radii where it has saturated
+     * at 1, as do K and its derived curves at a smallest radius closer than
+     * any pair in the pattern.</p>
+     */
+    private static double standardize(double deviation, double scale) {
+        return scale > 0.0 ? deviation / scale : 0.0;
     }
 
     /**
@@ -398,11 +413,8 @@ public final class MonteCarloAnalyzer {
         for (int i = 0; i < values.length; i++) {
             if (!Double.isFinite(values[i]) || !Double.isFinite(expected[i])) continue;
             if (!Double.isFinite(standardDeviations[i])) continue;
-            double deviation = Math.abs(values[i] - expected[i]);
-            double standardDeviation = standardDeviations[i];
-            double standardized = standardDeviation > 0.0
-                    ? deviation / standardDeviation
-                    : deviation == 0.0 ? 0.0 : Double.POSITIVE_INFINITY;
+            double standardized = standardize(
+                    Math.abs(values[i] - expected[i]), standardDeviations[i]);
             if (!found || standardized > maximum) maximum = standardized;
             found = true;
         }
