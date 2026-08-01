@@ -201,38 +201,69 @@ public final class MonteCarloAnalyzer {
         }
 
         double[] exchangeableScales = exchangeableScales(observed, samples);
+
+        // A curve joins the global rank when it is estimable at any radius.
+        // That is deliberately independent of whether a comparable radius
+        // exists, so a run where the simulations could not be estimated is
+        // still reported as an incomplete rank rather than as no valid radii.
+        int rankSampleCount = isEstimable(observed, expected) ? 1 : 0;
+        for (double[] sample : samples) {
+            checkCancelled();
+            if (isEstimable(sample, expected)) rankSampleCount++;
+        }
+        boolean completeRank = rankSampleCount == simulations + 1;
+
         double observedMaximum = standardizedMaximum(
                 observed, expected, exchangeableScales);
-        int rankSampleCount = 0;
-        int asOrMoreExtreme = 0;
-        if (!Double.isNaN(observedMaximum)) {
-            rankSampleCount++;
-            asOrMoreExtreme++;
+        boolean comparable = !Double.isNaN(observedMaximum);
+        int asOrMoreExtreme = 1;
+        if (comparable) {
             for (double[] sample : samples) {
                 checkCancelled();
                 double simulatedMaximum = standardizedMaximum(
                         sample, expected, exchangeableScales);
-                if (Double.isNaN(simulatedMaximum)) continue;
-                rankSampleCount++;
+                if (Double.isNaN(simulatedMaximum)) {
+                    comparable = false;
+                    break;
+                }
                 if (simulatedMaximum >= observedMaximum) asOrMoreExtreme++;
             }
         }
-        boolean completeRank = rankSampleCount == simulations + 1;
-        double globalP = completeRank
+        boolean testable = completeRank && comparable;
+        double globalP = testable
                 ? asOrMoreExtreme / (double) rankSampleCount
                 : Double.NaN;
 
+        // The reported radius is the argmax of the same standardized statistic
+        // the p-value ranks, so the two describe the same feature of the curve.
+        // The deviation itself stays raw, in the curve's own units. Without a
+        // comparable radius there is no standardized scale, so fall back to the
+        // largest raw departure from the theoretical expectation.
         int maximumIndex = -1;
-        double maximumDeviation = Double.NaN;
+        double maximumScore = Double.NEGATIVE_INFINITY;
         for (int i = 0; i < observed.length; i++) {
             checkCancelled();
             if (!Double.isFinite(observed[i]) || !Double.isFinite(expected[i])) continue;
             double deviation = Math.abs(observed[i] - expected[i]);
-            if (maximumIndex < 0 || deviation > maximumDeviation) {
+            double scale = exchangeableScales[i];
+            double score;
+            if (!comparable) {
+                score = deviation;
+            } else if (!Double.isFinite(scale)) {
+                continue;
+            } else {
+                score = scale > 0.0
+                        ? deviation / scale
+                        : deviation == 0.0 ? 0.0 : Double.POSITIVE_INFINITY;
+            }
+            if (maximumIndex < 0 || score > maximumScore) {
                 maximumIndex = i;
-                maximumDeviation = deviation;
+                maximumScore = score;
             }
         }
+        double maximumDeviation = maximumIndex < 0
+                ? Double.NaN
+                : Math.abs(observed[maximumIndex] - expected[maximumIndex]);
         double maximumRadius = maximumIndex < 0
                 ? Double.NaN
                 : radii[maximumIndex];
@@ -252,10 +283,25 @@ public final class MonteCarloAnalyzer {
                 seed,
                 rankSampleCount == 0
                         ? PatternStatus.NO_VALID_RADII
-                        : completeRank
+                        : testable
                                 ? PatternStatus.OK
-                                : PatternStatus.INCOMPLETE_MONTE_CARLO,
+                                : completeRank
+                                        ? PatternStatus.NO_VALID_RADII
+                                        : PatternStatus.INCOMPLETE_MONTE_CARLO,
                 rankSampleCount);
+    }
+
+    /**
+     * True when a curve has at least one radius where both it and the
+     * theoretical expectation are finite.
+     */
+    private static boolean isEstimable(double[] values, double[] expected) {
+        for (int i = 0; i < values.length; i++) {
+            if (Double.isFinite(values[i]) && Double.isFinite(expected[i])) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static MonteCarloResult undefined(PatternFunction function,
@@ -319,8 +365,13 @@ public final class MonteCarloAnalyzer {
             for (double[] sample : samples) {
                 if (Double.isFinite(sample[column])) count++;
             }
+            // A radius where fewer than two curves are estimable carries no
+            // comparative information: its spread cannot be estimated, so it
+            // is excluded from the standardized maximum for every curve alike.
+            // Scaling a lone observed value by zero would otherwise make it
+            // infinitely extreme and force the p-value to its minimum.
             if (count < 2) {
-                scales[column] = count == 1 ? 0.0 : Double.NaN;
+                scales[column] = Double.NaN;
                 continue;
             }
             double[] values = new double[count];
@@ -346,6 +397,7 @@ public final class MonteCarloAnalyzer {
         boolean found = false;
         for (int i = 0; i < values.length; i++) {
             if (!Double.isFinite(values[i]) || !Double.isFinite(expected[i])) continue;
+            if (!Double.isFinite(standardDeviations[i])) continue;
             double deviation = Math.abs(values[i] - expected[i]);
             double standardDeviation = standardDeviations[i];
             double standardized = standardDeviation > 0.0

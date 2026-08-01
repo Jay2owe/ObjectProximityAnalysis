@@ -1057,6 +1057,86 @@ public class OPABatchRunnerTest {
         }
     }
 
+    /**
+     * The interpolation grid's last point used to be computed as
+     * a + (b - a) * n / n, which can land one unit in the last place above b.
+     * That put it past every curve's last radius, so the whole final row became
+     * NaN while still claiming every group had contributed.
+     */
+    @Test
+    public void meanCurveEndpointStaysOnEveryContributingCurve()
+            throws Exception {
+        File directory = Files.createTempDirectory(
+                "opa-batch-curve-endpoint").toFile();
+        try {
+            // 28 px at 0.1 um over 10 bins puts the last interpolated grid
+            // point at 0.7000000000000002 while every curve stops at
+            // 0.7000000000000001.
+            saveCalibratedTwoLabels(
+                    new File(directory, "sample1_A.tif"), 28, 28, 0.1);
+            saveCalibratedTwoLabels(
+                    new File(directory, "sample2_A.tif"), 28, 28, 0.1);
+
+            OPAParameters options = OPAParameters.builder()
+                    .runDistances(false)
+                    .patternFunctions(EnumSet.of(PatternFunction.K))
+                    .radiusBins(10)
+                    .simulations(1)
+                    .build();
+            OPABatchParameters parameters = OPABatchParameters.builder(
+                            directory,
+                            "(sample\\d+)_([A])\\.tif",
+                            2)
+                    .recursive(false)
+                    .analysisTemplate(options)
+                    .autoSave(false)
+                    .build();
+
+            OPABatchResult result = OPABatchRunner.run(parameters);
+
+            assertEquals(2, result.getProcessedGroups());
+            ij.measure.ResultsTable table =
+                    result.getMeanCurveTables().values().iterator().next();
+            assertTrue(table.size() > 0);
+            for (int row = 0; row < table.size(); row++) {
+                boolean contributed =
+                        Double.isFinite(table.getValue("Mean_Observed", row));
+                assertEquals(
+                        "row " + row
+                                + ": Group_N must count only contributing curves",
+                        contributed,
+                        table.getValue("Group_N", row) > 0.0);
+            }
+            int lastRow = table.size() - 1;
+            assertEquals("the final radius must stay on every curve",
+                    2.0, table.getValue("Group_N", lastRow), 0.0);
+            assertTrue(Double.isFinite(
+                    table.getValue("Mean_Observed", lastRow)));
+            assertEquals("OK",
+                    table.getStringValue("Aggregation_Status", lastRow));
+        } finally {
+            deleteChildren(directory);
+        }
+    }
+
+    private static void saveCalibratedTwoLabels(File file,
+                                                int width,
+                                                int height,
+                                                double pixelSize) {
+        ImagePlus image = new ImagePlus(
+                "labels", new ByteProcessor(width, height));
+        image.getProcessor().set(width / 4, height / 4, 1);
+        image.getProcessor().set(3 * width / 4, 3 * height / 4, 2);
+        Calibration calibration = new Calibration();
+        calibration.pixelWidth = pixelSize;
+        calibration.pixelHeight = pixelSize;
+        calibration.pixelDepth = pixelSize;
+        calibration.setUnit("um");
+        image.setCalibration(calibration);
+        IJ.saveAsTiff(image, file.getAbsolutePath());
+        image.close();
+    }
+
     private static void saveLabel(File file, int x, int y) {
         ImagePlus image = new ImagePlus("labels", new ByteProcessor(8, 8));
         image.getProcessor().set(x, y, 1);

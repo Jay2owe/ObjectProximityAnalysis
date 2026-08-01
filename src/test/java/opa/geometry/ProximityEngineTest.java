@@ -210,6 +210,77 @@ public class ProximityEngineTest {
         assertEquals("\u00b5m^2", result.getSurfaceMeasureUnit());
     }
 
+    /**
+     * Pixel sizes that are not dyadic rationals are the common case in
+     * microscopy. Deriving a face plane as voxel centre plus half a voxel makes
+     * the plane two touching voxels share disagree by one unit in the last
+     * place, which silently loses the contact.
+     */
+    @Test
+    public void touchingObjectsContactAtNonDyadicPixelSizes() {
+        double[] pixelSizes = {0.1, 0.2, 0.3, 0.1625, 0.3107, 0.065, 1.3};
+        for (double pixelSize : pixelSizes) {
+            for (int x = 0; x < 24; x++) {
+                ImagePlus sourceImage = labels("source", 32, 3, 1);
+                sourceImage.getProcessor().set(x, 1, 1);
+                ImagePlus targetImage = labels("target", 32, 3, 1);
+                targetImage.getProcessor().set(x + 1, 1, 2);
+                calibrate(sourceImage, pixelSize, pixelSize, pixelSize);
+                calibrate(targetImage, pixelSize, pixelSize, pixelSize);
+
+                DirectionResult result = ProximityEngine.analyze(
+                        LabelGeometryExtractor.extract(sourceImage, "A"),
+                        LabelGeometryExtractor.extract(targetImage, "B"),
+                        EnumSet.of(DistanceMode.EDGE_TO_EDGE,
+                                DistanceMode.SURFACE_CONTACT),
+                        1,
+                        0.0);
+
+                String where = "pixel size " + pixelSize + " at x=" + x;
+                ObjectMeasurement measurement = result.getMeasurements().get(0);
+                assertEquals(where + ": edge-to-edge must be exactly zero",
+                        0.0,
+                        value(measurement, DistanceMode.EDGE_TO_EDGE),
+                        0.0);
+                NeighborMeasurement contact = measurement
+                        .getNeighbors(DistanceMode.SURFACE_CONTACT).get(0);
+                assertEquals(where + ": exact contact must be one face",
+                        pixelSize, contact.getExactContactArea(), 1.0e-12);
+                assertEquals(where + ": apposed surface must match exact contact",
+                        pixelSize, contact.getApposedSurfaceArea(), 1.0e-12);
+                assertTrue(where + ": touching objects are within contact "
+                                + "distance zero",
+                        measurement.getNeighbors(DistanceMode.EDGE_TO_EDGE)
+                                .get(0).isWithinContactDistance());
+            }
+        }
+    }
+
+    @Test
+    public void touchingObjectsContactAtNonDyadicPixelSizesWithSpatialOrigin() {
+        ImagePlus sourceImage = labels("source", 16, 3, 1);
+        sourceImage.getProcessor().set(6, 1, 1);
+        ImagePlus targetImage = labels("target", 16, 3, 1);
+        targetImage.getProcessor().set(7, 1, 2);
+        for (ImagePlus image : new ImagePlus[]{sourceImage, targetImage}) {
+            calibrate(image, 0.2, 0.3, 1.0);
+            image.getCalibration().xOrigin = 4.0;
+            image.getCalibration().yOrigin = 3.0;
+        }
+
+        DirectionResult result = ProximityEngine.analyze(
+                LabelGeometryExtractor.extract(sourceImage, "A"),
+                LabelGeometryExtractor.extract(targetImage, "B"),
+                EnumSet.of(DistanceMode.EDGE_TO_EDGE, DistanceMode.SURFACE_CONTACT),
+                1,
+                0.0);
+
+        ObjectMeasurement measurement = result.getMeasurements().get(0);
+        assertEquals(0.0, value(measurement, DistanceMode.EDGE_TO_EDGE), 0.0);
+        assertEquals(0.3, measurement.getNeighbors(DistanceMode.SURFACE_CONTACT)
+                .get(0).getApposedSurfaceArea(), 1.0e-12);
+    }
+
     private static double value(ObjectMeasurement measurement, DistanceMode mode) {
         return measurement.getNeighbors(mode).get(0).getValue();
     }

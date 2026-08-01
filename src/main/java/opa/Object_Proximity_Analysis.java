@@ -47,6 +47,10 @@ public final class Object_Proximity_Analysis implements PlugIn {
             dialog.showDialog();
             if (dialog.wasCanceled()) return;
             DialogValues values = readDialog(dialog, imageIds, imageChoices);
+            // Escape is a sticky global flag in ImageJ. Clearing it here stops
+            // a keypress left over from an earlier command cancelling this run
+            // before any work has been done.
+            IJ.resetEscape();
             OPAResult result = OPA.run(values.parameters);
             if (!result.hasPhysicalCalibration()) {
                 IJ.log("WARNING: Object Proximity Analysis input is uncalibrated. "
@@ -258,11 +262,11 @@ public final class Object_Proximity_Analysis implements PlugIn {
     }
 
     private static void show(OPAResult result) {
-        if (result.getParameters().isRunPattern()) {
-            for (Map.Entry<String, ij.measure.ResultsTable> entry
-                    : result.getCentroidTables().entrySet()) {
-                entry.getValue().show("OPA Centroids - " + entry.getKey());
-            }
+        // Centroid tables are built and saved for every run, so a
+        // distances-only run displays them too.
+        for (Map.Entry<String, ij.measure.ResultsTable> entry
+                : result.getCentroidTables().entrySet()) {
+            entry.getValue().show("OPA Centroids - " + entry.getKey());
         }
         result.getProvenanceTable().show("OPA Analysis Provenance");
         for (Map.Entry<String, ij.measure.ResultsTable> entry

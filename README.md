@@ -18,7 +18,10 @@ scientific release.
   outputs. In 2D these are lengths; in 3D they are areas.
 - Ripley K, L, L(r)-r, nearest-neighbour G, pair correlation g(r), cross-K,
   cross-L, and cross-G.
-- Translation or border edge correction for K and its derived curves.
+- Translation or border edge correction for K and its derived curves. G and
+  cross-G are uncorrected, so their `CSR_Expectation` column is the theoretical
+  curve rather than an edge-corrected one; compare an observed G against the
+  simulated envelope rather than against that column.
 - Reproducible complete-spatial-randomness Monte Carlo envelopes with recorded
   seed, pointwise 95% bounds, and an exchangeable global maximum-deviation
   Monte Carlo p-value.
@@ -31,6 +34,11 @@ scientific release.
 The first point-pattern implementation is 2D. A 3D label stack is rejected for
 pattern analysis unless the caller explicitly requests XY centroid projection.
 Distance measurements remain fully 3D.
+
+The distance engine compares every object surface against every other, without a
+spatial index. Runtime grows with the square of the object count and the square
+of the per-object surface size, so a few hundred large 3D objects per channel can
+take minutes to hours per channel pair. Press Escape to stop a run.
 
 ## Measurement definitions
 
@@ -253,6 +261,13 @@ Pointwise envelopes are emitted only when all requested simulations contribute
 at that radius. Curve tables record `Envelope_N` and `Envelope_Status` for each
 radius; incomplete bounds are `NaN` without invalidating an otherwise complete
 global rank test.
+A radius where fewer than two of the observed and simulated curves are estimable
+carries no comparative information and is excluded from the global
+maximum-deviation statistic for every curve alike. Under border correction this
+is what happens at radii larger than almost every point's distance to the window
+boundary. `Radius_At_Maximum_Deviation` is therefore the radius at which the
+ranked standardised statistic peaks, and `Maximum_Absolute_Deviation` is the raw
+departure from the theoretical expectation at that same radius.
 
 Pair correlation supports translation edge correction (or no edge correction).
 Border correction is rejected because its risk-set weighting is not valid for

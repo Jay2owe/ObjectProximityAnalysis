@@ -53,6 +53,15 @@ public final class LabelGeometryExtractor {
         if (width <= 0 || height <= 0) {
             throw new IllegalArgumentException("Label image dimensions must be positive.");
         }
+        // Voxels are addressed by a single int linear index. Rejecting the
+        // overflow explicitly beats wrapping to a negative index and failing
+        // later with an array bounds error from deep inside the distance loop.
+        if ((long) width * (long) height * (long) depth > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException(
+                    "Label image has more than " + Integer.MAX_VALUE
+                            + " voxels (" + width + " x " + height + " x " + depth
+                            + "); crop or downsample the input first.");
+        }
 
         CalibrationInfo calibration = CalibrationInfo.from(image);
         int[][] labels = readLabels(image.getStack(), width, height, depth);
@@ -160,12 +169,40 @@ public final class LabelGeometryExtractor {
                                                        int[] direction,
                                                        CalibrationInfo calibration,
                                                        boolean threeDimensional) {
-        double centreX = calibration.x(x)
-                + direction[0] * calibration.getPixelWidth() * 0.5;
-        double centreY = calibration.y(y)
-                + direction[1] * calibration.getPixelHeight() * 0.5;
-        double centreZ = calibration.z(z)
-                + direction[2] * calibration.getPixelDepth() * 0.5;
+        // Every face plane is evaluated from its integer voxel-edge index
+        // rather than from the voxel centre plus half a voxel. The plane two
+        // touching voxels share is then bit-identical from either side for any
+        // pixel size, so a shared face measures exactly zero distance. Deriving
+        // it as centre +/- half a voxel disagrees by one unit in the last place
+        // for pixel sizes that are not dyadic rationals (0.1, 0.2, 0.1625 um
+        // and so on), which loses genuine contacts.
+        double lowX = calibration.xEdge(x);
+        double highX = calibration.xEdge(x + 1);
+        double lowY = calibration.yEdge(y);
+        double highY = calibration.yEdge(y + 1);
+        double lowZ = calibration.zEdge(z);
+        double highZ = calibration.zEdge(z + 1);
+
+        double minX = direction[0] > 0 ? highX : lowX;
+        double maxX = direction[0] == 0 ? highX : minX;
+        double minY = direction[1] > 0 ? highY : lowY;
+        double maxY = direction[1] == 0 ? highY : minY;
+        double minZ;
+        double maxZ;
+        if (!threeDimensional) {
+            minZ = calibration.z(z);
+            maxZ = minZ;
+        } else {
+            minZ = direction[2] > 0 ? highZ : lowZ;
+            maxZ = direction[2] == 0 ? highZ : minZ;
+        }
+
+        double centreX = direction[0] == 0 ? calibration.x(x) : minX;
+        double centreY = direction[1] == 0 ? calibration.y(y) : minY;
+        double centreZ = !threeDimensional || direction[2] == 0
+                ? calibration.z(z)
+                : minZ;
+
         double area;
         if (direction[0] != 0) {
             area = threeDimensional
@@ -182,24 +219,9 @@ public final class LabelGeometryExtractor {
                 x, y, z,
                 direction[0], direction[1], direction[2],
                 centreX, centreY, centreZ, area,
-                direction[0] == 0
-                        ? centreX - calibration.getPixelWidth() * 0.5
-                        : centreX,
-                direction[0] == 0
-                        ? centreX + calibration.getPixelWidth() * 0.5
-                        : centreX,
-                direction[1] == 0
-                        ? centreY - calibration.getPixelHeight() * 0.5
-                        : centreY,
-                direction[1] == 0
-                        ? centreY + calibration.getPixelHeight() * 0.5
-                        : centreY,
-                threeDimensional && direction[2] == 0
-                        ? centreZ - calibration.getPixelDepth() * 0.5
-                        : centreZ,
-                threeDimensional && direction[2] == 0
-                        ? centreZ + calibration.getPixelDepth() * 0.5
-                        : centreZ);
+                minX, maxX,
+                minY, maxY,
+                minZ, maxZ);
     }
 
     private static int labelAt(int[][] labels,

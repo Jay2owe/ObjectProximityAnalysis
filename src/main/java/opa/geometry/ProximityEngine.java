@@ -21,7 +21,14 @@ import java.util.Map;
  *
  * <p>The implementation favours transparent, testable geometry for the first
  * release. A spatial index can replace the pair search later without changing
- * the public result model.</p>
+ * the public result model. Cost grows with the square of the object count and
+ * the square of the per-object surface size.</p>
+ *
+ * <p>A self-comparison is detected by reference identity, so pass the very same
+ * {@link ChannelGeometry} instance as both source and target to exclude each
+ * object from its own neighbour list. Two separately extracted instances of the
+ * same image are treated as different channels, and every object then matches
+ * itself at distance zero.</p>
  */
 public final class ProximityEngine {
 

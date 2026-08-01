@@ -393,6 +393,90 @@ public class SpatialStatisticsTest {
         assertEquals(100, result.getRankSampleCount());
     }
 
+    /**
+     * Under border correction a radius larger than most points' distance to the
+     * boundary is estimable for the observed pattern only when a point sits
+     * almost exactly at the window centre. No simulation reaches it. Such a
+     * radius carries no comparative information and must not influence the
+     * global test; scaling a lone observed value by a zero spread would
+     * otherwise make it infinitely extreme and pin the p-value to its floor.
+     */
+    @Test
+    public void radiusOnlyTheObservedCanEstimateDoesNotAffectTheGlobalTest() {
+        double[][] points = spreadPointsIncludingWindowCentre();
+
+        MonteCarloResult withUnreachableRadius = borderAnalysis(
+                points, new double[]{1.0, 2.0, 4.999});
+        MonteCarloResult withoutUnreachableRadius = borderAnalysis(
+                points, new double[]{1.0, 2.0});
+
+        int[] counts = withUnreachableRadius.getEnvelopeSampleCounts();
+        assertEquals("no simulation should reach the centre-only radius",
+                0, counts[2]);
+        assertTrue("the observed curve is estimable there",
+                Double.isFinite(withUnreachableRadius.getObserved()[2]));
+
+        assertEquals(PatternStatus.OK, withUnreachableRadius.getStatus());
+        assertEquals("an unreachable radius must not change the p-value",
+                withoutUnreachableRadius.getGlobalPValue(),
+                withUnreachableRadius.getGlobalPValue(),
+                1.0e-12);
+        assertTrue("the p-value must not be pinned to its minimum",
+                withUnreachableRadius.getGlobalPValue()
+                        > withUnreachableRadius.getMinimumAchievablePValue());
+    }
+
+    @Test
+    public void reportedMaximumDeviationRadiusMatchesTheRankedStatistic() {
+        MonteCarloResult result = borderAnalysis(
+                spreadPointsIncludingWindowCentre(),
+                new double[]{1.0, 2.0, 4.999});
+
+        // The unreachable radius carries the largest raw departure from the
+        // theoretical expectation, but contributes nothing to the ranked
+        // statistic, so it must not be reported as the maximum-deviation radius.
+        double[] observed = result.getObserved();
+        double[] expected = result.getExpected();
+        assertTrue(Math.abs(observed[2] - expected[2])
+                > Math.abs(observed[0] - expected[0]));
+        assertTrue("reported radius must come from a comparable radius",
+                result.getMaximumDeviationRadius() < 4.9);
+    }
+
+    private static MonteCarloResult borderAnalysis(double[][] points,
+                                                   double[] radii) {
+        return MonteCarloAnalyzer.analyzeUnivariate(
+                PatternFunction.K,
+                points,
+                WINDOW,
+                radii,
+                EdgeCorrection.BORDER,
+                99,
+                2024L);
+    }
+
+    /**
+     * A deterministic spread of points across the window with one point exactly
+     * at its centre.
+     */
+    private static double[][] spreadPointsIncludingWindowCentre() {
+        double[][] points = new double[30][2];
+        points[0][0] = 5.0;
+        points[0][1] = 5.0;
+        long state = 12345L;
+        for (int i = 1; i < points.length; i++) {
+            state = state * 6364136223846793005L + 1442695040888963407L;
+            points[i][0] = 0.5 + 9.0 * fraction(state);
+            state = state * 6364136223846793005L + 1442695040888963407L;
+            points[i][1] = 0.5 + 9.0 * fraction(state);
+        }
+        return points;
+    }
+
+    private static double fraction(long state) {
+        return ((state >>> 11) & ((1L << 52) - 1L)) / (double) (1L << 52);
+    }
+
     @Test(expected = IllegalArgumentException.class)
     public void gAnalyzerRejectsPointsOutsideItsObservationWindow() {
         MonteCarloAnalyzer.analyzeUnivariate(

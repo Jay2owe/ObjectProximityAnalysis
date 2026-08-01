@@ -72,6 +72,10 @@ public final class OPA_Batch implements PlugIn {
         if (dialog.wasCanceled()) return;
 
         try {
+            // Escape is a sticky global flag in ImageJ. Clearing it here stops
+            // a keypress left over from an earlier command cancelling this
+            // batch before any group has run.
+            IJ.resetEscape();
             File input = new File(dialog.getNextString().trim());
             String regex = dialog.getNextString();
             int channelGroup = DialogNumbers.wholeNumber(
@@ -113,8 +117,18 @@ public final class OPA_Batch implements PlugIn {
             int histogramBins = DialogNumbers.wholeNumber(
                     dialog.getNextNumber(), "Histogram bin count");
             boolean autoSave = dialog.getNextBoolean();
-            File output = new File(dialog.getNextString().trim());
+            String outputDirectory = dialog.getNextString().trim();
             boolean hideDisplay = dialog.getNextBoolean();
+            if (autoSave && outputDirectory.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "Choose an output directory when auto-save is enabled.");
+            }
+            // An empty field must fall back to the input folder rather than
+            // become new File(""), which resolves against the working
+            // directory and writes output beside the Fiji installation.
+            File output = outputDirectory.isEmpty()
+                    ? null
+                    : new File(outputDirectory);
 
             OPAParameters options = OPAParameters.builder()
                     .runDistances(distances)

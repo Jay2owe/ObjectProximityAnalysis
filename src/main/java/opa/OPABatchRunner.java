@@ -336,7 +336,8 @@ public final class OPABatchRunner {
                 pattern,
                 parameters.getChannelCaptureGroup(),
                 parameters.isRecursive(),
-                groups);
+                groups,
+                new HashSet<String>());
         Collections.sort(groups, new Comparator<Group>() {
             @Override
             public int compare(Group first, Group second) {
@@ -353,7 +354,12 @@ public final class OPABatchRunner {
                                       Pattern pattern,
                                       int channelGroup,
                                       boolean recursive,
-                                      List<Group> output) {
+                                      List<Group> output,
+                                      Set<String> visited) {
+        // listFiles() follows Windows directory junctions and Unix symbolic
+        // links, so a link pointing back at an ancestor would recurse until the
+        // stack overflowed. Each physical directory is scanned at most once.
+        if (!visited.add(canonicalKey(directory))) return;
         Map<String, Group> local = new LinkedHashMap<String, Group>();
         File[] children = directory.listFiles();
         if (children == null) return;
@@ -403,7 +409,21 @@ public final class OPABatchRunner {
                     pattern,
                     channelGroup,
                     true,
-                    output);
+                    output,
+                    visited);
+        }
+    }
+
+    /**
+     * Identity of a directory's physical location, so links to an already
+     * scanned directory are recognised. Falls back to the absolute path when
+     * the canonical path cannot be resolved.
+     */
+    private static String canonicalKey(File directory) {
+        try {
+            return directory.getCanonicalPath();
+        } catch (IOException exception) {
+            return directory.getAbsolutePath();
         }
     }
 
@@ -1014,11 +1034,21 @@ public final class OPABatchRunner {
                 }
                 if (sharedMinimum == sharedMaximum) gridCount = 1;
                 for (int grid = 0; grid < gridCount; grid++) {
-                    double radius = gridCount == 1
-                            ? sharedMinimum
-                            : sharedMinimum
-                                    + (sharedMaximum - sharedMinimum)
-                                    * grid / (gridCount - 1);
+                    // The endpoints are pinned to the shared range instead of
+                    // being interpolated. a + (b - a) * n / n can land one unit
+                    // in the last place above b, which puts the last grid point
+                    // past every curve's last key and silently turns the whole
+                    // final row into NaN.
+                    double radius;
+                    if (gridCount == 1 || grid == 0) {
+                        radius = sharedMinimum;
+                    } else if (grid == gridCount - 1) {
+                        radius = sharedMaximum;
+                    } else {
+                        radius = sharedMinimum
+                                + (sharedMaximum - sharedMinimum)
+                                * grid / (gridCount - 1);
+                    }
                     List<Double> samples = new ArrayList<Double>(curves.size());
                     for (TreeMap<Double, Double> curve : curves) {
                         samples.add(interpolate(curve, radius));
@@ -1031,7 +1061,10 @@ public final class OPABatchRunner {
                     table.addValue("Mean_Minus_SD", stats.mean - stats.sd);
                     table.addValue("Mean_Plus_SD", stats.mean + stats.sd);
                     table.addValue("Group_N", stats.count);
-                    table.addValue("Aggregation_Status", "OK");
+                    table.addValue("Aggregation_Status",
+                            stats.count == 0
+                                    ? "NO_CONTRIBUTING_CURVES"
+                                    : "OK");
                     addIdentity(table, entry.getKey());
                     String[] units = unitsFromAggregateKey(entry.getKey());
                     table.addValue("Radius_Unit", units[0]);
@@ -1184,20 +1217,30 @@ public final class OPABatchRunner {
             this.sd = sd;
         }
 
+        /**
+         * Summarises only the curves that actually contributed a value, so the
+         * reported count never claims a group behind a NaN mean.
+         */
         private static Stats of(List<Double> values) {
-            if (values.isEmpty()) return new Stats(0, Double.NaN, Double.NaN);
+            int count = 0;
             double sum = 0.0;
-            for (double value : values) sum += value;
-            double mean = sum / values.size();
+            for (double value : values) {
+                if (!Double.isFinite(value)) continue;
+                count++;
+                sum += value;
+            }
+            if (count == 0) return new Stats(0, Double.NaN, Double.NaN);
+            double mean = sum / count;
             double sumSquares = 0.0;
             for (double value : values) {
+                if (!Double.isFinite(value)) continue;
                 double difference = value - mean;
                 sumSquares += difference * difference;
             }
-            double sd = values.size() < 2
+            double sd = count < 2
                     ? Double.NaN
-                    : Math.sqrt(sumSquares / (values.size() - 1));
-            return new Stats(values.size(), mean, sd);
+                    : Math.sqrt(sumSquares / (count - 1));
+            return new Stats(count, mean, sd);
         }
     }
 }

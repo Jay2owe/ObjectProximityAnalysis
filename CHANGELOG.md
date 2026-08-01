@@ -51,3 +51,6 @@
   checks of the actual JAR licence and source commit.
 - Correct cancellation outcomes for every unvisited batch group, including
   groups already known to have invalid inputs.
+- Exact voxel-face contact at non-dyadic pixel sizes, comparison-free radii
+  excluded from the global Monte Carlo statistic, interpolation endpoints
+  pinned to every contributing batch curve, and honest aggregate group counts.
