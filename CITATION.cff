@@ -6,7 +6,8 @@ authors:
   - family-names: Malcolm
     given-names: Jamie
     orcid: "https://orcid.org/0009-0008-3862-2776"
-version: 0.1.0-SNAPSHOT
+version: 0.2.0
+date-released: "2026-08-07"
 url: "https://github.com/Jay2owe/ObjectProximityAnalysis"
 repository-code: "https://github.com/Jay2owe/ObjectProximityAnalysis"
 license: BSD-3-Clause

@@ -939,12 +939,13 @@ public class OPABatchRunnerTest {
     }
 
     @Test
-    public void optionalUnmatchedChannelCaptureBecomesInvalidGroup()
+    public void optionalUnmatchedChannelCaptureIsExcludedFromDiscovery()
             throws Exception {
         File directory = Files.createTempDirectory(
                 "opa-batch-optional-capture").toFile();
         try {
             assertTrue(new File(directory, "sample_.tif").createNewFile());
+            assertTrue(new File(directory, "sample_A.tif").createNewFile());
             OPABatchParameters parameters = OPABatchParameters.builder(
                             directory,
                             "(sample)_([AB])?\\.tif",
@@ -954,16 +955,42 @@ public class OPABatchRunnerTest {
                     .build();
 
             String preview = OPABatchRunner.preview(parameters);
-            OPABatchResult result = OPABatchRunner.run(parameters);
 
-            assertTrue(preview.contains("0 runnable"));
-            assertTrue(preview.contains(
-                    "empty or duplicate channel names"));
-            assertEquals(1, result.getTotalGroups());
-            assertEquals(0, result.getValidGroups());
-            assertEquals(1, result.getSkippedGroups());
-            assertEquals("SKIPPED_INVALID", result.getGroupManifest()
-                    .getStringValue("Outcome", 0));
+            assertTrue(preview.contains("1 group(s)"));
+            assertTrue(preview.contains("1 file(s)"));
+            assertTrue(preview.contains("[A] sample_A.tif"));
+            assertFalse(preview.contains("sample_.tif"));
+        } finally {
+            deleteChildren(directory);
+        }
+    }
+
+    @Test
+    public void recursiveDiscoveryExcludesThePluginOutputTree()
+            throws Exception {
+        File directory = Files.createTempDirectory(
+                "opa-batch-output-exclusion").toFile();
+        try {
+            assertTrue(new File(directory, "sample_A.tif").createNewFile());
+            File generated = new File(
+                    directory,
+                    "Object Proximity Analysis/Folder/old/generated_A.tif");
+            assertTrue(generated.getParentFile().mkdirs());
+            assertTrue(generated.createNewFile());
+            OPABatchParameters parameters = OPABatchParameters.builder(
+                            directory,
+                            "(.+)_([A])\\.tif",
+                            2)
+                    .recursive(true)
+                    .autoSave(true)
+                    .outputDirectory(directory)
+                    .build();
+
+            String preview = OPABatchRunner.preview(parameters);
+
+            assertTrue(preview.contains("1 group(s)"));
+            assertTrue(preview.contains("sample_A.tif"));
+            assertFalse(preview.contains("generated_A.tif"));
         } finally {
             deleteChildren(directory);
         }

@@ -8,6 +8,7 @@ package opa;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.measure.ResultsTable;
+import sc.fiji.oc3d.core.io.RegexGroupDiscovery;
 
 import java.io.File;
 import java.io.IOException;
@@ -329,15 +330,48 @@ public final class OPABatchRunner {
     private static List<Group> scan(OPABatchParameters parameters,
                                     Pattern pattern) {
         List<Group> groups = new ArrayList<Group>();
-        scanDirectory(
-                parameters.getInputFolder(),
-                parameters.getInputFolder(),
-                "",
-                pattern,
-                parameters.getChannelCaptureGroup(),
-                parameters.isRecursive(),
-                groups,
-                new HashSet<String>());
+        File output = parameters.getOutputDirectory() == null
+                ? parameters.getInputFolder()
+                : parameters.getOutputDirectory();
+        Map<String, Map<String, List<File>>> discovered =
+                RegexGroupDiscovery.findGroupsRecursive(
+                        parameters.getInputFolder(),
+                        pattern,
+                        parameters.getChannelCaptureGroup(),
+                        parameters.isRecursive(),
+                        RegexGroupDiscovery.GroupOrder.FILENAME,
+                        Collections.singleton(
+                                new File(output, "Object Proximity Analysis")));
+        for (Map.Entry<String, Map<String, List<File>>> folder
+                : discovered.entrySet()) {
+            for (Map.Entry<String, List<File>> discoveredGroup
+                    : folder.getValue().entrySet()) {
+                Group group = new Group(folder.getKey(), discoveredGroup.getKey());
+                for (File file : discoveredGroup.getValue()) {
+                    Matcher matcher = pattern.matcher(file.getName());
+                    if (!matcher.matches()
+                            || matcher.start(
+                                    parameters.getChannelCaptureGroup()) < 0) {
+                        continue;
+                    }
+                    group.files.add(new BatchFile(
+                            file,
+                            matcher.group(
+                                    parameters.getChannelCaptureGroup())));
+                }
+                Collections.sort(group.files, new Comparator<BatchFile>() {
+                    @Override
+                    public int compare(BatchFile first, BatchFile second) {
+                        int channel = first.channel.compareTo(second.channel);
+                        return channel != 0
+                                ? channel
+                                : first.file.getName().compareTo(
+                                        second.file.getName());
+                    }
+                });
+                if (!group.files.isEmpty()) groups.add(group);
+            }
+        }
         Collections.sort(groups, new Comparator<Group>() {
             @Override
             public int compare(Group first, Group second) {
@@ -346,85 +380,6 @@ public final class OPABatchRunner {
             }
         });
         return groups;
-    }
-
-    private static void scanDirectory(File root,
-                                      File directory,
-                                      String relative,
-                                      Pattern pattern,
-                                      int channelGroup,
-                                      boolean recursive,
-                                      List<Group> output,
-                                      Set<String> visited) {
-        // listFiles() follows Windows directory junctions and Unix symbolic
-        // links, so a link pointing back at an ancestor would recurse until the
-        // stack overflowed. Each physical directory is scanned at most once.
-        if (!visited.add(canonicalKey(directory))) return;
-        Map<String, Group> local = new LinkedHashMap<String, Group>();
-        File[] children = directory.listFiles();
-        if (children == null) return;
-        Arrays.sort(children);
-        for (File child : children) {
-            if (!child.isFile()) continue;
-            Matcher matcher = pattern.matcher(child.getName());
-            if (!matcher.matches()) continue;
-            int channelStart = matcher.start(channelGroup);
-            int channelEnd = matcher.end(channelGroup);
-            String key = channelStart < 0
-                    ? child.getName() + "*[unmatched-channel-capture]"
-                    : child.getName().substring(0, channelStart)
-                            + "*"
-                            + child.getName().substring(channelEnd);
-            Group group = local.get(key);
-            if (group == null) {
-                group = new Group(relative, key);
-                local.put(key, group);
-            }
-            group.files.add(new BatchFile(
-                    child,
-                    channelStart < 0 ? null : matcher.group(channelGroup)));
-        }
-        for (Group group : local.values()) {
-            Collections.sort(group.files, new Comparator<BatchFile>() {
-                @Override
-                public int compare(BatchFile first, BatchFile second) {
-                    int channel = first.channel.compareTo(second.channel);
-                    return channel != 0
-                            ? channel
-                            : first.file.getName().compareTo(second.file.getName());
-                }
-            });
-            output.add(group);
-        }
-        if (!recursive) return;
-        for (File child : children) {
-            if (!child.isDirectory()) continue;
-            String childRelative = relative.isEmpty()
-                    ? child.getName()
-                    : relative + "/" + child.getName();
-            scanDirectory(
-                    root,
-                    child,
-                    childRelative,
-                    pattern,
-                    channelGroup,
-                    true,
-                    output,
-                    visited);
-        }
-    }
-
-    /**
-     * Identity of a directory's physical location, so links to an already
-     * scanned directory are recognised. Falls back to the absolute path when
-     * the canonical path cannot be resolved.
-     */
-    private static String canonicalKey(File directory) {
-        try {
-            return directory.getCanonicalPath();
-        } catch (IOException exception) {
-            return directory.getAbsolutePath();
-        }
     }
 
     private static String preview(List<Group> groups,

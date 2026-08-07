@@ -1,8 +1,11 @@
 # Changelog
 
-## 0.1.0 - Unreleased
+## [0.2.0] - 2026-08-07
 
 - Initial ImageJ/Fiji plugin scaffold.
+- Replaced the private recursive regex folder walker with `oc3d-core`'s shared
+  discovery, including cycle protection and exclusion of OPA's own output tree;
+  the reachable core is shaded and privately relocated into the plugin JAR.
 - Calibrated object geometry and inter-object distance engine.
 - Univariate and bivariate point-pattern statistics.
 - Exact exchangeable Monte Carlo global ranks and explicit undefined-pattern
@@ -57,3 +60,5 @@
 - Zero-spread radii excluded from the global Monte Carlo statistic, so a
   saturated G curve can no longer force every p-value to 1, and rejection of
   duplicate ROI sets across channels.
+
+[0.2.0]: https://github.com/Jay2owe/ObjectProximityAnalysis/releases/tag/v0.2.0

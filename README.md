@@ -5,8 +5,7 @@ distances and 2D spatial point-pattern statistics. It accepts label images or
 ImageJ ROI sets from any segmentation workflow. Segmentation is deliberately
 separate from analysis.
 
-Version `0.1.0-SNAPSHOT` is under development and is not yet a validated
-scientific release.
+Version `0.2.0` is the current software release.
 
 ## Current scope
 
@@ -82,7 +81,7 @@ log a warning for every uncalibrated group and record it in the group manifest.
 
 Point-pattern statistics require an observation window. The default is the full
 XY image rectangle. An optional region ROI set supplies a calibrated rectangular
-union bounding box for v0.1.0; every region ROI must be an area selection.
+union bounding box for v0.2.0; every region ROI must be an area selection.
 Objects are included when their centroid lies
 inside that window; objects crossing either the acquisition boundary or the
 effective observation-window boundary are marked as edge objects.
@@ -276,7 +275,7 @@ cross-K, cross-L, or cross-G rejects "both patterns are complete spatial
 randomness and independent of each other". It does not isolate dependence: a
 clustered but genuinely independent pair can reject. Conditioning on the
 observed marginal patterns, by random labelling or toroidal shifts, is not
-implemented in v0.1.0.
+implemented in v0.2.0.
 
 A radius where fewer than two of the observed and simulated curves are estimable
 carries no comparative information and is excluded from the global
@@ -299,6 +298,15 @@ rejects negative, infinite, or materially decreasing K values.
 
 ## Build
 
+OPA uses `oc3d-core` 0.1.0 for shared recursive regular-expression batch
+discovery. The core is not published to a Maven repository, so install that
+pinned source release into the local Maven repository before building OPA:
+
+```text
+git clone --branch v0.1.0 https://github.com/Jay2owe/oc3d-core
+mvn -f oc3d-core/pom.xml clean install
+```
+
 macOS/Linux:
 
 ```text
@@ -312,6 +320,8 @@ mvnw.cmd clean verify
 ```
 
 The packaged JAR is written to `target/Object_Proximity_Analysis-<version>.jar`.
+It contains only OPA's reachable core classes, relocated under
+`opa.internal.core`; users install this one JAR and do not install the core.
 The JAR is forced to rebuild during `package`/`verify` so its manifest cannot
 retain stale source-control commit metadata after a new commit. It includes the
 BSD 3-Clause licence at `META-INF/LICENSE`. The post-package integration test

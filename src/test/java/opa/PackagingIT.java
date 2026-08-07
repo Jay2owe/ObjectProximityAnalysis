@@ -10,6 +10,8 @@ import org.junit.Test;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.InputStream;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
@@ -44,8 +46,57 @@ public class PackagingIT {
             String implementationBuild = attributes.getValue(
                     "Implementation-Build");
             assertEquals(gitHead(project), implementationBuild);
+
+            assertNotNull(jar.getJarEntry(
+                    "opa/internal/core/io/RegexGroupDiscovery.class"));
+            assertTrue(jar.getJarEntry(
+                    "sc/fiji/oc3d/core/io/RegexGroupDiscovery.class") == null);
+            assertTrue(jar.getJarEntry("ij/IJ.class") == null);
         } finally {
             jar.close();
+        }
+    }
+
+    @Test
+    public void packagedJarRunsDiscoveryWithoutAnExternalCoreJar()
+            throws Exception {
+        File jarPath = new File(requiredProperty("opa.project.jar"));
+        File imageJ = new File(ij.IJ.class.getProtectionDomain()
+                .getCodeSource().getLocation().toURI());
+        File input = Files.createTempDirectory("opa-packaged-discovery").toFile();
+        URLClassLoader loader = new URLClassLoader(
+                new URL[]{jarPath.toURI().toURL(), imageJ.toURI().toURL()},
+                null);
+        try {
+            assertTrue(new File(input, "sample_A.tif").createNewFile());
+            assertTrue(new File(input, "sample_B.tif").createNewFile());
+            Class<?> parametersClass = loader.loadClass(
+                    "opa.OPABatchParameters");
+            Object builder = parametersClass.getMethod(
+                            "builder", File.class, String.class, Integer.TYPE)
+                    .invoke(null, input, "(sample)_([AB])\\.tif", 2);
+            builder.getClass().getMethod("recursive", Boolean.TYPE)
+                    .invoke(builder, false);
+            builder.getClass().getMethod("autoSave", Boolean.TYPE)
+                    .invoke(builder, false);
+            Object parameters = builder.getClass().getMethod("build")
+                    .invoke(builder);
+            Class<?> runnerClass = loader.loadClass("opa.OPABatchRunner");
+            String preview = (String) runnerClass.getMethod(
+                            "preview", parametersClass)
+                    .invoke(null, parameters);
+
+            assertTrue(preview.contains("1 group(s)"));
+            assertTrue(preview.contains("[A] sample_A.tif"));
+            assertNotNull(loader.loadClass(
+                    "opa.internal.core.io.RegexGroupDiscovery"));
+        } finally {
+            loader.close();
+            File[] files = input.listFiles();
+            if (files != null) {
+                for (File file : files) Files.deleteIfExists(file.toPath());
+            }
+            Files.deleteIfExists(input.toPath());
         }
     }
 

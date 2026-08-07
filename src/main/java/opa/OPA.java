@@ -485,7 +485,7 @@ public final class OPA {
                     && channel.getDepth() > 1
                     && !parameters.isProject3DToXY()) {
                 throw new IllegalArgumentException(
-                        "Point-pattern analysis is 2D in v0.1.0. "
+                        "Point-pattern analysis is 2D in v0.2.0. "
                                 + "For a 3D label image, explicitly enable XY projection "
                                 + "or run distance analysis only.");
             }

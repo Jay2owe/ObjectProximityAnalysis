@@ -14,7 +14,7 @@
 
 	<groupId>io.github.jay2owe</groupId>
 	<artifactId>Object_Proximity_Analysis</artifactId>
-	<version>0.1.0-SNAPSHOT</version>
+	<version>0.2.0</version>
 
 	<name>Object Proximity Analysis</name>
 	<description>Calibrated inter-object distances and spatial point-pattern statistics for ImageJ/Fiji</description>
@@ -104,6 +104,17 @@
 			<groupId>net.imagej</groupId>
 			<artifactId>ij</artifactId>
 		</dependency>
+		<!--
+		  Shared batch-folder and regular-expression discovery. The core is
+		  compiled into this plugin's jar under opa.internal.core, so Fiji users
+		  still install one self-contained file and cannot collide with another
+		  plugin embedding a different core version.
+		-->
+		<dependency>
+			<groupId>io.github.jay2owe</groupId>
+			<artifactId>oc3d-core</artifactId>
+			<version>0.1.0</version>
+		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
@@ -125,6 +136,42 @@
 			</resource>
 		</resources>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<createDependencyReducedPom>false</createDependencyReducedPom>
+							<minimizeJar>true</minimizeJar>
+							<artifactSet>
+								<includes>
+									<include>io.github.jay2owe:oc3d-core</include>
+								</includes>
+							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>sc.fiji.oc3d.core</pattern>
+									<shadedPattern>opa.internal.core</shadedPattern>
+								</relocation>
+							</relocations>
+							<filters>
+								<filter>
+									<artifact>io.github.jay2owe:oc3d-core</artifact>
+									<excludes>
+										<exclude>META-INF/MANIFEST.MF</exclude>
+										<exclude>META-INF/maven/**</exclude>
+									</excludes>
+								</filter>
+							</filters>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<artifactId>maven-jar-plugin</artifactId>
 				<configuration>
