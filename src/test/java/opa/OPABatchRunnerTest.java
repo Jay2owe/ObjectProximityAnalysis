@@ -9,8 +9,9 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.process.ByteProcessor;
 import ij.measure.Calibration;
-import opa.spatial.PatternFunction;
+import sc.fiji.opa.core.spatial.PatternFunction;
 import org.junit.Test;
+import sc.fiji.opa.core.DistanceMode;
 
 import java.awt.event.KeyEvent;
 import java.io.File;

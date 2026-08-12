@@ -1,5 +1,64 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **Cross pair correlation g12(r)** — the A-to-B form of pair correlation,
+  completing the cross family alongside cross-K, cross-L and cross-G. Available
+  as the `Function_CROSS_PAIR_CORRELATION` checkbox in both dialogs and as
+  `function_cross_pair_correlation` in macros, with the same Monte Carlo
+  envelope, global p-value and status as the other cross functions.
+
+  It carries the same restriction as the univariate form and refuses
+  `BORDER` edge correction, with the same message.
+
+  **Not selected by default.** Every pattern function is another full pass per
+  Monte Carlo simulation, so switching it on for everyone would make existing
+  runs slower and wider without being asked. The dialog offers it unticked;
+  `OPAParameters` requests the same eight functions it always has unless a
+  caller says otherwise. `OPAParameters.defaultPatternFunctions()` and
+  `isDefaultPatternFunction(...)` expose that set.
+
+### Changed
+
+- The analysis engine was extracted into the embeddable `opa-core` module, so
+  other plugins can compile in OPA's distance and point-pattern measurements
+  without a user installing OPA. The engine is shaded into this plugin's JAR and
+  privately relocated to `opa.internal.engine`, alongside `oc3d-core` at
+  `opa.internal.core`. Users still install one JAR and install no core.
+
+- **Java API, source-incompatible for callers that named an engine type.** The
+  engine's classes moved package:
+
+  | Was | Now |
+  |---|---|
+  | `opa.spatial.*` | `sc.fiji.opa.core.spatial.*` |
+  | `opa.geometry.*` | `sc.fiji.opa.core.geometry.*` |
+  | `opa.CalibrationInfo` | `sc.fiji.opa.core.CalibrationInfo` |
+  | `opa.DistanceMode` | `sc.fiji.opa.core.DistanceMode` |
+  | `opa.AnalysisCancelledException` | `sc.fiji.opa.core.AnalysisCancelledException` |
+
+  Every class named in this README's Java API section — `OPA`, `OPAParameters`,
+  `OPAResult`, `OPALabelImages`, `OPAOutput`, `OPAProgressListener`,
+  `PatternResult`, `OPABatchParameters`, `OPABatchRunner`, `OPABatchResult` —
+  keeps its package and is never relocated. `OPAProgressListener` keeps its
+  single `onProgress(double, String)` method and now extends the engine's
+  listener, so existing implementations and lambdas are unaffected.
+
+  Macro use is entirely unaffected: option names, enum constant names and every
+  table column keep their exact text.
+
+### Unchanged, and gated
+
+- **No output moved.** 546 golden dumps were captured from the pre-extraction
+  build — 32 corpus cases x 17 configurations covering every documented input
+  mode, output option, degenerate case and bit depth in 2D and 3D, plus the
+  engine surface called directly and all 87 documented rejection messages by
+  exact text. Every value is compared as its raw IEEE-754 bit pattern. All 546
+  are unchanged after extraction, bit for bit. The goldens are immutable and
+  gate every later change.
+
 ## [0.2.0] - 2026-08-07
 
 - Initial ImageJ/Fiji plugin scaffold.

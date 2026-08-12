@@ -9,6 +9,7 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.measure.ResultsTable;
 import sc.fiji.oc3d.core.io.RegexGroupDiscovery;
+import sc.fiji.opa.core.AnalysisCancelledException;
 
 import java.io.File;
 import java.io.IOException;

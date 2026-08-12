@@ -6,14 +6,15 @@
 package opa;
 
 import ij.measure.ResultsTable;
-import opa.geometry.ChannelGeometry;
-import opa.geometry.DirectionResult;
-import opa.geometry.NeighborMeasurement;
-import opa.geometry.ObjectGeometry;
-import opa.geometry.ObjectMeasurement;
-import opa.spatial.MonteCarloResult;
-import opa.spatial.PatternFunction;
-import opa.spatial.RectangularWindow;
+import sc.fiji.opa.core.geometry.ChannelGeometry;
+import sc.fiji.opa.core.geometry.DirectionResult;
+import sc.fiji.opa.core.geometry.NeighborMeasurement;
+import sc.fiji.opa.core.geometry.ObjectGeometry;
+import sc.fiji.opa.core.geometry.ObjectMeasurement;
+import sc.fiji.opa.core.spatial.MonteCarloResult;
+import sc.fiji.opa.core.spatial.PatternFunction;
+import sc.fiji.opa.core.spatial.RectangularWindow;
+import sc.fiji.opa.core.DistanceMode;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -452,6 +453,7 @@ final class ResultTables {
             case G:
             case CROSS_G:
             case PAIR_CORRELATION:
+            case CROSS_PAIR_CORRELATION:
                 return "dimensionless";
             default:
                 throw new IllegalArgumentException(

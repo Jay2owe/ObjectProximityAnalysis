@@ -6,9 +6,11 @@
 package opa;
 
 import ij.ImagePlus;
-import opa.spatial.EdgeCorrection;
-import opa.spatial.PatternFunction;
-import opa.spatial.RectangularWindow;
+import sc.fiji.opa.core.EngineLimits;
+import sc.fiji.opa.core.spatial.EdgeCorrection;
+import sc.fiji.opa.core.spatial.PatternFunction;
+import sc.fiji.opa.core.spatial.RectangularWindow;
+import sc.fiji.opa.core.DistanceMode;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,9 +27,78 @@ public final class OPAParameters {
     public static final long DEFAULT_SEED = 0x0B1EC7L;
     public static final int MAX_NEIGHBOR_COUNT = 1000;
     public static final int MAX_HISTOGRAM_BINS = 10000;
-    public static final int MAX_RADIUS_BINS = 10000;
-    public static final int MAX_SIMULATIONS = 10000;
-    public static final long MAX_MONTE_CARLO_VALUES = 10000000L;
+
+    // The three the engine enforces for itself, kept single-sourced so the
+    // dialog and the engine cannot disagree about what is too large. The
+    // documented names and values here are unchanged.
+    public static final int MAX_RADIUS_BINS = EngineLimits.MAX_RADIUS_BINS;
+    public static final int MAX_SIMULATIONS = EngineLimits.MAX_SIMULATIONS;
+    public static final long MAX_MONTE_CARLO_VALUES =
+            EngineLimits.MAX_MONTE_CARLO_VALUES;
+
+    /*
+     * Both default sets below are spelled out rather than written
+     * EnumSet.allOf(...).
+     *
+     * `allOf` over an enum that reaches an output is a latent bug, not a
+     * shorthand. These sets are observable three times over: they decide how
+     * long a run takes, which columns and curves appear, and what the
+     * provenance table records — and provenance records the requested set even
+     * when the analysis that would use it is switched off. So adding a constant
+     * to DistanceMode or PatternFunction would silently widen the behaviour and
+     * the recorded provenance of runs that had nothing to do with the new
+     * measure.
+     *
+     * That is not hypothetical: adding CROSS_PAIR_CORRELATION moved 142
+     * recorded outputs without changing a single number, all of them the
+     * Pattern_Functions cell of distance-only runs.
+     *
+     * A new measure is therefore opt-in. It is offered in the dialog and
+     * through the API, and a caller who wants it asks for it. Adding one to a
+     * default set here is a deliberate decision about what every existing run
+     * does, and it costs real time.
+     */
+
+    /** The distance modes a run measures when the caller chooses none. */
+    private static final EnumSet<DistanceMode> DEFAULT_DISTANCE_MODES =
+            EnumSet.of(
+                    DistanceMode.CENTRE_TO_CENTRE,
+                    DistanceMode.CENTRE_TO_EDGE,
+                    DistanceMode.EDGE_TO_CENTRE,
+                    DistanceMode.EDGE_TO_EDGE,
+                    DistanceMode.SURFACE_CONTACT);
+
+    /** The pattern functions a run requests when the caller chooses none. */
+    private static final EnumSet<PatternFunction> DEFAULT_PATTERN_FUNCTIONS =
+            EnumSet.of(
+                    PatternFunction.K,
+                    PatternFunction.L,
+                    PatternFunction.L_MINUS_R,
+                    PatternFunction.G,
+                    PatternFunction.PAIR_CORRELATION,
+                    PatternFunction.CROSS_K,
+                    PatternFunction.CROSS_L,
+                    PatternFunction.CROSS_G);
+
+    /** The distance modes measured when the caller chooses none. */
+    public static EnumSet<DistanceMode> defaultDistanceModes() {
+        return DEFAULT_DISTANCE_MODES.clone();
+    }
+
+    /** Whether a mode is measured by default, for dialog checkboxes. */
+    public static boolean isDefaultDistanceMode(DistanceMode mode) {
+        return DEFAULT_DISTANCE_MODES.contains(mode);
+    }
+
+    /** The pattern functions requested when the caller chooses none. */
+    public static EnumSet<PatternFunction> defaultPatternFunctions() {
+        return DEFAULT_PATTERN_FUNCTIONS.clone();
+    }
+
+    /** Whether a function is requested by default, for dialog checkboxes. */
+    public static boolean isDefaultPatternFunction(PatternFunction function) {
+        return DEFAULT_PATTERN_FUNCTIONS.contains(function);
+    }
 
     private final List<ImagePlus> images;
     private final List<String> channelNames;
@@ -224,11 +295,11 @@ public final class OPAParameters {
         private boolean runPattern = true;
         private boolean includeSelfDistances = true;
         private EnumSet<DistanceMode> distanceModes =
-                EnumSet.allOf(DistanceMode.class);
+                defaultDistanceModes();
         private int neighborCount = 1;
         private double contactDistance = 0.0;
         private EnumSet<PatternFunction> patternFunctions =
-                EnumSet.allOf(PatternFunction.class);
+                defaultPatternFunctions();
         private double[] radii;
         private double maximumRadius = 0.0;
         private int radiusBins = 50;

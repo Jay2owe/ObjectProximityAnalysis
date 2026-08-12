@@ -13,6 +13,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
+import java.util.Enumeration;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -47,13 +48,41 @@ public class PackagingIT {
                     "Implementation-Build");
             assertEquals(gitHead(project), implementationBuild);
 
+            // Both cores are present, each under its own relocated root.
             assertNotNull(jar.getJarEntry(
                     "opa/internal/core/io/RegexGroupDiscovery.class"));
-            assertTrue(jar.getJarEntry(
-                    "sc/fiji/oc3d/core/io/RegexGroupDiscovery.class") == null);
-            assertTrue(jar.getJarEntry("ij/IJ.class") == null);
+            assertNotNull(jar.getJarEntry(
+                    "opa/internal/engine/spatial/SpatialStatistics.class"));
+            assertNotNull(jar.getJarEntry(
+                    "opa/internal/engine/geometry/ProximityEngine.class"));
+
+            // Nothing unrelocated leaks. Two jars carrying the same
+            // fully-qualified class name is a silent-wrong-answer bug under
+            // Fiji's flat classloader, so this is the assertion that matters.
+            assertNoEntriesUnder(jar, "sc/fiji/");
+
+            // ij is what Fiji already is; bundling it would shadow the host.
+            assertNoEntriesUnder(jar, "ij/");
+
+            // The plugin's own public API is never relocated: plugins.config
+            // and every documented Java caller name these.
+            assertNotNull(jar.getJarEntry("opa/OPA.class"));
+            assertNotNull(jar.getJarEntry("opa/OPAParameters.class"));
+            assertNotNull(jar.getJarEntry("opa/OPAResult.class"));
+            assertNotNull(jar.getJarEntry(
+                    "opa/Object_Proximity_Analysis.class"));
+            assertNotNull(jar.getJarEntry("opa/OPA_Batch.class"));
         } finally {
             jar.close();
+        }
+    }
+
+    private static void assertNoEntriesUnder(JarFile jar, String prefix) {
+        Enumeration<JarEntry> entries = jar.entries();
+        while (entries.hasMoreElements()) {
+            String name = entries.nextElement().getName();
+            assertTrue("packaged jar leaks " + name,
+                    !name.startsWith(prefix));
         }
     }
 
@@ -90,6 +119,17 @@ public class PackagingIT {
             assertTrue(preview.contains("[A] sample_A.tif"));
             assertNotNull(loader.loadClass(
                     "opa.internal.core.io.RegexGroupDiscovery"));
+
+            // The engine resolves from this jar alone, under its relocated
+            // name, with nothing on the classpath but ij.
+            assertNotNull(loader.loadClass(
+                    "opa.internal.engine.spatial.SpatialStatistics"));
+            assertNotNull(loader.loadClass(
+                    "opa.internal.engine.spatial.MonteCarloAnalyzer"));
+            assertNotNull(loader.loadClass(
+                    "opa.internal.engine.geometry.ProximityEngine"));
+            assertNotLoadable(loader, "sc.fiji.opa.core.spatial.SpatialStatistics");
+            assertNotLoadable(loader, "sc.fiji.oc3d.core.io.RegexGroupDiscovery");
         } finally {
             loader.close();
             File[] files = input.listFiles();
@@ -97,6 +137,16 @@ public class PackagingIT {
                 for (File file : files) Files.deleteIfExists(file.toPath());
             }
             Files.deleteIfExists(input.toPath());
+        }
+    }
+
+    private static void assertNotLoadable(URLClassLoader loader, String name) {
+        try {
+            loader.loadClass(name);
+            throw new AssertionError(
+                    "packaged jar still exposes the unrelocated " + name);
+        } catch (ClassNotFoundException expected) {
+            // The relocated copy is the only one, which is the point.
         }
     }
 

@@ -11,7 +11,8 @@ import ij.gui.Roi;
 import ij.io.RoiDecoder;
 import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
-import opa.spatial.RectangularWindow;
+import sc.fiji.opa.core.spatial.RectangularWindow;
+import sc.fiji.opa.core.CalibrationInfo;
 
 import java.awt.Rectangle;
 import java.io.ByteArrayOutputStream;

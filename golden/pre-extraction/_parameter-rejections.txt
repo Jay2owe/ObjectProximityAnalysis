@@ -1,0 +1,33 @@
+REJECT null-parameters java.lang.IllegalArgumentException OPA parameters must not be null.
+REJECT zero-images java.lang.IllegalArgumentException Object Proximity Analysis requires 1 to 5 label images.
+REJECT six-images java.lang.IllegalArgumentException Object Proximity Analysis requires 1 to 5 label images.
+REJECT null-image-in-list java.lang.IllegalArgumentException Label image 1 has no image stack.
+REJECT no-analysis-enabled java.lang.IllegalArgumentException At least one of distance or pattern analysis must be enabled.
+REJECT no-distance-modes java.lang.IllegalArgumentException At least one distance mode must be enabled.
+REJECT one-channel-without-self-distances java.lang.IllegalArgumentException A one-channel distance analysis requires self-distances; enable self-distances or disable distance analysis.
+REJECT neighbour-count-zero java.lang.IllegalArgumentException Neighbor count must be between 1 and 1000.
+REJECT neighbour-count-above-limit java.lang.IllegalArgumentException Neighbor count must be between 1 and 1000.
+REJECT contact-distance-nan java.lang.IllegalArgumentException Contact distance must be finite and non-negative.
+REJECT contact-distance-negative java.lang.IllegalArgumentException Contact distance must be finite and non-negative.
+REJECT histogram-bins-zero java.lang.IllegalArgumentException Histogram bin count must be between 1 and 10000.
+REJECT histogram-bins-above-limit java.lang.IllegalArgumentException Histogram bin count must be between 1 and 10000.
+REJECT no-pattern-functions java.lang.IllegalArgumentException At least one point-pattern function must be enabled.
+REJECT cross-only-one-channel java.lang.IllegalArgumentException Cross-pattern functions require at least two label images; enable a univariate function or add another image.
+REJECT simulations-zero java.lang.IllegalArgumentException Simulation count must be between 1 and 10000.
+REJECT simulations-above-limit java.lang.IllegalArgumentException Simulation count must be between 1 and 10000.
+REJECT null-edge-correction java.lang.IllegalArgumentException Edge correction must not be null.
+REJECT pair-correlation-with-border java.lang.IllegalArgumentException Pair correlation cannot use border correction; choose translation or no edge correction\c or disable pair correlation.
+REJECT radius-bins-zero java.lang.IllegalArgumentException Radius bin count must be between 1 and 10000.
+REJECT radius-bins-above-limit java.lang.IllegalArgumentException Radius bin count must be between 1 and 10000.
+REJECT maximum-radius-nan java.lang.IllegalArgumentException Maximum radius must be finite and non-negative.
+REJECT maximum-radius-negative java.lang.IllegalArgumentException Maximum radius must be finite and non-negative.
+REJECT radii-empty java.lang.IllegalArgumentException At least one pattern radius is required.
+REJECT radii-decreasing java.lang.IllegalArgumentException Pattern radii must be finite\c non-negative\c and strictly increasing.
+REJECT radii-repeated java.lang.IllegalArgumentException Pattern radii must be finite\c non-negative\c and strictly increasing.
+REJECT radii-negative java.lang.IllegalArgumentException Pattern radii must be finite\c non-negative\c and strictly increasing.
+REJECT radii-non-finite java.lang.IllegalArgumentException Pattern radii must be finite\c non-negative\c and strictly increasing.
+REJECT radii-above-limit java.lang.IllegalArgumentException Pattern radius count must not exceed 10000.
+REJECT monte-carlo-work-budget java.lang.IllegalArgumentException Monte Carlo simulations multiplied by radius count must not exceed 10000000.
+REJECT observation-window-outside-bounds java.lang.IllegalArgumentException Observation window must lie within the calibrated XY image bounds.
+REJECT physical-calibration-required java.lang.IllegalArgumentException Physical voxel calibration is required; image 1 is calibrated in pixels.
+REJECT three-dimensional-pattern-without-projection java.lang.IllegalArgumentException Point-pattern analysis is 2D in v0.2.0. For a 3D label image\c explicitly enable XY projection or run distance analysis only.

@@ -10,9 +10,11 @@ import ij.ImagePlus;
 import ij.ImageStack;
 import ij.measure.Calibration;
 import ij.process.ByteProcessor;
-import opa.spatial.PatternFunction;
-import opa.spatial.RectangularWindow;
+import sc.fiji.opa.core.spatial.PatternFunction;
+import sc.fiji.opa.core.spatial.RectangularWindow;
 import org.junit.Test;
+import sc.fiji.opa.core.AnalysisCancelledException;
+import sc.fiji.opa.core.DistanceMode;
 
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
@@ -179,7 +181,7 @@ public class OPATest {
                     .patternFunctions(EnumSet.of(
                             PatternFunction.PAIR_CORRELATION))
                     .edgeCorrection(
-                            opa.spatial.EdgeCorrection.BORDER)
+                            sc.fiji.opa.core.spatial.EdgeCorrection.BORDER)
                     .radii(new double[]{1.0, 2.0})
                     .simulations(1)
                     .build());
@@ -272,8 +274,8 @@ public class OPATest {
                 .runPattern(false)
                 .build());
 
-        opa.geometry.ChannelGeometry channel = result.getChannels().get(0);
-        opa.geometry.ObjectGeometry object = channel.getObjects().get(0);
+        sc.fiji.opa.core.geometry.ChannelGeometry channel = result.getChannels().get(0);
+        sc.fiji.opa.core.geometry.ObjectGeometry object = channel.getObjects().get(0);
         assertEquals(-14.0, object.getCentroidZ(), 1.0e-12);
         assertEquals(
                 1,
@@ -452,7 +454,7 @@ public class OPATest {
                 .runDistances(false)
                 .patternFunctions(EnumSet.of(PatternFunction.K))
                 .radii(new double[]{0.0, 4.5})
-                .edgeCorrection(opa.spatial.EdgeCorrection.BORDER)
+                .edgeCorrection(sc.fiji.opa.core.spatial.EdgeCorrection.BORDER)
                 .simulations(99)
                 .seed(1L)
                 .build());

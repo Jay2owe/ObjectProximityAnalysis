@@ -11,9 +11,12 @@ import ij.WindowManager;
 import ij.gui.GenericDialog;
 import ij.gui.Plot;
 import ij.plugin.PlugIn;
-import opa.spatial.EdgeCorrection;
-import opa.spatial.PatternFunction;
-import opa.spatial.RectangularWindow;
+import sc.fiji.opa.core.spatial.EdgeCorrection;
+import sc.fiji.opa.core.spatial.PatternFunction;
+import sc.fiji.opa.core.spatial.RectangularWindow;
+import sc.fiji.opa.core.AnalysisCancelledException;
+import sc.fiji.opa.core.CalibrationInfo;
+import sc.fiji.opa.core.DistanceMode;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -101,13 +104,15 @@ public final class Object_Proximity_Analysis implements PlugIn {
         dialog.addNumericField("K_nearest_neighbours", 1, 0);
         dialog.addNumericField("Contact_distance", 0.0, 3);
         for (DistanceMode mode : DistanceMode.values()) {
-            dialog.addCheckbox(mode.getColumnName().replace('-', '_'), true);
+            dialog.addCheckbox(mode.getColumnName().replace('-', '_'),
+                    OPAParameters.isDefaultDistanceMode(mode));
         }
 
         dialog.addMessage("2D point-pattern analysis");
         dialog.addCheckbox("Run_pattern_analysis", true);
         for (PatternFunction function : PatternFunction.values()) {
-            dialog.addCheckbox("Function_" + function.name(), true);
+            dialog.addCheckbox("Function_" + function.name(),
+                    OPAParameters.isDefaultPatternFunction(function));
         }
         dialog.addNumericField("Maximum_radius_0_is_auto", 0.0, 3);
         dialog.addNumericField("Radius_bins", 50, 0);

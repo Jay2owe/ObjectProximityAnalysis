@@ -1,0 +1,3 @@
+STATUS REJECTED
+type=java.lang.IllegalArgumentException
+message=All label images must have identical dimensions.

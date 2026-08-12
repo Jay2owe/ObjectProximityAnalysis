@@ -11,7 +11,7 @@ import ij.gui.Line;
 import ij.gui.Roi;
 import ij.measure.Calibration;
 import ij.process.ByteProcessor;
-import opa.spatial.RectangularWindow;
+import sc.fiji.opa.core.spatial.RectangularWindow;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;

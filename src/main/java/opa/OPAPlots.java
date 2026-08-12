@@ -6,8 +6,8 @@
 package opa;
 
 import ij.gui.Plot;
-import opa.spatial.MonteCarloResult;
-import opa.spatial.PatternFunction;
+import sc.fiji.opa.core.spatial.MonteCarloResult;
+import sc.fiji.opa.core.spatial.PatternFunction;
 
 import java.awt.Color;
 import java.util.ArrayList;

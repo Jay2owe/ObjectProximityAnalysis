@@ -6,15 +6,16 @@
 package opa;
 
 import ij.ImagePlus;
-import opa.geometry.ChannelGeometry;
-import opa.geometry.DirectionResult;
-import opa.geometry.LabelGeometryExtractor;
-import opa.geometry.ProximityEngine;
-import opa.spatial.EdgeCorrection;
-import opa.spatial.MonteCarloAnalyzer;
-import opa.spatial.MonteCarloResult;
-import opa.spatial.PatternFunction;
-import opa.spatial.RectangularWindow;
+import sc.fiji.opa.core.geometry.ChannelGeometry;
+import sc.fiji.opa.core.geometry.DirectionResult;
+import sc.fiji.opa.core.geometry.LabelGeometryExtractor;
+import sc.fiji.opa.core.geometry.ProximityEngine;
+import sc.fiji.opa.core.spatial.EdgeCorrection;
+import sc.fiji.opa.core.spatial.MonteCarloAnalyzer;
+import sc.fiji.opa.core.spatial.MonteCarloResult;
+import sc.fiji.opa.core.spatial.PatternFunction;
+import sc.fiji.opa.core.spatial.RectangularWindow;
+import sc.fiji.opa.core.AnalysisCancelledException;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -389,10 +390,15 @@ public final class OPA {
                 throw new IllegalArgumentException(
                         "Edge correction must not be null.");
             }
+            // Both forms of the statistic carry the same restriction. A rule
+            // that held for g(r) but not for cross-g(r) would be worse than
+            // the restriction itself.
             if (parameters.getEdgeCorrection()
                     == EdgeCorrection.BORDER
-                    && parameters.getPatternFunctions().contains(
-                            PatternFunction.PAIR_CORRELATION)) {
+                    && (parameters.getPatternFunctions().contains(
+                            PatternFunction.PAIR_CORRELATION)
+                        || parameters.getPatternFunctions().contains(
+                            PatternFunction.CROSS_PAIR_CORRELATION))) {
                 throw new IllegalArgumentException(
                         "Pair correlation cannot use border correction; "
                                 + "choose translation or no edge correction, "

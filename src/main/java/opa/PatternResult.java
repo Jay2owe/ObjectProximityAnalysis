@@ -5,8 +5,8 @@
  */
 package opa;
 
-import opa.spatial.MonteCarloResult;
-import opa.spatial.PatternFunction;
+import sc.fiji.opa.core.spatial.MonteCarloResult;
+import sc.fiji.opa.core.spatial.PatternFunction;
 
 /**
  * One channel or directed channel-pair point-pattern result.
@@ -61,6 +61,7 @@ public final class PatternResult {
             case G:
             case CROSS_G:
             case PAIR_CORRELATION:
+            case CROSS_PAIR_CORRELATION:
                 return "dimensionless";
             default:
                 throw new IllegalArgumentException(

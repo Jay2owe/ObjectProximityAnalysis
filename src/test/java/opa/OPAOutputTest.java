@@ -8,9 +8,10 @@ package opa;
 import ij.ImagePlus;
 import ij.measure.ResultsTable;
 import ij.process.ByteProcessor;
-import opa.spatial.PatternFunction;
-import opa.spatial.RectangularWindow;
+import sc.fiji.opa.core.spatial.PatternFunction;
+import sc.fiji.opa.core.spatial.RectangularWindow;
 import org.junit.Test;
+import sc.fiji.opa.core.DistanceMode;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;

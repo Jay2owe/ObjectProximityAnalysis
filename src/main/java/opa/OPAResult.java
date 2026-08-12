@@ -6,8 +6,8 @@
 package opa;
 
 import ij.measure.ResultsTable;
-import opa.geometry.ChannelGeometry;
-import opa.geometry.DirectionResult;
+import sc.fiji.opa.core.geometry.ChannelGeometry;
+import sc.fiji.opa.core.geometry.DirectionResult;
 
 import java.util.ArrayList;
 import java.util.Collections;

@@ -16,7 +16,11 @@ Version `0.2.0` is the current software release.
 - Exact shared-face contact and thresholded surface apposition are separate
   outputs. In 2D these are lengths; in 3D they are areas.
 - Ripley K, L, L(r)-r, nearest-neighbour G, pair correlation g(r), cross-K,
-  cross-L, and cross-G.
+  cross-L, cross-G, and cross pair correlation g12(r).
+  Cross pair correlation is **not selected by default**: it is another full
+  pass per Monte Carlo simulation, so an existing run does not silently get
+  slower. Tick `Function_CROSS_PAIR_CORRELATION`, or request it through the
+  API, to include it.
 - Translation or border edge correction for K and its derived curves. G and
   cross-G are uncorrected, so their `CSR_Expectation` column is the theoretical
   curve rather than an edge-corrected one; compare an observed G against the
@@ -261,7 +265,7 @@ Important option names are:
 |---|---|
 | Input | `input_mode`, `channel_count`, `roi_reference_image`, `label_image_1`...`label_image_5`, `roi_set_1`...`roi_set_5`, `observation_region_roi` |
 | Distances | `run_distances`, `include_self_distances`, `k_nearest_neighbours`, `contact_distance`, `centre_centre`, `centre_edge`, `edge_centre`, `edge_edge`, `surface_contact` |
-| Pattern | `run_pattern_analysis`, `function_k`, `function_l`, `function_l_minus_r`, `function_g`, `function_pair_correlation`, `function_cross_k`, `function_cross_l`, `function_cross_g`, `maximum_radius_0_is_auto`, `radius_bins`, `monte_carlo_simulations`, `random_seed`, `edge_correction`, `project_3d_centroids_to_xy` |
+| Pattern | `run_pattern_analysis`, `function_k`, `function_l`, `function_l_minus_r`, `function_g`, `function_pair_correlation`, `function_cross_k`, `function_cross_l`, `function_cross_g`, `function_cross_pair_correlation` (off by default), `maximum_radius_0_is_auto`, `radius_bins`, `monte_carlo_simulations`, `random_seed`, `edge_correction`, `project_3d_centroids_to_xy` |
 | Output | `histogram_bins`, `auto_save`, `output_directory`, `output_prefix`, `hide_display` |
 
 The smallest attainable Monte Carlo p-value is `1/(simulations+1)`. For example,
@@ -293,18 +297,30 @@ departure from the theoretical expectation at that same radius.
 Pair correlation supports translation edge correction (or no edge correction).
 Border correction is rejected because its risk-set weighting is not valid for
 this pair-correlation estimator and can otherwise produce negative estimates.
+Cross pair correlation carries the identical restriction: a rule that held for
+g(r) but not for its A-to-B form would be worse than the restriction. It is the
+ring-normalised derivative of cross-K, the same estimator family as the
+univariate form, so the two can be read side by side.
 Radii must be strictly increasing. The public K-to-pair-correlation helper also
 rejects negative, infinite, or materially decreasing K values.
 
 ## Build
 
-OPA uses `oc3d-core` 0.1.0 for shared recursive regular-expression batch
-discovery. The core is not published to a Maven repository, so install that
-pinned source release into the local Maven repository before building OPA:
+OPA builds against two core modules, neither of which a user ever installs:
+
+- `oc3d-core` 0.1.0 — shared recursive regular-expression batch discovery.
+- `opa-core` 0.2.0 — OPA's own engine: label geometry, the distance measures,
+  and the 2D point-pattern statistics with their Monte Carlo null. It is
+  extracted so other plugins can embed the engine without requiring OPA to be
+  installed.
+
+Neither is published to a Maven repository, so install both pinned source
+releases into the local Maven repository before building OPA:
 
 ```text
 git clone --branch v0.1.0 https://github.com/Jay2owe/oc3d-core
 mvn -f oc3d-core/pom.xml clean install
+mvn -f opa-core/pom.xml clean install
 ```
 
 macOS/Linux:
@@ -320,8 +336,13 @@ mvnw.cmd clean verify
 ```
 
 The packaged JAR is written to `target/Object_Proximity_Analysis-<version>.jar`.
-It contains only OPA's reachable core classes, relocated under
-`opa.internal.core`; users install this one JAR and do not install the core.
+It contains only the core classes OPA actually reaches, relocated under
+`opa.internal.core` (`oc3d-core`) and `opa.internal.engine` (`opa-core`); users
+install this one JAR and do not install either core. The two cores get separate
+relocation roots so a stale copy of one cannot stand in for the other. The
+integration test asserts that no `sc.fiji.*` package and no `ij/` entry survives
+in the packaged JAR, and that the engine loads from it with nothing on the
+classpath but ImageJ.
 The JAR is forced to rebuild during `package`/`verify` so its manifest cannot
 retain stale source-control commit metadata after a new commit. It includes the
 BSD 3-Clause licence at `META-INF/LICENSE`. The post-package integration test
@@ -331,3 +352,10 @@ Git HEAD; continuous integration runs the full `clean verify` lifecycle.
 ## Licence
 
 BSD 3-Clause. See `LICENSE`.
+## Parallel execution
+
+Independent source-object distance calculations and Monte Carlo simulations run in parallel, with a
+default cap of eight workers. Monte Carlo point patterns are still generated from the original seeded
+random stream on the coordinator, so worker completion order cannot change scientific results. Set
+the JVM system property `opa.parallelism` to a positive integer to override the cap, or to `1` to use
+the serial reference path.

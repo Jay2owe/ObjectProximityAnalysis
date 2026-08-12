@@ -1,0 +1,3 @@
+STATUS REJECTED
+type=java.lang.IllegalArgumentException
+message=Pair correlation cannot use border correction; choose translation or no edge correction\c or disable pair correlation.

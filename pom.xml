@@ -115,6 +115,22 @@
 			<artifactId>oc3d-core</artifactId>
 			<version>0.1.0</version>
 		</dependency>
+
+		<!--
+		  This plugin's own engine: label geometry, the distance measures and
+		  the 2D point-pattern statistics with their Monte Carlo null. Extracted
+		  so 06 - Colocalization Suite can compile it in without a user ever
+		  installing Object Proximity Analysis.
+
+		  Compile scope and NOT `provided`: the class files must end up inside
+		  the shipped jar. A bare Fiji has never heard of opa-core and the whole
+		  point of the pattern is that it never has to.
+		-->
+		<dependency>
+			<groupId>io.github.jay2owe</groupId>
+			<artifactId>opa-core</artifactId>
+			<version>0.2.0</version>
+		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
@@ -148,9 +164,34 @@
 						<configuration>
 							<createDependencyReducedPom>false</createDependencyReducedPom>
 							<minimizeJar>true</minimizeJar>
+							<!--
+							  Both cores are compiled into this jar, relocated. Users install
+							  one file on a bare Fiji and never learn a core exists.
+							
+							  Relocation is not optional: under Fiji's flat classloader two
+							  jars carrying the same fully-qualified class name is a
+							  silent-wrong-answer bug, not a crash, and 06 - Colocalization
+							  Suite ships its own copy of this same engine.
+							
+							  The two cores get separate targets rather than sharing
+							  opa.internal.core. oc3d-core already owns that name here,
+							  PackagingIT asserts it and the README documents it; merging
+							  them would let one core's version silently stand in for the
+							  other's.
+							
+							  Verified before enabling: no Class.forName, no loadClass and no
+							  reflection anywhere in the plugin or in either core, so there
+							  are no strings for relocation to miss. plugins.config names
+							  opa.Object_Proximity_Analysis and opa.OPA_Batch, neither of
+							  which is relocated.
+							
+							  artifactSet is an explicit allow-list. net.imagej:ij must never
+							  be bundled: it is what Fiji already is.
+							-->
 							<artifactSet>
 								<includes>
 									<include>io.github.jay2owe:oc3d-core</include>
+									<include>io.github.jay2owe:opa-core</include>
 								</includes>
 							</artifactSet>
 							<relocations>
@@ -158,10 +199,21 @@
 									<pattern>sc.fiji.oc3d.core</pattern>
 									<shadedPattern>opa.internal.core</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>sc.fiji.opa.core</pattern>
+									<shadedPattern>opa.internal.engine</shadedPattern>
+								</relocation>
 							</relocations>
 							<filters>
 								<filter>
 									<artifact>io.github.jay2owe:oc3d-core</artifact>
+									<excludes>
+										<exclude>META-INF/MANIFEST.MF</exclude>
+										<exclude>META-INF/maven/**</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>io.github.jay2owe:opa-core</artifact>
 									<excludes>
 										<exclude>META-INF/MANIFEST.MF</exclude>
 										<exclude>META-INF/maven/**</exclude>
