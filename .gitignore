@@ -15,3 +15,7 @@ Thumbs.db
 # Local planning context is not part of the public plugin repository.
 /FIRST_BUILD_PLAN.md
 /_SUPERSEDED_*.md
+
+# Internal working documents are not part of the public repository.
+/PUBLISHING_AUDIT.md
+/VERSIONING.md
