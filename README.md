@@ -351,7 +351,8 @@ Git HEAD; continuous integration runs the full `clean verify` lifecycle.
 
 ## Licence
 
-BSD 3-Clause. See `LICENSE`.
+BSD 3-Clause. See `LICENSE`; attribution is in `NOTICE`. Both ship inside the
+jar under `META-INF/`.
 ## Parallel execution
 
 Independent source-object distance calculations and Monte Carlo simulations run in parallel, with a
