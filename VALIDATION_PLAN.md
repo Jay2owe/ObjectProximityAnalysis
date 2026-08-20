@@ -124,7 +124,15 @@ the Wilson interval for empirical Type I error covers the nominal 0.05.
 it makes would be miscalibrated. This is why it runs before V3–V5.
 
 ### V3 — Agreement with spatstat
-*Needs R. Estimated 1 day setup + 1 day comparison.*
+***Complete, 2026-08-20. Results in [`V3_FINDINGS.md`](V3_FINDINGS.md).***
+
+R 4.6.1 with spatstat.explore 3.8.2. Twelve fixed patterns, 116 curves.
+Everything agrees to floating-point noise (1e-15 or better) except the border
+correction, and G and cross-G are bit-identical. The border difference is a
+documented intensity-estimator choice — spatstat uses n/|W|, OPA uses
+(n−1)/|W| — and over 3,000 realisations of the fixed-count null this plugin
+actually simulates, OPA's is roughly 2.5× less biased. No code change; it needs
+a README note so nobody comparing the two tools thinks one is broken.
 
 `spatstat` (Baddeley, Rubak & Turner) is the reference implementation reviewers
 will name. It provides a 1:1 match for every function OPA implements: `Kest`,
@@ -197,7 +205,7 @@ half and need no software that is not already installed.
    no other stage would have caught, and cleared the global test that the whole
    plugin's credibility rests on.
 2. V1, which shares all its simulation scaffolding with V2.
-3. V3, once V1/V2 confirm the estimators are self-consistent.
+3. ~~V3, once V1/V2 confirm the estimators are self-consistent.~~ **Done 2026-08-20.**
 4. V5 and V6 in parallel with V3.
 5. V4 last; it needs a Fiji session and is the least likely to surface a defect.
 
