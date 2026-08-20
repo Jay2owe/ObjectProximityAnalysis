@@ -20,6 +20,26 @@
   (empirical Type I error 0.038-0.048 across five function and correction
   pairs) and is unchanged. Full record in `V2_FINDINGS.md`.
 
+### Added
+
+- **Saturation warning for nearest-neighbour radii.** G and cross-G are
+  cumulative distributions, so they climb to 1 and stop. Past that point every
+  randomised curve takes the same value, the envelope collapses to a point and
+  nothing can fall outside it — those radii look like agreement with randomness
+  and are actually empty. The plugin now says so: a log warning naming the
+  channels and the radius, `Saturation_Radius`, `Saturated_Radii` and
+  `Saturation_Status` in the pattern summary, a per-radius `Saturated` column in
+  the curve tables, and `PATTERN_SATURATION` in the existing batch
+  `Analysis_Warnings`.
+
+  It warns rather than capping the radius range. Silently changing what someone
+  asked for is worse than telling them it will not help. Every requested radius
+  is still computed and still reported, and the golden master confirms it: the
+  change adds four columns and moves no existing value.
+
+- **Validation section in the README**, recording agreement with spatstat and
+  the one place the two deliberately differ.
+
 ### Changed
 
 - **Default simulation count is now 119, was 99.** A rank envelope can only

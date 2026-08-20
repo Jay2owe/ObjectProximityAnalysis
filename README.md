@@ -76,6 +76,56 @@ are rejected rather than treating physically shifted channels as registered.
 Centroids, inverse pixel lookups, default windows, and ROI-derived windows all
 use `(pixel coordinate - spatial origin) × voxel size`.
 
+## Validation, and how the numbers compare with spatstat
+
+Every point-pattern function here has been checked against
+[spatstat](https://spatstat.org/), the reference implementation in R, on twelve
+fixed patterns covering complete spatial randomness at three densities, a
+cluster process, a jittered grid, an elongated window, a window whose origin is
+not at the pixel origin, and four bivariate pairs.
+
+Ripley K, L, L(r)−r, cross-K and cross-L agree to within 1e-15 relative under
+both translation correction and no correction. Nearest-neighbour G and cross-G
+agree exactly, bit for bit. The pointwise Monte Carlo envelope and the global
+p-value have been separately calibrated over 1,000 randomised patterns.
+
+### The border correction differs from spatstat, deliberately
+
+If you cross-check this plugin against spatstat you will find border-corrected
+K larger by a factor of n/(n−1) — about 2% at 50 objects, 0.2% at 500. Neither
+tool is wrong; they estimate the density term differently.
+
+A point cannot be its own neighbour. When the number of objects is fixed, which
+is exactly what this plugin's randomisation does in every simulation, an
+interior object expects (n−1)·πr²/|W| neighbours. Dividing by (n−1), as this
+plugin does, is then unbiased. spatstat divides by n, which is the standard
+choice when the number of points is itself random.
+
+Measured over 3,000 randomised patterns against the analytic πr², this plugin's
+mean absolute bias is 1.06% at 50 objects and 0.36% at 200, against 2.99% and
+0.86% for the other convention. The choice here is the one matched to the null
+model the plugin actually simulates.
+
+Translation correction is the default and is unaffected. Use it unless you have
+a specific reason not to.
+
+### Nearest-neighbour radii can saturate
+
+G and cross-G are cumulative distributions: they climb to 1 and stop. Once
+almost every object already has a neighbour within r, every randomised curve
+takes the same value there, the envelope collapses to a point, and nothing can
+fall outside it. Those radii are not evidence of randomness — they are empty.
+
+The plugin warns when requested radii pass the point at which the expected
+curve reaches 99% of its maximum, reports `Saturation_Radius`,
+`Saturated_Radii` and `Saturation_Status` in the pattern summary, and flags
+individual radii with a `Saturated` column in the curve tables.
+
+**It warns rather than silently capping the radius range**, because quietly
+changing what you asked for is worse than telling you it will not help. If you
+see the warning, either shorten the radius range or read those radii as
+carrying no information.
+
 ## Calibration and observation window
 
 The plugin displays detected voxel size in the dialog. An uncalibrated image is

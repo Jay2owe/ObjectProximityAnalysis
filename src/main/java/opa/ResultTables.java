@@ -323,6 +323,11 @@ final class ResultTables {
                 table.addValue("Envelope_Level", result.getEnvelopeLevel());
                 table.addValue("Envelope_Rank", result.getEnvelopeRank());
                 table.addValue(
+                        "Saturated",
+                        !Double.isNaN(result.getSaturationRadius())
+                                && radii[i] >= result.getSaturationRadius()
+                                ? "YES" : "NO");
+                table.addValue(
                         "Envelope_Status",
                         envelopeStatus(
                                 envelopeCounts[i],
@@ -363,6 +368,16 @@ final class ResultTables {
                     result.hasCompletePointwiseEnvelope()
                             ? "OK"
                             : "INCOMPLETE_POINTWISE_ENVELOPE");
+            // Warned about, never dropped: the radii are still computed and
+            // still reported, this only says they cannot discriminate.
+            table.addValue(
+                    "Saturation_Status",
+                    result.hasSaturatedRadii()
+                            ? "RADII_PAST_SATURATION"
+                            : "OK");
+            table.addValue("Saturation_Radius", result.getSaturationRadius());
+            table.addValue(
+                    "Saturated_Radii", result.getSaturatedRadiusCount());
             table.addValue("Maximum_Absolute_Deviation",
                     result.getMaximumDeviation());
             table.addValue("Radius_At_Maximum_Deviation",

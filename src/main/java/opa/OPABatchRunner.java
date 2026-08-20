@@ -460,6 +460,11 @@ public final class OPABatchRunner {
                 "PATTERN_ENVELOPE",
                 result.getPatternSummaryTable(),
                 "Envelope_Status");
+        collectWarnings(
+                warnings,
+                "PATTERN_SATURATION",
+                result.getPatternSummaryTable(),
+                "Saturation_Status");
         StringBuilder text = new StringBuilder();
         for (String warning : warnings) {
             if (text.length() > 0) text.append(';');

@@ -12,6 +12,7 @@ import ij.gui.GenericDialog;
 import ij.gui.Plot;
 import ij.plugin.PlugIn;
 import sc.fiji.opa.core.spatial.EdgeCorrection;
+import sc.fiji.opa.core.spatial.MonteCarloResult;
 import sc.fiji.opa.core.spatial.PatternFunction;
 import sc.fiji.opa.core.spatial.RectangularWindow;
 import sc.fiji.opa.core.AnalysisCancelledException;
@@ -59,6 +60,7 @@ public final class Object_Proximity_Analysis implements PlugIn {
                 IJ.log("WARNING: Object Proximity Analysis input is uncalibrated. "
                         + "All distances and radii are reported in pixels.");
             }
+            warnAboutSaturatedRadii(result);
             if (!values.hideDisplay) show(result);
             if (values.autoSave) {
                 File saved = OPAOutput.save(
@@ -412,6 +414,42 @@ public final class Object_Proximity_Analysis implements PlugIn {
             this.outputDirectory = outputDirectory;
             this.outputPrefix = outputPrefix;
             this.hideDisplay = hideDisplay;
+        }
+    }
+
+    /**
+     * Tell the user when nearest-neighbour radii are past the point of being
+     * informative, without changing what they asked for.
+     *
+     * <p>G climbs to 1 and stops. Past saturation every simulated curve takes
+     * the same value there, the envelope collapses to a point and nothing can
+     * escape it, so those radii produce a flat band that looks like a result
+     * and is not one. The radii are still computed and still reported; this
+     * only says what they can and cannot show.</p>
+     */
+    private static void warnAboutSaturatedRadii(OPAResult result) {
+        for (PatternResult pattern : result.getPatternResults()) {
+            MonteCarloResult statistics = pattern.getStatistics();
+            if (!statistics.hasSaturatedRadii()) continue;
+            String channels = pattern.getSourceChannel();
+            if (pattern.isBivariate()) {
+                channels += " to " + pattern.getTargetChannel();
+            }
+            IJ.log(String.format(
+                    java.util.Locale.ROOT,
+                    "WARNING: %s (%s) - %d of %d radii are at or beyond %.3g %s,"
+                            + " where the curve has already reached 99%% of its"
+                            + " maximum. The envelope there collapses and cannot"
+                            + " be escaped, so those radii cannot show"
+                            + " clustering or dispersion. They are still"
+                            + " reported; interpret them as empty rather than"
+                            + " as agreement with randomness.",
+                    statistics.getFunction().name(),
+                    channels,
+                    statistics.getSaturatedRadiusCount(),
+                    statistics.getRadii().length,
+                    statistics.getSaturationRadius(),
+                    pattern.getUnit()));
         }
     }
 }
