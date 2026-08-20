@@ -12,6 +12,7 @@ import sc.fiji.opa.core.spatial.PatternFunction;
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Publication-oriented plot creation, separated from the headless engine.
@@ -46,7 +47,12 @@ public final class OPAPlots {
             plot.setColor(new Color(0, 92, 175));
             plot.setLineWidth(2);
             plot.add("line", radii, observed);
-            plot.addLegend("95% Monte Carlo envelope\nCSR expectation\nObserved");
+            // The envelope confidence depends on the simulation count, so the
+            // legend reports what was delivered rather than a fixed 95%.
+            plot.addLegend(String.format(
+                    Locale.ROOT,
+                    "%.1f%% Monte Carlo envelope\nCSR expectation\nObserved",
+                    statistics.getEnvelopeConfidencePercent()));
             plots.add(plot);
         }
         return plots;

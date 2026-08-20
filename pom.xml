@@ -14,7 +14,7 @@
 
 	<groupId>io.github.jay2owe</groupId>
 	<artifactId>Object_Proximity_Analysis</artifactId>
-	<version>0.2.0</version>
+	<version>0.3.0</version>
 
 	<name>Object Proximity Analysis</name>
 	<description>Calibrated inter-object distances and spatial point-pattern statistics for ImageJ/Fiji</description>
@@ -119,7 +119,7 @@
 		<!--
 		  This plugin's own engine: label geometry, the distance measures and
 		  the 2D point-pattern statistics with their Monte Carlo null. Extracted
-		  so 06 - Colocalization Suite can compile it in without a user ever
+		  so Object Colocalization Suite can compile it in without a user ever
 		  installing Object Proximity Analysis.
 
 		  Compile scope and NOT `provided`: the class files must end up inside
@@ -129,7 +129,7 @@
 		<dependency>
 			<groupId>io.github.jay2owe</groupId>
 			<artifactId>opa-core</artifactId>
-			<version>0.2.0</version>
+			<version>0.3.0</version>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
@@ -171,7 +171,7 @@
 							
 							  Relocation is not optional: under Fiji's flat classloader two
 							  jars carrying the same fully-qualified class name is a
-							  silent-wrong-answer bug, not a crash, and 06 - Colocalization
+							  silent-wrong-answer bug, not a crash, and Object Colocalization
 							  Suite ships its own copy of this same engine.
 							
 							  The two cores get separate targets rather than sharing

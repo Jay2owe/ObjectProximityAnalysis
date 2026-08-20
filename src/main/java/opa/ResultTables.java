@@ -320,6 +320,8 @@ final class ResultTables {
                 table.addValue("Envelope_Lower", lower[i]);
                 table.addValue("Envelope_Upper", upper[i]);
                 table.addValue("Envelope_N", envelopeCounts[i]);
+                table.addValue("Envelope_Level", result.getEnvelopeLevel());
+                table.addValue("Envelope_Rank", result.getEnvelopeRank());
                 table.addValue(
                         "Envelope_Status",
                         envelopeStatus(

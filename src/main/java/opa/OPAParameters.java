@@ -303,7 +303,10 @@ public final class OPAParameters {
         private double[] radii;
         private double maximumRadius = 0.0;
         private int radiusBins = 50;
-        private int simulations = 99;
+        // 119 rather than 99: the rank envelope delivers 2k/(S+1), so 5% is
+        // only expressible when S+1 is a multiple of 40. At 99 the envelope
+        // can only be 4% or 6%; at 119 it is exactly 5%.
+        private int simulations = 119;
         private long seed = DEFAULT_SEED;
         private EdgeCorrection edgeCorrection = EdgeCorrection.TRANSLATION;
         private boolean project3DToXY = false;

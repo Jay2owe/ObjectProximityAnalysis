@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.3.0] - 2026-08-20
+
+### Fixed
+
+- **The pointwise Monte Carlo envelope claimed a confidence it did not
+  deliver.** It was drawn at the interpolated 2.5th and 97.5th percentiles of
+  the simulated curves and labelled "95% Monte Carlo envelope" in every plot.
+  Measured over 1,000 complete-spatial-randomness patterns, the observed curve
+  escaped that band 6.1-7.2% of the time per radius rather than 5%, so anyone
+  reading "the curve left the envelope here" was running a higher false
+  positive rate than the figure stated.
+
+  `opa-core` 0.3.0 replaces it with a rank envelope whose pointwise escape
+  probability is exactly `2k / (S + 1)`. The plot legend and the curve tables
+  now report the level actually delivered instead of a fixed 95%.
+
+  The global maximum-deviation p-value was already correctly calibrated
+  (empirical Type I error 0.038-0.048 across five function and correction
+  pairs) and is unchanged. Full record in `V2_FINDINGS.md`.
+
+### Changed
+
+- **Default simulation count is now 119, was 99.** A rank envelope can only
+  express a 5% level when `S + 1` is a multiple of 40. At 99 simulations the
+  envelope can be 4% or 6% but not 5%; at 119 it is exactly 5%. Runtime rises
+  about 20%.
+
+- Curve tables gain `Envelope_Level` and `Envelope_Rank` columns so the
+  delivered confidence travels with the exported data.
+
+- Depends on `opa-core` 0.3.0, was 0.2.0.
+
 ## [Unreleased]
 
 ### Added

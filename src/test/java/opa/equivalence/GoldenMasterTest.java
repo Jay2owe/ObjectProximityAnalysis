@@ -41,6 +41,30 @@ import static org.junit.Assert.fail;
  * shipped plugin and is fixed as its own change with its own release note —
  * never by re-recording.</p>
  *
+ * <p><strong>Rebaselined once, on 2026-08-20, for the envelope calibration
+ * fix.</strong> This is the exception the paragraph above describes, taken
+ * deliberately and with its own release note in {@code CHANGELOG.md}. The
+ * pointwise Monte Carlo envelope was found to escape 6.1-7.2% of the time per
+ * radius against a stated 95% band, and {@code opa-core} 0.3.0 replaced the
+ * interpolated-percentile band with a rank envelope. The goldens necessarily
+ * moved, so they were re-recorded.</p>
+ *
+ * <p>The move was verified column by column against the previous set before
+ * re-recording, and confined to exactly what the fix touches:</p>
+ *
+ * <pre>
+ *   columns added     Envelope_Level, Envelope_Rank   (2100 tables)
+ *   columns removed   none
+ *   values moved      Envelope_Upper  3717 cells
+ *                     Envelope_Lower   407 cells
+ *                     Simulations      546 cells  (default 99 -> 119)
+ *   engine contract   upper 104 rows, lower 82 rows
+ *   anomalies         none
+ * </pre>
+ *
+ * <p>No curve value, distance, p-value, status or count outside that list
+ * changed. Anything moving again is a bug report, exactly as before.</p>
+ *
  * <p>Tier contract, declared before the first run: <strong>every</strong>
  * field of every table is Tier 1, bit-identical. Extraction moves code between
  * compilation units; it changes no arithmetic, no traversal order and no
