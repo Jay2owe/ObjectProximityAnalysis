@@ -37,7 +37,12 @@ whether an independent implementation agrees.
 ## The five gaps, in dependency order
 
 ### V1 — Convergence to analytic Poisson expectations
-*No external dependency. Estimated 1 day.*
+***Complete, 2026-09-29. Results in [`V1_FINDINGS.md`](V1_FINDINGS.md).***
+Repeatable test `PoissonConvergenceValidationTest` (fast in every build, full
+with `-Dopa.validation=true`). Every estimator converges; univariate
+border-corrected K carries a measured ratio bias of order 1/n (−2.4% at n = 50,
+r = 0.2 × side), which is inherent to the reduced-sample method and is why
+translation is the default.
 
 For a homogeneous Poisson process of intensity λ on a rectangular window, the
 exact expectations in 2D are:
@@ -173,7 +178,12 @@ disagreement larger than a voxel must be traced to a definitional difference and
 written down, not averaged away.
 
 ### V5 — Behaviour on known non-random patterns
-*No external dependency. Estimated 0.5 day.*
+***Complete, 2026-09-29. Results in [`V5_FINDINGS.md`](V5_FINDINGS.md).***
+Repeatable test `NonRandomPatternValidationTest`. A Thomas process (closed-form
+K) is recovered to within 1.8% and its parameters to within 2% by minimum
+contrast; a Matérn cluster process shows its excess up to 2R and a plateau
+beyond; a Matérn II hard core gives K = 0 below h in every realisation; the
+global test's power rises monotonically with effect size in both directions.
 
 The current test only asserts that a clustered pattern has more small-scale pairs
 than a regular one. Replace with quantitative checks against processes whose
@@ -204,14 +214,15 @@ half and need no software that is not already installed.
    It earned its place: it found a real miscalibration in the pointwise band that
    no other stage would have caught, and cleared the global test that the whole
    plugin's credibility rests on.
-2. V1, which shares all its simulation scaffolding with V2.
+2. ~~V1, which shares all its simulation scaffolding with V2.~~ **Done 2026-09-29.**
 3. ~~V3, once V1/V2 confirm the estimators are self-consistent.~~ **Done 2026-08-20.**
-4. V5 and V6 in parallel with V3.
+4. V5 (**done 2026-09-29**) and V6 in parallel with V3.
 5. V4 last; it needs a Fiji session and is the least likely to surface a defect.
 
 ## Deliverables
 
-- `src/test/java/.../ValidationAnalyticTest.java` — V1, V5 as repeatable tests.
+- `src/test/java/opa/validation/` — V1 (`PoissonConvergenceValidationTest`) and
+  V5 (`NonRandomPatternValidationTest`) as repeatable tests. **Done.**
 - `validation/` folder holding the V2 coverage study, the V3 spatstat scripts and
   exported patterns, the V4 comparison tables, and the V6 benchmark — with seeds
   recorded so every number is reproducible.
