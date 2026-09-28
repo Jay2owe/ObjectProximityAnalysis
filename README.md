@@ -359,7 +359,7 @@ rejects negative, infinite, or materially decreasing K values.
 OPA builds against two core modules, neither of which a user ever installs:
 
 - `oc3d-core` 0.1.0 — shared recursive regular-expression batch discovery.
-- `opa-core` 0.2.0 — OPA's own engine: label geometry, the distance measures,
+- `opa-core` 0.3.0 — OPA's own engine: label geometry, the distance measures,
   and the 2D point-pattern statistics with their Monte Carlo null. It is
   extracted so other plugins can embed the engine without requiring OPA to be
   installed.
@@ -369,6 +369,7 @@ releases into the local Maven repository before building OPA:
 
 ```text
 git clone --branch v0.1.0 https://github.com/Jay2owe/oc3d-core
+git clone --branch v0.3.0 https://github.com/Jay2owe/opa-core
 mvn -f oc3d-core/pom.xml clean install
 mvn -f opa-core/pom.xml clean install
 ```
