@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Validation deferred
+
+- **V4 on a real dataset** moves to the methods paper. The comparison with
+  DiAna ran on synthetic 3D label images (sphere pairs with analytic truth and
+  irregular blobs, anisotropic voxels) and passed; see `V4_FINDINGS.md`. No
+  real label dataset was available to this release's build environment.
+- **DiAna through its own macro command** was not usable: `DiAna_Analyse`
+  produces no readable results table headless or with `-batch`. The recorded
+  comparison therefore calls DiAna's distance routine and the same 3D ImageJ
+  Suite methods directly (`validation/v4-diana/README.md`).
+
 ## [0.3.0] - 2026-08-20
 
 ### Fixed
@@ -52,7 +65,7 @@
 
 - Depends on `opa-core` 0.3.0, was 0.2.0.
 
-## [Unreleased]
+## [0.3.0] - 2026-08-20 (continued): engine extraction
 
 ### Added
 

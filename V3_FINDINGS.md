@@ -1,9 +1,9 @@
 # V3 findings — agreement with spatstat
 
 Run: 2026-08-20. R 4.6.1, spatstat.explore 3.8.2.
-Export: `Cores/opa-core/src/test/java/sc/fiji/opa/core/spatial/SpatstatExport.java`
-Comparison: `Cores/opa-core/src/test/resources/spatstat/compare-spatstat.R`
-Raw report: `Cores/opa-core/validation/v3-spatstat/v3-report.txt`
+Export: `opa-core: src/test/java/sc/fiji/opa/core/spatial/SpatstatExport.java`
+Comparison: `opa-core: src/test/resources/spatstat/compare-spatstat.R`
+Raw report: `opa-core: validation/v3-spatstat/v3-report.txt`
 
 12 fixed patterns — complete spatial randomness at three densities, a cluster
 process, a jittered grid, an elongated window, a window whose origin is not at
@@ -93,6 +93,39 @@ This half is not fully quantified. It does not affect any conclusion above,
 because the difference is confined to the border correction, but it is the one
 loose thread in V3.
 
+### Open thread closed (2026-09-29): the cross gap is spatstat's binning
+
+Re-run with R 4.6.1 and spatstat.explore 3.8.2 on the same exported patterns,
+evaluating spatstat's border K on radius grids that start at 0 and are refined
+so that the original 20 radii are every 1st, 2nd, 5th, 10th, 50th and 200th
+break. Script and full table:
+[`validation/v3-border-thread/`](validation/v3-border-thread/). Maximum relative
+difference from OPA over the original radii, univariate curves rescaled by
+(n−1)/n to remove the intensity convention:
+
+| Kind | exact reduced-sample in R | grid ×1 | ×2 | ×5 | ×10 | ×50 | ×200 |
+|---|---|---|---|---|---|---|---|
+| univariate `Kest` (8 cases) | 0 | 3.2e-16 | 3.2e-16 | 3.2e-16 | 3.2e-16 | 3.2e-16 | 3.2e-16 |
+| cross `Kcross` (4 cases) | 0 | 9.3e-2 | 7.8e-2 | 7.8e-2 | 7.8e-2 | 7.5e-3 | 2.3e-16 |
+
+- **Univariate:** spatstat's `Kest` border estimate is exact on every grid, so
+  the whole univariate difference is the n/(n−1) factor above.
+- **Cross:** the whole difference is `Kmulti`'s histogram construction. A pair
+  at distance d is counted in the bin containing d, and the anchor-eligibility
+  test uses the bin edge rather than the radius, so on a coarse grid a pair or
+  an anchor can be assigned to the wrong side of r. As the grid is refined the
+  difference falls to floating-point noise (2e-16 at ×200); it does not shrink
+  smoothly because it depends on whether any exact distance falls between two
+  breaks.
+- An exact reduced-sample estimator written directly in R, using OPA's
+  intensity convention, reproduces OPA's border curves to 0 in all 12 cases.
+
+**Conclusion:** OPA's border K and cross-K are the exact reduced-sample
+estimator. Every border difference from spatstat is either the documented
+intensity convention (univariate) or spatstat's radius binning (cross), which
+vanishes on a fine grid. Anyone comparing cross-K border values with spatstat
+should evaluate spatstat on a fine grid starting at 0.
+
 ## Actions
 
 1. **No code change.** The border estimator is correct for this plugin's null
@@ -107,6 +140,6 @@ loose thread in V3.
    except border, where the difference is a documented intensity-estimator
    choice that we show is the less biased one for our null" is a stronger
    validation claim than blanket agreement would have been.
-4. **Open thread**: quantify the binned-versus-exact component of the cross-K
-   border difference, or re-run V3 on a fine evenly spaced radius grid starting
-   at zero, which is the grid spatstat's histogram construction expects.
+4. ~~**Open thread**: quantify the binned-versus-exact component of the cross-K
+   border difference.~~ **Closed 2026-09-29**, see above: it is entirely
+   spatstat's binning and vanishes (2e-16) on a fine grid.

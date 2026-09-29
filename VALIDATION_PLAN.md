@@ -6,7 +6,7 @@ scientific validation against analytic examples and an established
 spatial-statistics implementation"* — which is the release blocker for v0.3.0 and
 the gating item for the family paper.
 
-Engine under test: `Cores/opa-core`, packages `sc.fiji.opa.core.geometry`
+Engine under test: `opa-core` (https://github.com/Jay2owe/opa-core), packages `sc.fiji.opa.core.geometry`
 (distances, surface contact) and `sc.fiji.opa.core.spatial` (point-pattern
 functions, edge corrections, Monte Carlo envelopes).
 
@@ -138,6 +138,9 @@ documented intensity-estimator choice — spatstat uses n/|W|, OPA uses
 (n−1)/|W| — and over 3,000 realisations of the fixed-count null this plugin
 actually simulates, OPA's is roughly 2.5× less biased. No code change; it needs
 a README note so nobody comparing the two tools thinks one is broken.
+**Open thread closed 2026-09-29:** the remaining cross-K border difference is
+entirely spatstat's binned `Kmulti` construction; on a grid refined 200× it
+falls to 2e-16 (`validation/v3-border-thread/`).
 
 `spatstat` (Baddeley, Rubak & Turner) is the reference implementation reviewers
 will name. It provides a 1:1 match for every function OPA implements: `Kest`,
@@ -161,7 +164,13 @@ kernel-smoothing choices legitimately differ between implementations and exact
 agreement should **not** be expected.
 
 ### V4 — Distance modes against an independent tool
-*Needs Fiji plus DiAna. Estimated 1 day.*
+***Complete for synthetic data, 2026-09-29. Results in [`V4_FINDINGS.md`](V4_FINDINGS.md);
+real-dataset comparison deferred to the methods paper.***
+DiAna 1.54 on the same anisotropic 3D label images: centre-centre identical,
+centre-edge within 0.25 µm (voxel diagonal 0.574 µm); edge-edge and contact
+differences traced to surface-at-voxel-face versus voxel-centre and to area
+versus overlap count. No real label dataset was available outside the data
+archive, so that half is deferred.
 
 DiAna (Gilles et al. 2017) already computes centre–centre, centre–edge,
 edge–centre and surface-in-contact in 3D, so it is the natural cross-check for
@@ -217,7 +226,8 @@ half and need no software that is not already installed.
 2. ~~V1, which shares all its simulation scaffolding with V2.~~ **Done 2026-09-29.**
 3. ~~V3, once V1/V2 confirm the estimators are self-consistent.~~ **Done 2026-08-20.**
 4. V5 (**done 2026-09-29**) and V6 in parallel with V3.
-5. V4 last; it needs a Fiji session and is the least likely to surface a defect.
+5. ~~V4 last; it needs a Fiji session and is the least likely to surface a defect.~~
+   **Done for synthetic data 2026-09-29**; real dataset deferred.
 
 ## Deliverables
 

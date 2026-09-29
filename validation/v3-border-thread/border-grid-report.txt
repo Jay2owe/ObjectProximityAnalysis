@@ -1,0 +1,20 @@
+V3 open thread - border correction: binned versus exact construction
+spatstat.explore 3.8.2, R 4.6.1
+Relative differences are max over the 20 original radii, OPA univariate
+curves rescaled by (n-1)/n so the intensity convention is removed.
+
+case                     kind   exact_R_vs_OPA     grid/1     grid/2     grid/5    grid/10    grid/50   grid/200
+csr_n50_square           uni       0.000e+00  2.728e-16  2.728e-16  2.728e-16  2.728e-16  2.728e-16  2.728e-16
+csr_n200_square          uni       0.000e+00  3.210e-16  3.210e-16  3.210e-16  3.210e-16  3.210e-16  3.210e-16
+csr_n500_square          uni       0.000e+00  1.472e-16  1.472e-16  1.472e-16  1.472e-16  1.472e-16  1.472e-16
+csr_n200_wide            uni       0.000e+00  2.443e-16  2.443e-16  2.443e-16  2.443e-16  2.443e-16  2.443e-16
+csr_n200_shifted         uni       0.000e+00  1.949e-16  1.949e-16  1.949e-16  1.949e-16  1.949e-16  1.949e-16
+csr_n200_small           uni       0.000e+00  2.221e-16  2.221e-16  2.221e-16  2.221e-16  2.221e-16  2.221e-16
+clustered_n240_square    uni       0.000e+00  1.996e-16  1.996e-16  1.996e-16  1.996e-16  1.996e-16  1.996e-16
+regular_n196_square      uni       0.000e+00  2.159e-16  2.159e-16  2.159e-16  2.159e-16  2.159e-16  2.159e-16
+cross_csr_csr            cross     0.000e+00  6.993e-02  4.027e-02  2.920e-02  1.481e-02  7.463e-03  2.268e-16
+cross_csr_clustered      cross     0.000e+00  9.333e-02  5.414e-02  3.519e-02  3.519e-02  1.948e-16  1.948e-16
+cross_uneven_counts      cross     0.000e+00  5.128e-02  2.632e-02  2.734e-02  2.941e-02  1.918e-16  1.918e-16
+cross_wide_window        cross     0.000e+00  5.626e-02  7.826e-02  7.826e-02  7.826e-02  2.166e-16  2.166e-16
+
+max over cases                     0.000e+00  9.333e-02  7.826e-02  7.826e-02  7.826e-02  7.463e-03  3.210e-16
