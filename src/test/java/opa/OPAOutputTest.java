@@ -54,6 +54,54 @@ public class OPAOutputTest {
     }
 
     @Test
+    public void longDistributionFileNamesKeepTheirKindAndChannels()
+            throws Exception {
+        // Regression: names over 180 characters were cut at 100, which
+        // removed the channel pair, the mode and the Histogram/ECDF suffix
+        // from nearly every distribution file of a default run.
+        ImagePlus first = new ImagePlus("C1", new ByteProcessor(8, 8));
+        ImagePlus second = new ImagePlus("C2", new ByteProcessor(8, 8));
+        first.getProcessor().set(1, 1, 1);
+        first.getProcessor().set(5, 5, 2);
+        second.getProcessor().set(3, 3, 1);
+        OPAResult result = OPA.run(OPAParameters.builder(first, second)
+                .channelNames(Arrays.asList("C1", "C2"))
+                .runPattern(false)
+                .build());
+        File parent = Files.createTempDirectory("opa-output-names").toFile();
+        try {
+            File root = OPAOutput.save(result, parent, "Analysis");
+            String[] names = new File(root, "Distributions").list(
+                    (directory, name) -> name.endsWith(".csv"));
+            assertTrue(names != null && names.length > 0);
+            java.util.Set<String> unique = new java.util.HashSet<String>();
+            for (String name : names) {
+                assertTrue(name, name.length() <= 184);
+                assertTrue(name, name.contains("__Histogram__")
+                        || name.contains("__ECDF__")
+                        || name.endsWith("__Histogram.csv")
+                        || name.endsWith("__ECDF.csv"));
+                assertTrue(name, name.contains("C1_to_C2")
+                        || name.contains("C2_to_C1")
+                        || name.contains("C1_to_C1")
+                        || name.contains("C2_to_C2"));
+                assertTrue(name, name.contains("__NN1"));
+                unique.add(name.toLowerCase(java.util.Locale.ROOT));
+            }
+            assertEquals("names stay distinct, ignoring case",
+                    names.length, unique.size());
+        } finally {
+            delete(parent);
+        }
+    }
+
+    @Test
+    public void shortFileNamesAreUnchanged() {
+        assertEquals("sample__Distance_Summary.csv",
+                OPAOutput.csvName("sample__Distance_Summary"));
+    }
+
+    @Test
     public void duplicateChannelTitlesRemainDistinctInSavedOutputs()
             throws Exception {
         ImagePlus first = new ImagePlus(

@@ -89,10 +89,14 @@ public final class Object_Proximity_Analysis implements PlugIn {
 
     private static GenericDialog buildDialog(int[] imageIds,
                                              String[] imageChoices) {
+        // Laid out in pairs and checkbox grids so the whole dialog, with its
+        // OK button, fits a 1080p laptop screen at 125% scaling. The add
+        // order of each field type is unchanged, so every macro key and the
+        // read order in readDialog are as before.
         GenericDialog dialog = new GenericDialog("Object Proximity Analysis");
-        dialog.addMessage("Inputs");
         dialog.addChoice("Input_mode",
                 new String[]{LABEL_INPUT, ROI_INPUT}, LABEL_INPUT);
+        dialog.addToSameRow();
         dialog.addNumericField("Channel_count", Math.min(2, imageIds.length), 0);
         dialog.addChoice("ROI_reference_image", imageChoices,
                 imageChoices.length > 1 ? imageChoices[1] : imageChoices[0]);
@@ -102,33 +106,48 @@ public final class Object_Proximity_Analysis implements PlugIn {
                     : NONE;
             dialog.addChoice("Label_image_" + (i + 1),
                     imageChoices, defaultImage);
-            dialog.addFileField("ROI_set_" + (i + 1), "");
+            dialog.addToSameRow();
+            DialogFields.addFile(dialog, "ROI_set_" + (i + 1), "");
         }
-        dialog.addFileField("Observation_region_ROI", "");
+        DialogFields.addFile(dialog, "Observation_region_ROI", "");
         dialog.addMessage(calibrationSummary(imageIds));
 
-        dialog.addMessage("Distances");
-        dialog.addCheckbox("Run_distances", true);
-        dialog.addCheckbox("Include_self_distances", true);
+        // The Run_ checkboxes head their sections; separate headings would
+        // push the OK button off a laptop screen.
+        dialog.addCheckboxGroup(1, 2,
+                new String[]{"Run_distances", "Include_self_distances"},
+                new boolean[]{true, true});
         dialog.addNumericField("K_nearest_neighbours", 1, 0);
+        dialog.addToSameRow();
         dialog.addNumericField("Contact_distance", 0.0, 3);
-        for (DistanceMode mode : DistanceMode.values()) {
-            dialog.addCheckbox(mode.getColumnName().replace('-', '_'),
-                    OPAParameters.isDefaultDistanceMode(mode));
+        DistanceMode[] modes = DistanceMode.values();
+        String[] modeLabels = new String[modes.length];
+        boolean[] modeDefaults = new boolean[modes.length];
+        for (int i = 0; i < modes.length; i++) {
+            modeLabels[i] = modes[i].getColumnName().replace('-', '_');
+            modeDefaults[i] = OPAParameters.isDefaultDistanceMode(modes[i]);
         }
+        dialog.addCheckboxGroup(rows(modes.length, 3), 3, modeLabels, modeDefaults);
 
-        dialog.addMessage("2D point-pattern analysis");
         dialog.addCheckbox("Run_pattern_analysis", true);
-        for (PatternFunction function : PatternFunction.values()) {
-            dialog.addCheckbox("Function_" + function.name(),
-                    OPAParameters.isDefaultPatternFunction(function));
+        PatternFunction[] functions = PatternFunction.values();
+        String[] functionLabels = new String[functions.length];
+        boolean[] functionDefaults = new boolean[functions.length];
+        for (int i = 0; i < functions.length; i++) {
+            functionLabels[i] = "Function_" + functions[i].name();
+            functionDefaults[i] =
+                    OPAParameters.isDefaultPatternFunction(functions[i]);
         }
+        dialog.addCheckboxGroup(rows(functions.length, 3), 3,
+                functionLabels, functionDefaults);
         dialog.addNumericField("Maximum_radius_0_is_auto", 0.0, 3);
+        dialog.addToSameRow();
         dialog.addNumericField("Radius_bins", 50, 0);
         dialog.addNumericField("Monte_Carlo_simulations",
                 OPAParameters.DEFAULT_SIMULATIONS, 0);
+        dialog.addToSameRow();
         dialog.addStringField("Random_seed",
-                Long.toString(OPAParameters.DEFAULT_SEED), 18);
+                Long.toString(OPAParameters.DEFAULT_SEED), 12);
         dialog.addChoice("Edge_correction",
                 new String[]{
                         EdgeCorrection.TRANSLATION.name(),
@@ -136,27 +155,35 @@ public final class Object_Proximity_Analysis implements PlugIn {
                         EdgeCorrection.NONE.name()
                 },
                 EdgeCorrection.TRANSLATION.name());
+        dialog.addToSameRow();
         dialog.addCheckbox("Project_3D_centroids_to_XY", false);
         dialog.addMessage(SIMULATION_HINT);
 
-        dialog.addMessage("Output");
+        DialogFields.addDirectory(dialog, "Output_directory",
+                IJ.getDirectory("home"));
+        dialog.addStringField("Output_prefix", "Analysis", 16);
         dialog.addNumericField("Histogram_bins", 20, 0);
-        dialog.addCheckbox("Auto_save", false);
-        dialog.addDirectoryField("Output_directory", IJ.getDirectory("home"));
-        dialog.addStringField("Output_prefix", "Analysis", 24);
-        dialog.addCheckbox("Hide_display", false);
+        dialog.addCheckboxGroup(1, 2,
+                new String[]{"Auto_save", "Hide_display"},
+                new boolean[]{false, false});
         dialog.addHelp("https://github.com/Jay2owe/ObjectProximityAnalysis");
         return dialog;
+    }
+
+    /** Rows needed to lay out {@code count} checkboxes in {@code columns}. */
+    static int rows(int count, int columns) {
+        return (count + columns - 1) / columns;
     }
 
     private static DialogValues readDialog(GenericDialog dialog,
                                            int[] imageIds,
                                            String[] imageChoices)
             throws Exception {
-        String inputMode = dialog.getNextChoice();
+        String inputMode = DialogFields.nextChoice(dialog, "Input_mode");
         int channelCount = DialogNumbers.wholeNumber(
                 dialog.getNextNumber(), "Channel count");
-        String referenceChoice = dialog.getNextChoice();
+        String referenceChoice = DialogFields.nextChoice(
+                dialog, "ROI_reference_image");
         if (channelCount < 1 || channelCount > OPAParameters.MAX_IMAGES) {
             throw new IllegalArgumentException("Channel count must be between 1 and 5.");
         }
@@ -164,7 +191,8 @@ public final class Object_Proximity_Analysis implements PlugIn {
         String[] labelChoices = new String[OPAParameters.MAX_IMAGES];
         String[] roiPaths = new String[OPAParameters.MAX_IMAGES];
         for (int i = 0; i < OPAParameters.MAX_IMAGES; i++) {
-            labelChoices[i] = dialog.getNextChoice();
+            labelChoices[i] = DialogFields.nextChoice(
+                    dialog, "Label_image_" + (i + 1));
             roiPaths[i] = dialog.getNextString().trim();
         }
         String observationRoiPath = dialog.getNextString().trim();
@@ -234,8 +262,8 @@ public final class Object_Proximity_Analysis implements PlugIn {
         } catch (NumberFormatException exception) {
             throw new IllegalArgumentException("Random seed must be a whole number.");
         }
-        EdgeCorrection correction =
-                EdgeCorrection.valueOf(dialog.getNextChoice());
+        EdgeCorrection correction = EdgeCorrection.valueOf(
+                DialogFields.nextChoice(dialog, "Edge_correction"));
         boolean project3D = dialog.getNextBoolean();
 
         int histogramBins = DialogNumbers.wholeNumber(
@@ -384,25 +412,56 @@ public final class Object_Proximity_Analysis implements PlugIn {
     }
 
     private static String calibrationSummary(int[] imageIds) {
-        StringBuilder text = new StringBuilder(
-                "Detected calibration (uncalibrated inputs remain in pixels):");
+        Map<String, List<String>> byCalibration =
+                new java.util.LinkedHashMap<String, List<String>>();
         for (int imageId : imageIds) {
             ImagePlus image = WindowManager.getImage(imageId);
             if (image == null) continue;
             CalibrationInfo calibration = CalibrationInfo.from(image);
-            text.append("\n")
-                    .append(image.getTitle())
-                    .append(": ")
-                    .append(calibration.getPixelWidth())
-                    .append(" x ")
-                    .append(calibration.getPixelHeight());
-            if (image.getNSlices() > 1) {
-                text.append(" x ").append(calibration.getPixelDepth());
+            String size = calibration.getPixelWidth() + " x "
+                    + calibration.getPixelHeight()
+                    + (image.getNSlices() > 1
+                            ? " x " + calibration.getPixelDepth()
+                            : "")
+                    + " " + calibration.getUnit();
+            List<String> titles = byCalibration.get(size);
+            if (titles == null) {
+                titles = new ArrayList<String>();
+                byCalibration.put(size, titles);
             }
-            text.append(" ").append(calibration.getUnit());
+            titles.add(image.getTitle());
+        }
+        return calibrationSummary(byCalibration);
+    }
+
+    /**
+     * One line per distinct voxel size rather than one per open image, so
+     * the dialog does not grow off the screen when many images are open.
+     */
+    static String calibrationSummary(Map<String, List<String>> byCalibration) {
+        StringBuilder text = new StringBuilder(
+                "Detected calibration (uncalibrated inputs remain in pixels):");
+        int shown = 0;
+        for (Map.Entry<String, List<String>> entry : byCalibration.entrySet()) {
+            if (shown == MAX_CALIBRATION_LINES) {
+                text.append("\n... and ")
+                        .append(byCalibration.size() - shown)
+                        .append(" more voxel sizes");
+                break;
+            }
+            List<String> titles = entry.getValue();
+            text.append("\n").append(entry.getKey()).append(": ")
+                    .append(titles.get(0));
+            if (titles.size() > 1) {
+                text.append(" and ").append(titles.size() - 1)
+                        .append(titles.size() == 2 ? " other" : " others");
+            }
+            shown++;
         }
         return text.toString();
     }
+
+    private static final int MAX_CALIBRATION_LINES = 3;
 
     private static final class DialogValues {
         private final OPAParameters parameters;

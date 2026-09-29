@@ -136,6 +136,16 @@
 			<artifactId>junit</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!--
+		  Headless Fiji's replacement GenericDialog, so a test can run both
+		  commands through recorded-macro options exactly as a headless Fiji
+		  does. Test scope only; never shipped.
+		-->
+		<dependency>
+			<groupId>net.imagej</groupId>
+			<artifactId>ij1-patcher</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>

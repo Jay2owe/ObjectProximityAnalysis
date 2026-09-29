@@ -203,6 +203,33 @@ public class OPABatchRunnerTest {
     }
 
     @Test
+    public void groupNameDropsTheSeparatorBeforeTheChannel() throws Exception {
+        // Regression: "s1_*.tif" was shown as "s1_" in the manifest and log.
+        File directory = Files.createTempDirectory("opa-batch-names").toFile();
+        try {
+            saveLabel(new File(directory, "s1_A.tif"), 2, 2);
+            saveLabel(new File(directory, "s1_B.tif"), 5, 5);
+            OPABatchParameters parameters = OPABatchParameters.builder(
+                            directory, "(s\\d+)_(A|B)\\.tif", 2)
+                    .recursive(false)
+                    .analysisTemplate(OPAParameters.builder()
+                            .runPattern(false)
+                            .distanceModes(EnumSet.of(
+                                    DistanceMode.CENTRE_TO_CENTRE))
+                            .build())
+                    .autoSave(false)
+                    .build();
+
+            OPABatchResult result = OPABatchRunner.run(parameters);
+
+            assertEquals("s1", result.getGroupManifest()
+                    .getStringValue("Group", 0));
+        } finally {
+            deleteChildren(directory);
+        }
+    }
+
+    @Test
     public void describeFallsBackToTheClassName() {
         assertEquals("NullPointerException",
                 OPABatchRunner.describe(new NullPointerException()));

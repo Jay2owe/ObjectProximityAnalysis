@@ -28,37 +28,56 @@ public final class OPA_Batch implements PlugIn {
     @Override
     public void run(String argument) {
         GenericDialog dialog = new GenericDialog(TITLE);
-        dialog.addDirectoryField("Input_folder", IJ.getDirectory("home"));
+        DialogFields.addDirectory(dialog, "Input_folder",
+                IJ.getDirectory("home"));
         dialog.addStringField(
                 "Filename_regex",
                 "(.+)_([^_]+)\\.(tif|tiff)$",
                 42);
+        // Pairs and checkbox grids keep the dialog on a laptop screen; the add
+        // order of each field type, and so every macro key, is unchanged.
         dialog.addNumericField("Channel_capture_group", 2, 0);
+        dialog.addToSameRow();
         dialog.addCheckbox("Recursive", true);
         dialog.addMessage("Distances");
-        dialog.addCheckbox("Run_distances", true);
-        dialog.addCheckbox("Include_self_distances", true);
+        dialog.addCheckboxGroup(1, 2,
+                new String[]{"Run_distances", "Include_self_distances"},
+                new boolean[]{true, true});
         dialog.addNumericField("K_nearest_neighbours", 1, 0);
+        dialog.addToSameRow();
         dialog.addNumericField("Contact_distance", 0.0, 3);
-        for (DistanceMode mode : DistanceMode.values()) {
-            dialog.addCheckbox(
-                    mode.getColumnName().replace('-', '_'),
-                    OPAParameters.isDefaultDistanceMode(mode));
+        DistanceMode[] modes = DistanceMode.values();
+        String[] modeLabels = new String[modes.length];
+        boolean[] modeDefaults = new boolean[modes.length];
+        for (int i = 0; i < modes.length; i++) {
+            modeLabels[i] = modes[i].getColumnName().replace('-', '_');
+            modeDefaults[i] = OPAParameters.isDefaultDistanceMode(modes[i]);
         }
+        dialog.addCheckboxGroup(Object_Proximity_Analysis.rows(modes.length, 3), 3,
+                modeLabels, modeDefaults);
         dialog.addMessage("2D point-pattern analysis");
         dialog.addCheckbox("Run_pattern_analysis", true);
-        for (PatternFunction function : PatternFunction.values()) {
-            dialog.addCheckbox("Function_" + function.name(),
-                    OPAParameters.isDefaultPatternFunction(function));
+        PatternFunction[] functions = PatternFunction.values();
+        String[] functionLabels = new String[functions.length];
+        boolean[] functionDefaults = new boolean[functions.length];
+        for (int i = 0; i < functions.length; i++) {
+            functionLabels[i] = "Function_" + functions[i].name();
+            functionDefaults[i] =
+                    OPAParameters.isDefaultPatternFunction(functions[i]);
         }
+        dialog.addCheckboxGroup(
+                Object_Proximity_Analysis.rows(functions.length, 3), 3,
+                functionLabels, functionDefaults);
         dialog.addNumericField("Maximum_radius_0_is_auto", 0.0, 3);
+        dialog.addToSameRow();
         dialog.addNumericField("Radius_bins", 50, 0);
         dialog.addNumericField("Monte_Carlo_simulations",
                 OPAParameters.DEFAULT_SIMULATIONS, 0);
+        dialog.addToSameRow();
         dialog.addStringField(
                 "Random_seed",
                 Long.toString(OPAParameters.DEFAULT_SEED),
-                18);
+                12);
         dialog.addChoice(
                 "Edge_correction",
                 new String[]{
@@ -67,13 +86,15 @@ public final class OPA_Batch implements PlugIn {
                         EdgeCorrection.NONE.name()
                 },
                 EdgeCorrection.TRANSLATION.name());
+        dialog.addToSameRow();
         dialog.addCheckbox("Project_3D_centroids_to_XY", false);
         dialog.addMessage("Output");
         dialog.addNumericField("Histogram_bins", 20, 0);
-        dialog.addCheckbox("Auto_save", true);
-        dialog.addDirectoryField("Output_directory", "");
-        dialog.addMessage("Leave Output_directory blank to save into the input folder.");
-        dialog.addCheckbox("Hide_display", false);
+        DialogFields.addDirectory(dialog, "Output_directory", "");
+        dialog.addMessage("Leave the output directory blank to save into the input folder.");
+        dialog.addCheckboxGroup(1, 2,
+                new String[]{"Auto_save", "Hide_display"},
+                new boolean[]{true, false});
         dialog.showDialog();
         if (dialog.wasCanceled()) return;
 
@@ -117,8 +138,8 @@ public final class OPA_Batch implements PlugIn {
                 throw new IllegalArgumentException(
                         "Random seed must be a whole number.");
             }
-            EdgeCorrection correction =
-                    EdgeCorrection.valueOf(dialog.getNextChoice());
+            EdgeCorrection correction = EdgeCorrection.valueOf(
+                    DialogFields.nextChoice(dialog, "Edge_correction"));
             boolean project3D = dialog.getNextBoolean();
             int histogramBins = DialogNumbers.wholeNumber(
                     dialog.getNextNumber(), "Histogram bin count");

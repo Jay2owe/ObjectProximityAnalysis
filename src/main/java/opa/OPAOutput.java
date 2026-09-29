@@ -307,10 +307,32 @@ public final class OPAOutput {
         identity.append('\u0000');
     }
 
-    private static String csvName(String identity) {
+    static String csvName(String identity) {
         String clean = safe(identity);
-        if (clean.length() <= 180) return clean + ".csv";
-        return clean.substring(0, 100) + "__" + sha256(identity) + ".csv";
+        if (clean.length() <= MAX_NAME) return clean + ".csv";
+        // Too long: shorten the embedded identity hashes rather than cutting
+        // the end off. Cutting the end dropped the channel pair, the mode and
+        // whether the file is a histogram or an ECDF, so most distribution
+        // files of a default run could not be told apart by name.
+        String compact = shortenHashes(clean);
+        String unique = sha256(identity).substring(0, 16);
+        int room = MAX_NAME - unique.length() - 2;
+        if (compact.length() > room) {
+            int tail = room / 2;
+            compact = compact.substring(0, room - tail - 1) + "_"
+                    + compact.substring(compact.length() - tail);
+        }
+        return compact + "__" + unique + ".csv";
+    }
+
+    private static final int MAX_NAME = 180;
+
+    /** Every full SHA-256 in a name cut to its first eight characters. */
+    private static String shortenHashes(String name) {
+        java.util.regex.Matcher matcher =
+                java.util.regex.Pattern.compile("([0-9a-f]{8})[0-9a-f]{56}")
+                        .matcher(name);
+        return matcher.replaceAll("$1");
     }
 
     private static String sha256(String value) {

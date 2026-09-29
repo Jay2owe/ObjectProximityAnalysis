@@ -38,6 +38,24 @@
   plot is no longer drawn for a curve with no defined value (for example a
   channel with one object).
 
+- **Both commands run in a headless Fiji.** Headless Fiji's dialog ignores
+  file and folder fields, so every later text field read its neighbour's value
+  and the run failed with a stack trace; `--headless` macros and scripts could
+  not use either command.
+- **A macro value that is not one of a list's items is refused** (for example
+  `edge_correction=SIDEWAYS` or a misspelt image title) instead of silently
+  running with the default item in a headless Fiji.
+- **Long output file names keep their meaning.** Names over 180 characters
+  were cut at 100, dropping the channel pair, the mode and the
+  `Histogram`/`ECDF` suffix from most distribution files of a default run.
+  Long names now shorten the embedded identity hashes instead; names that
+  already fitted are unchanged.
+- **Batch group names** no longer keep the separator before the channel
+  (`s1`, was `s1_`), in the manifest, the log and the per-group file prefix.
+- **The dialogs fit a laptop screen.** The single-run dialog was 1,444 pixels
+  tall, so its OK button was off a 1080p screen at 125% scaling; related
+  fields now share rows (798 pixels). Every macro key is unchanged.
+
 ### Validation deferred
 
 - **V4 on a real dataset** moves to the methods paper. The comparison with

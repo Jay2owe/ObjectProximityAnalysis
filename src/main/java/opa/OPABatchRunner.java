@@ -903,9 +903,11 @@ public final class OPABatchRunner {
         }
 
         private String displayName() {
+            // The extension goes first: "s1_*.tif" must become "s1", and
+            // stripping separators before the extension left "s1_".
             String name = key.replace("*", "")
-                    .replaceAll("^[_\\-./\\\\]+|[_\\-./\\\\]+$", "")
-                    .replaceAll("\\.[^.]+$", "");
+                    .replaceAll("\\.[^.]+$", "")
+                    .replaceAll("^[_\\-./\\\\]+|[_\\-./\\\\]+$", "");
             return name.isEmpty() ? "batch" : name;
         }
 
