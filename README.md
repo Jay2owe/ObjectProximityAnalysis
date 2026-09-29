@@ -135,7 +135,7 @@ log a warning for every uncalibrated group and record it in the group manifest.
 
 Point-pattern statistics require an observation window. The default is the full
 XY image rectangle. An optional region ROI set supplies a calibrated rectangular
-union bounding box for v0.2.0; every region ROI must be an area selection.
+union bounding box; every region ROI must be an area selection.
 Objects are included when their centroid lies
 inside that window; objects crossing either the acquisition boundary or the
 effective observation-window boundary are marked as edge objects.
@@ -305,7 +305,7 @@ run("Object Proximity Analysis",
   + "label_image_1=A label_image_2=B "
   + "run_distances include_self_distances k_nearest_neighbours=1 "
   + "contact_distance=2 run_pattern_analysis "
-  + "monte_carlo_simulations=99 random_seed=777 "
+  + "monte_carlo_simulations=119 random_seed=777 "
   + "edge_correction=TRANSLATION hide_display");
 ```
 
@@ -319,7 +319,8 @@ Important option names are:
 | Output | `histogram_bins`, `auto_save`, `output_directory`, `output_prefix`, `hide_display` |
 
 The smallest attainable Monte Carlo p-value is `1/(simulations+1)`. For example,
-99 simulations cannot report a p-value below 0.01.
+99 simulations cannot report a p-value below 0.01. The default of 119 gives an
+exact 5% envelope; a recorded macro that omits `monte_carlo_simulations` uses it.
 Pointwise envelopes are emitted only when all requested simulations contribute
 at that radius. Curve tables record `Envelope_N` and `Envelope_Status` for each
 radius; incomplete bounds are `NaN` without invalidating an otherwise complete
@@ -329,7 +330,7 @@ cross-K, cross-L, or cross-G rejects "both patterns are complete spatial
 randomness and independent of each other". It does not isolate dependence: a
 clustered but genuinely independent pair can reject. Conditioning on the
 observed marginal patterns, by random labelling or toroidal shifts, is not
-implemented in v0.2.0.
+implemented.
 
 A radius where fewer than two of the observed and simulated curves are estimable
 carries no comparative information and is excluded from the global

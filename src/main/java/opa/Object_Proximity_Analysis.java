@@ -33,9 +33,14 @@ import java.util.Set;
  */
 public final class Object_Proximity_Analysis implements PlugIn {
 
+    private static final String TITLE = "Object Proximity Analysis";
     private static final String NONE = "[None]";
     private static final String LABEL_INPUT = "Open label images";
     private static final String ROI_INPUT = "ROI .zip/.roi sets";
+    static final String SIMULATION_HINT = "The smallest attainable Monte Carlo "
+            + "p-value is 1/(simulations+1). "
+            + OPAParameters.DEFAULT_SIMULATIONS
+            + " simulations give an exact 5% envelope.";
 
     @Override
     public void run(String argument) {
@@ -76,7 +81,9 @@ public final class Object_Proximity_Analysis implements PlugIn {
             IJ.log("Object Proximity Analysis cancelled.");
             IJ.showStatus("Object Proximity Analysis cancelled");
         } catch (Exception exception) {
-            IJ.handleException(exception);
+            UserErrors.report(TITLE, exception);
+        } catch (OutOfMemoryError error) {
+            UserErrors.report(TITLE, error);
         }
     }
 
@@ -118,7 +125,8 @@ public final class Object_Proximity_Analysis implements PlugIn {
         }
         dialog.addNumericField("Maximum_radius_0_is_auto", 0.0, 3);
         dialog.addNumericField("Radius_bins", 50, 0);
-        dialog.addNumericField("Monte_Carlo_simulations", 99, 0);
+        dialog.addNumericField("Monte_Carlo_simulations",
+                OPAParameters.DEFAULT_SIMULATIONS, 0);
         dialog.addStringField("Random_seed",
                 Long.toString(OPAParameters.DEFAULT_SEED), 18);
         dialog.addChoice("Edge_correction",
@@ -129,8 +137,7 @@ public final class Object_Proximity_Analysis implements PlugIn {
                 },
                 EdgeCorrection.TRANSLATION.name());
         dialog.addCheckbox("Project_3D_centroids_to_XY", false);
-        dialog.addMessage("The smallest attainable Monte Carlo p-value is "
-                + "1/(simulations+1); 99 simulations cannot report p<0.01.");
+        dialog.addMessage(SIMULATION_HINT);
 
         dialog.addMessage("Output");
         dialog.addNumericField("Histogram_bins", 20, 0);

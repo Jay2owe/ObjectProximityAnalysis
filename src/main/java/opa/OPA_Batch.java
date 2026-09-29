@@ -23,10 +23,11 @@ import java.util.Map;
  */
 public final class OPA_Batch implements PlugIn {
 
+    private static final String TITLE = "Object Proximity Analysis Batch";
+
     @Override
     public void run(String argument) {
-        GenericDialog dialog = new GenericDialog(
-                "Object Proximity Analysis Batch");
+        GenericDialog dialog = new GenericDialog(TITLE);
         dialog.addDirectoryField("Input_folder", IJ.getDirectory("home"));
         dialog.addStringField(
                 "Filename_regex",
@@ -52,7 +53,8 @@ public final class OPA_Batch implements PlugIn {
         }
         dialog.addNumericField("Maximum_radius_0_is_auto", 0.0, 3);
         dialog.addNumericField("Radius_bins", 50, 0);
-        dialog.addNumericField("Monte_Carlo_simulations", 99, 0);
+        dialog.addNumericField("Monte_Carlo_simulations",
+                OPAParameters.DEFAULT_SIMULATIONS, 0);
         dialog.addStringField(
                 "Random_seed",
                 Long.toString(OPAParameters.DEFAULT_SEED),
@@ -69,7 +71,8 @@ public final class OPA_Batch implements PlugIn {
         dialog.addMessage("Output");
         dialog.addNumericField("Histogram_bins", 20, 0);
         dialog.addCheckbox("Auto_save", true);
-        dialog.addDirectoryField("Output_directory", IJ.getDirectory("home"));
+        dialog.addDirectoryField("Output_directory", "");
+        dialog.addMessage("Leave Output_directory blank to save into the input folder.");
         dialog.addCheckbox("Hide_display", false);
         dialog.showDialog();
         if (dialog.wasCanceled()) return;
@@ -122,16 +125,7 @@ public final class OPA_Batch implements PlugIn {
             boolean autoSave = dialog.getNextBoolean();
             String outputDirectory = dialog.getNextString().trim();
             boolean hideDisplay = dialog.getNextBoolean();
-            if (autoSave && outputDirectory.isEmpty()) {
-                throw new IllegalArgumentException(
-                        "Choose an output directory when auto-save is enabled.");
-            }
-            // An empty field must fall back to the input folder rather than
-            // become new File(""), which resolves against the working
-            // directory and writes output beside the Fiji installation.
-            File output = outputDirectory.isEmpty()
-                    ? null
-                    : new File(outputDirectory);
+            File output = outputDirectory(outputDirectory);
 
             OPAParameters options = OPAParameters.builder()
                     .runDistances(distances)
@@ -165,9 +159,9 @@ public final class OPA_Batch implements PlugIn {
                         "Review the groups below. Runnable groups satisfy both "
                                 + "the filename grouping and selected analysis options.");
                 confirmation.addTextAreas(preview, null, 24, 80);
-                confirmation.enableYesNoCancel("Run batch", "Back");
+                confirmation.setOKLabel("Run batch");
                 confirmation.showDialog();
-                if (confirmation.wasCanceled() || !confirmation.wasOKed()) return;
+                if (confirmation.wasCanceled()) return;
             } else {
                 IJ.log(preview);
             }
@@ -180,8 +174,21 @@ public final class OPA_Batch implements PlugIn {
                     + " skipped, " + result.getErrorGroups() + " errors.");
             if (!hideDisplay) show(result);
         } catch (Exception exception) {
-            IJ.handleException(exception);
+            UserErrors.report(TITLE, exception);
+        } catch (OutOfMemoryError error) {
+            UserErrors.report(TITLE, error);
         }
+    }
+
+    /**
+     * The output folder named in the dialog, or {@code null} for a blank field,
+     * which the batch runner resolves to the input folder. A blank field must
+     * not become {@code new File("")}: that resolves against the working
+     * directory and would write output beside the Fiji installation.
+     */
+    static File outputDirectory(String field) {
+        String trimmed = field == null ? "" : field.trim();
+        return trimmed.isEmpty() ? null : new File(trimmed);
     }
 
     private static void show(OPABatchResult result) {

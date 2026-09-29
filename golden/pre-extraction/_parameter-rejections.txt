@@ -30,4 +30,4 @@ REJECT radii-above-limit java.lang.IllegalArgumentException Pattern radius count
 REJECT monte-carlo-work-budget java.lang.IllegalArgumentException Monte Carlo simulations multiplied by radius count must not exceed 10000000.
 REJECT observation-window-outside-bounds java.lang.IllegalArgumentException Observation window must lie within the calibrated XY image bounds.
 REJECT physical-calibration-required java.lang.IllegalArgumentException Physical voxel calibration is required; image 1 is calibrated in pixels.
-REJECT three-dimensional-pattern-without-projection java.lang.IllegalArgumentException Point-pattern analysis is 2D in v0.2.0. For a 3D label image\c explicitly enable XY projection or run distance analysis only.
+REJECT three-dimensional-pattern-without-projection java.lang.IllegalArgumentException Point-pattern analysis is 2D only. For a 3D label image\c explicitly enable XY projection or run distance analysis only.

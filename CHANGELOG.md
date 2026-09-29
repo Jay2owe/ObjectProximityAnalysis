@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Dialogs default to 119 Monte Carlo simulations, was 99.** Both the single
+  run and the batch dialog now use the same default as the Java API
+  (`OPAParameters.DEFAULT_SIMULATIONS`), which gives an exact 5% envelope. A
+  recorded macro that omits `monte_carlo_simulations` now runs 119
+  simulations; pass `monte_carlo_simulations=99` to reproduce an older run.
+- **Errors you can fix are shown as messages.** A rejected setting or an
+  unreadable file now opens a plain error message, and aborts a running
+  macro, instead of a Java stack trace. Running out of memory shows ImageJ's
+  memory advice. Unexpected failures still show the stack trace.
+- **Rejection text:** "Point-pattern analysis is 2D in v0.2.0." now reads
+  "Point-pattern analysis is 2D only." The rest of the message is unchanged.
+- **Batch dialog:** the preview offers Run batch or Cancel (the Back button
+  closed the dialog without going back). The output folder starts blank, and
+  blank saves into the input folder; auto-save with a blank folder is no
+  longer rejected.
+
 ### Validation deferred
 
 - **V4 on a real dataset** moves to the methods paper. The comparison with

@@ -25,6 +25,12 @@ public final class OPAParameters {
     public static final int MIN_IMAGES = 1;
     public static final int MAX_IMAGES = 5;
     public static final long DEFAULT_SEED = 0x0B1EC7L;
+    /**
+     * Monte Carlo simulations used when none are requested. The rank envelope
+     * delivers 2k/(S+1), so 5% is only expressible when S+1 is a multiple of
+     * 40. At 99 the envelope can only be 4% or 6%; at 119 it is exactly 5%.
+     */
+    public static final int DEFAULT_SIMULATIONS = 119;
     public static final int MAX_NEIGHBOR_COUNT = 1000;
     public static final int MAX_HISTOGRAM_BINS = 10000;
 
@@ -303,10 +309,7 @@ public final class OPAParameters {
         private double[] radii;
         private double maximumRadius = 0.0;
         private int radiusBins = 50;
-        // 119 rather than 99: the rank envelope delivers 2k/(S+1), so 5% is
-        // only expressible when S+1 is a multiple of 40. At 99 the envelope
-        // can only be 4% or 6%; at 119 it is exactly 5%.
-        private int simulations = 119;
+        private int simulations = DEFAULT_SIMULATIONS;
         private long seed = DEFAULT_SEED;
         private EdgeCorrection edgeCorrection = EdgeCorrection.TRANSLATION;
         private boolean project3DToXY = false;
