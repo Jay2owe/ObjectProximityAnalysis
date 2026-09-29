@@ -31,6 +31,9 @@ public final class OPAPlots {
             double[] observed = statistics.getObserved();
             double[] lower = statistics.getLower();
             double[] upper = statistics.getUpper();
+            // A curve with no defined value (too few objects) has nothing to
+            // show; an empty plot window would only suggest a failure.
+            if (!anyFinite(observed)) continue;
             String channels = pattern.getSourceChannel();
             if (pattern.isBivariate()) {
                 channels += " to " + pattern.getTargetChannel();
@@ -40,7 +43,7 @@ public final class OPAPlots {
                     "OPA L(r)-r - " + channels,
                     "Radius (" + pattern.getUnit() + ")",
                     "L(r) - r (" + pattern.getUnit() + ")");
-            addEnvelope(plot, radii, lower, upper);
+            int envelopeParts = addEnvelope(plot, radii, lower, upper);
             plot.setColor(Color.DARK_GRAY);
             plot.setLineWidth(1);
             plot.add("line", radii, new double[radii.length]);
@@ -49,29 +52,81 @@ public final class OPAPlots {
             plot.add("line", radii, observed);
             // The envelope confidence depends on the simulation count, so the
             // legend reports what was delivered rather than a fixed 95%.
-            plot.addLegend(String.format(
-                    Locale.ROOT,
-                    "%.1f%% Monte Carlo envelope\nCSR expectation\nObserved",
-                    statistics.getEnvelopeConfidencePercent()));
+            // Legend labels are assigned to data sets in order; an empty label
+            // leaves a set unlabelled, so a split envelope is named once.
+            StringBuilder legend = new StringBuilder();
+            if (envelopeParts > 0) {
+                legend.append(String.format(
+                        Locale.ROOT,
+                        "%.1f%% Monte Carlo envelope",
+                        statistics.getEnvelopeConfidencePercent()));
+                for (int part = 1; part < envelopeParts; part++) {
+                    legend.append('\n');
+                }
+                legend.append('\n');
+            }
+            legend.append("CSR expectation\nObserved");
+            plot.addLegend(legend.toString());
             plots.add(plot);
         }
         return plots;
     }
 
-    private static void addEnvelope(Plot plot,
-                                    double[] x,
-                                    double[] lower,
-                                    double[] upper) {
-        double[] polygonX = new double[x.length * 2];
-        double[] polygonY = new double[x.length * 2];
-        for (int i = 0; i < x.length; i++) {
-            polygonX[i] = x[i];
-            polygonY[i] = lower[i];
-            int reverse = x.length * 2 - 1 - i;
-            polygonX[reverse] = x[i];
-            polygonY[reverse] = upper[i];
+    /**
+     * Fills the envelope only where both bounds are defined, one polygon per
+     * unbroken run of radii. A bound is undefined where too few simulations
+     * contributed, and a polygon through those points is not drawable.
+     *
+     * @return the number of polygons added
+     */
+    static int addEnvelope(Plot plot,
+                           double[] x,
+                           double[] lower,
+                           double[] upper) {
+        int parts = 0;
+        int start = -1;
+        for (int i = 0; i <= x.length; i++) {
+            boolean defined = i < x.length
+                    && Double.isFinite(x[i])
+                    && Double.isFinite(lower[i])
+                    && Double.isFinite(upper[i]);
+            if (defined) {
+                if (start < 0) start = i;
+                continue;
+            }
+            if (start >= 0 && i - start >= 2) {
+                addPolygon(plot, x, lower, upper, start, i);
+                parts++;
+            }
+            start = -1;
+        }
+        return parts;
+    }
+
+    private static void addPolygon(Plot plot,
+                                   double[] x,
+                                   double[] lower,
+                                   double[] upper,
+                                   int from,
+                                   int to) {
+        int length = to - from;
+        double[] polygonX = new double[length * 2];
+        double[] polygonY = new double[length * 2];
+        for (int i = 0; i < length; i++) {
+            polygonX[i] = x[from + i];
+            polygonY[i] = lower[from + i];
+            int reverse = length * 2 - 1 - i;
+            polygonX[reverse] = x[from + i];
+            polygonY[reverse] = upper[from + i];
         }
         plot.setColor(new Color(215, 215, 215));
         plot.add("filled", polygonX, polygonY);
+    }
+
+    private static boolean anyFinite(double[] values) {
+        for (double value : values) {
+            if (Double.isFinite(value)) return true;
+        }
+        return false;
     }
 }

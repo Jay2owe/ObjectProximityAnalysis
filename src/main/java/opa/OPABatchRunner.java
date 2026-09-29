@@ -197,13 +197,18 @@ public final class OPABatchRunner {
                 markCancelled(groupManifest, groupIndex, groups.size());
             } catch (Exception exception) {
                 errors++;
-                groupManifest.setValue("Outcome", groupIndex, "ERROR");
-                groupManifest.setValue(
-                        "Error_Message", groupIndex, exception.getMessage());
-                errorMessages.add(group.displayName() + ": "
-                        + exception.getMessage());
-                IJ.log("OPA batch error - " + group.displayName()
-                        + ": " + exception.getMessage());
+                recordGroupError(groupManifest, groupIndex, group,
+                        describe(exception), errorMessages);
+            } catch (OutOfMemoryError exception) {
+                // One oversized group must not abort the whole batch and lose
+                // the manifest and aggregates of the groups already done. The
+                // group's images are released in the finally block below.
+                errors++;
+                recordGroupError(groupManifest, groupIndex, group,
+                        "Out of memory: " + describe(exception)
+                                + ". Raise Fiji's memory (Edit > Options >"
+                                + " Memory & Threads) or crop the inputs.",
+                        errorMessages);
             } finally {
                 for (ImagePlus image : images) {
                     image.changes = false;
@@ -244,7 +249,7 @@ public final class OPABatchRunner {
                         errors);
             } catch (IOException exception) {
                 errorMessages.add("Saving batch aggregates: "
-                        + exception.getMessage());
+                        + describe(exception));
             }
         }
         if (cancelled) {
@@ -267,6 +272,29 @@ public final class OPABatchRunner {
                 meanCurves,
                 meanEcdfs,
                 errorMessages);
+    }
+
+    private static void recordGroupError(ResultsTable groupManifest,
+                                         int groupIndex,
+                                         Group group,
+                                         String message,
+                                         List<String> errorMessages) {
+        groupManifest.setValue("Outcome", groupIndex, "ERROR");
+        groupManifest.setValue("Error_Message", groupIndex, message);
+        errorMessages.add(group.displayName() + ": " + message);
+        IJ.log("OPA batch error - " + group.displayName() + ": " + message);
+    }
+
+    /**
+     * A failure's message, or its class name when it has none. Many runtime
+     * exceptions carry no message, which used to write "null" to the log and
+     * an empty cell to the manifest.
+     */
+    static String describe(Throwable failure) {
+        String message = failure.getMessage();
+        return message == null || message.trim().isEmpty()
+                ? failure.getClass().getSimpleName()
+                : message;
     }
 
     private static void reportCallerProgress(

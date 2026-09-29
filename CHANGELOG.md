@@ -20,6 +20,24 @@
   blank saves into the input folder; auto-save with a blank folder is no
   longer rejected.
 
+### Fixed
+
+- **A batch survives running out of memory in one group.** The group is
+  recorded as `ERROR` with an `Out of memory: ...` message and advice, its
+  images are released, and the remaining groups, the manifest and the
+  aggregates are still produced. Before, the whole batch stopped with nothing
+  saved.
+- **Batch errors without a message** are reported by their type (for example
+  `IllegalStateException`) instead of `null` in the log and an empty
+  `Error_Message` cell.
+- **An empty ROI set is rejected** with `ROI set <name> contains no area ROIs.`
+  instead of silently becoming a channel with no objects; a missing ROI file
+  gives `ROI set not found: <path>`.
+- **ROI files named `.ROI` load under a Turkish system locale.**
+- **L(r)-r plots** fill the envelope only where both bounds are defined, and a
+  plot is no longer drawn for a curve with no defined value (for example a
+  channel with one object).
+
 ### Validation deferred
 
 - **V4 on a real dataset** moves to the methods paper. The comparison with

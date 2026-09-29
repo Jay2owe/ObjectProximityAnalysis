@@ -140,6 +140,99 @@ public class OPABatchRunnerTest {
     }
 
     @Test
+    public void outOfMemoryInOneGroupIsRecordedAndTheBatchContinues()
+            throws Exception {
+        // Regression: OutOfMemoryError is not an Exception, so it escaped the
+        // per-group catch and aborted the batch with no manifest or aggregates.
+        File directory = Files.createTempDirectory("opa-batch-oom").toFile();
+        try {
+            saveLabel(new File(directory, "sample1_A.tif"), 2, 2);
+            saveLabel(new File(directory, "sample2_A.tif"), 5, 5);
+            OPABatchParameters parameters = OPABatchParameters.builder(
+                            directory, "(sample\\d+)_([A])\\.tif", 2)
+                    .recursive(false)
+                    .analysisTemplate(failingTemplate(
+                            "(sample1", new OutOfMemoryError("Java heap space")))
+                    .autoSave(true)
+                    .build();
+
+            OPABatchResult result = OPABatchRunner.run(parameters);
+
+            assertEquals(1, result.getErrorGroups());
+            assertEquals(1, result.getProcessedGroups());
+            assertEquals("ERROR", result.getGroupManifest()
+                    .getStringValue("Outcome", 0));
+            String message = result.getGroupManifest()
+                    .getStringValue("Error_Message", 0);
+            assertTrue(message, message.startsWith(
+                    "Out of memory: Java heap space."));
+            assertEquals("PROCESSED", result.getGroupManifest()
+                    .getStringValue("Outcome", 1));
+            assertTrue("aggregates still saved", new File(directory,
+                    "Object Proximity Analysis/Folder").isDirectory());
+        } finally {
+            deleteChildren(directory);
+        }
+    }
+
+    @Test
+    public void failureWithoutMessageIsReportedByItsType() throws Exception {
+        // Regression: a message-less exception wrote "null" to the log and
+        // an empty Error_Message cell.
+        File directory = Files.createTempDirectory("opa-batch-null").toFile();
+        try {
+            saveLabel(new File(directory, "sample1_A.tif"), 2, 2);
+            OPABatchParameters parameters = OPABatchParameters.builder(
+                            directory, "(sample\\d+)_([A])\\.tif", 2)
+                    .recursive(false)
+                    .analysisTemplate(failingTemplate(
+                            "(sample1", new IllegalStateException()))
+                    .autoSave(false)
+                    .build();
+
+            OPABatchResult result = OPABatchRunner.run(parameters);
+
+            assertEquals(1, result.getErrorGroups());
+            assertEquals("IllegalStateException", result.getGroupManifest()
+                    .getStringValue("Error_Message", 0));
+            assertTrue(result.getErrors().get(0),
+                    result.getErrors().get(0).endsWith(": IllegalStateException"));
+        } finally {
+            deleteChildren(directory);
+        }
+    }
+
+    @Test
+    public void describeFallsBackToTheClassName() {
+        assertEquals("NullPointerException",
+                OPABatchRunner.describe(new NullPointerException()));
+        assertEquals("IOException",
+                OPABatchRunner.describe(new java.io.IOException("  ")));
+        assertEquals("disk full",
+                OPABatchRunner.describe(new java.io.IOException("disk full")));
+    }
+
+    /**
+     * An analysis template whose progress listener throws while the named
+     * group is being analysed, which is inside the per-group try block.
+     */
+    private static OPAParameters failingTemplate(final String groupMarker,
+                                                 final Throwable failure) {
+        return OPAParameters.builder()
+                .runPattern(false)
+                .distanceModes(EnumSet.of(DistanceMode.CENTRE_TO_CENTRE))
+                .progressListener(new OPAProgressListener() {
+                    @Override
+                    public void onProgress(double fraction, String message) {
+                        if (!message.contains(groupMarker)) return;
+                        if (failure instanceof Error) throw (Error) failure;
+                        throw (RuntimeException) failure;
+                    }
+                })
+                .build();
+    }
+
+    @Test
     public void trailingInvalidGroupStillCompletesCallerProgress()
             throws Exception {
         File directory = Files.createTempDirectory(

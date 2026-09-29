@@ -9,10 +9,19 @@ import ij.ImagePlus;
 import ij.ImageStack;
 import ij.gui.Line;
 import ij.gui.Roi;
+import ij.io.RoiEncoder;
 import ij.measure.Calibration;
 import ij.process.ByteProcessor;
 import sc.fiji.opa.core.spatial.RectangularWindow;
 import org.junit.Test;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.Locale;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -152,6 +161,96 @@ public class LabelUtilsTest {
             assertTrue(exception.getMessage().contains("1-3"));
         }
         assertTrue(rejected);
+    }
+
+    @Test
+    public void emptyRoiSetIsRejectedInsteadOfBecomingAnEmptyChannel()
+            throws Exception {
+        // Regression: a zip with no .roi entries gave a channel with no
+        // objects and no warning.
+        File directory = Files.createTempDirectory("opa-empty-rois").toFile();
+        try {
+            File zip = new File(directory, "Empty.zip");
+            ZipOutputStream output = new ZipOutputStream(
+                    new FileOutputStream(zip));
+            try {
+                output.putNextEntry(new ZipEntry("notes.txt"));
+                output.write("no rois".getBytes(StandardCharsets.UTF_8));
+                output.closeEntry();
+            } finally {
+                output.close();
+            }
+            boolean rejected = false;
+            try {
+                OPALabelImages.fromRoiSet(reference(), zip.getAbsolutePath());
+            } catch (IllegalArgumentException exception) {
+                rejected = true;
+                assertEquals("ROI set Empty.zip contains no area ROIs.",
+                        exception.getMessage());
+            }
+            assertTrue(rejected);
+        } finally {
+            delete(directory);
+        }
+    }
+
+    @Test
+    public void missingRoiSetGivesAPlainMessage() throws Exception {
+        String path = new File(Files.createTempDirectory("opa-missing").toFile(),
+                "absent.zip").getAbsolutePath();
+        boolean rejected = false;
+        try {
+            LabelUtils.loadRoiSet(path);
+        } catch (IllegalArgumentException exception) {
+            rejected = true;
+            assertEquals("ROI set not found: " + path, exception.getMessage());
+        } finally {
+            new File(path).getParentFile().delete();
+        }
+        assertTrue(rejected);
+    }
+
+    @Test
+    public void upperCaseRoiExtensionsLoadUnderATurkishLocale()
+            throws Exception {
+        // Regression: toLowerCase() without a locale turns "I" into a dotless
+        // i under Turkish, so ".ROI" never matched ".roi".
+        Locale original = Locale.getDefault();
+        File directory = Files.createTempDirectory("opa-locale").toFile();
+        try {
+            File single = new File(directory, "OBJECT.ROI");
+            assertTrue(RoiEncoder.save(
+                    new Roi(1, 1, 3, 3), single.getAbsolutePath()));
+            File zip = new File(directory, "SET.ZIP");
+            ZipOutputStream output = new ZipOutputStream(
+                    new FileOutputStream(zip));
+            try {
+                output.putNextEntry(new ZipEntry("0001-CELL.ROI"));
+                output.write(RoiEncoder.saveAsByteArray(new Roi(5, 5, 2, 2)));
+                output.closeEntry();
+            } finally {
+                output.close();
+            }
+
+            Locale.setDefault(new Locale("tr", "TR"));
+            assertEquals(1, LabelUtils.loadRoiSet(single.getAbsolutePath()).length);
+            assertEquals(1, LabelUtils.loadRoiSet(zip.getAbsolutePath()).length);
+        } finally {
+            Locale.setDefault(original);
+            delete(directory);
+        }
+    }
+
+    private static ImagePlus reference() {
+        return new ImagePlus("reference", new ByteProcessor(10, 10));
+    }
+
+    private static void delete(File file) {
+        File[] children = file.listFiles();
+        if (children != null) {
+            for (File child : children) delete(child);
+        }
+        file.delete();
     }
 
     @Test

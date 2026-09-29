@@ -16,10 +16,12 @@ import sc.fiji.opa.core.CalibrationInfo;
 
 import java.awt.Rectangle;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -35,7 +37,12 @@ public final class LabelUtils {
         if (path == null || path.trim().isEmpty()) {
             throw new IllegalArgumentException("ROI-set path must not be empty.");
         }
-        if (path.toLowerCase().endsWith(".roi")) {
+        if (!new File(path).isFile()) {
+            throw new IllegalArgumentException("ROI set not found: " + path);
+        }
+        // Locale.ROOT: under a Turkish default locale "I" lowercases to a
+        // dotless i, so ".ROI" would not match ".roi".
+        if (path.toLowerCase(Locale.ROOT).endsWith(".roi")) {
             Roi roi = new RoiDecoder(path).getRoi();
             return roi == null ? new Roi[0] : new Roi[]{roi};
         }
@@ -46,7 +53,9 @@ public final class LabelUtils {
         try {
             ZipEntry entry;
             while ((entry = input.getNextEntry()) != null) {
-                if (!entry.getName().toLowerCase().endsWith(".roi")) continue;
+                if (!entry.getName().toLowerCase(Locale.ROOT).endsWith(".roi")) {
+                    continue;
+                }
                 ByteArrayOutputStream bytes = new ByteArrayOutputStream();
                 int count;
                 while ((count = input.read(buffer)) > 0) {

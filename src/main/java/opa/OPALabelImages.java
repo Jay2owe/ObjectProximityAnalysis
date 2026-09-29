@@ -24,8 +24,15 @@ public final class OPALabelImages {
 
     public static ImagePlus fromRoiSet(ImagePlus reference, String path)
             throws IOException {
-        ImagePlus labels = LabelUtils.roiSetToLabelImage(
-                reference, LabelUtils.loadRoiSet(path));
+        Roi[] rois = LabelUtils.loadRoiSet(path);
+        // An empty set would otherwise become a channel with no objects and
+        // every distance from it would silently be missing.
+        if (rois.length == 0) {
+            throw new IllegalArgumentException(
+                    "ROI set " + new java.io.File(path).getName()
+                            + " contains no area ROIs.");
+        }
+        ImagePlus labels = LabelUtils.roiSetToLabelImage(reference, rois);
         labels.setTitle(baseName(path));
         return labels;
     }
