@@ -37,9 +37,9 @@ jobs:
       IMAGEJ_UPDATE_SITE_NAME: "ObjectProximityAnalysis"
       IMAGEJ_UPDATE_SITE_URL: "https://sites.imagej.net/ObjectProximityAnalysis/"
       GH_TOKEN: ${{ github.token }}
-      RELEASE_TAG: "v0.4.0"
-      RELEASE_COMMIT: "56b647d4f6fdc57fe66787beceaa614f3681a8a9"
-      RELEASE_SHA256: "15AD35A308B1741D1271E685D674F705497E82A7D6F436BCD4A32CE3D7B6341F"
+      RELEASE_TAG: "v0.4.1"
+      RELEASE_COMMIT: "de639ddf81cc615ed3d865fc18636b1a68ee8812"
+      RELEASE_SHA256: "0986158BA10A10B3AE2FBE8581939C2432834AFBB00F1D50D70E0A0E80ED22FF"
       OC3D_CORE_REPO: "Jay2owe/oc3d-core"
       OC3D_CORE_REF: "v0.1.0"
       OPA_CORE_REPO: "Jay2owe/opa-core"
@@ -47,7 +47,7 @@ jobs:
       IMAGEJ_UPLOAD_USER: ${{ secrets.IMAGEJ_UPLOAD_USER }}
       IMAGEJ_UPLOAD_PASSWORD: ${{ secrets.IMAGEJ_UPLOAD_PASSWORD }}
       DEFAULT_UPLOAD_USER: ""
-      ARTIFACT_GLOB: "release-artifact/Object_Proximity_Analysis-0.4.0.jar"
+      ARTIFACT_GLOB: "release-artifact/Object_Proximity_Analysis-0.4.1.jar"
       INSTALL_DIR: "plugins"
       ARTIFACT_NAME: ""
       REPLACE_GLOB: "plugins/Object_Proximity_Analysis-*.jar"
@@ -125,13 +125,13 @@ jobs:
           mkdir -p release-artifact
           gh release download "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
-            --pattern "Object_Proximity_Analysis-0.4.0.jar" \
+            --pattern "Object_Proximity_Analysis-0.4.1.jar" \
             --dir release-artifact
 
       - name: Verify canonical release artifact
         shell: bash
         run: |
-          JAR="release-artifact/Object_Proximity_Analysis-0.4.0.jar"
+          JAR="release-artifact/Object_Proximity_Analysis-0.4.1.jar"
           test -f "$JAR"
           python - "$JAR" "$RELEASE_SHA256" "$RELEASE_COMMIT" <<'PY'
           import hashlib
@@ -178,7 +178,7 @@ jobs:
           print(f"Canonical release SHA-256 verified: {actual_hash}")
           PY
 
-          BUILT="target/Object_Proximity_Analysis-0.4.0.jar"
+          BUILT="target/Object_Proximity_Analysis-0.4.1.jar"
           echo "Fresh verification build: $(sha256sum "$BUILT")"
 
       - name: Download Fiji
@@ -297,5 +297,5 @@ jobs:
         with:
           name: object-proximity-analysis-uploaded-artifact
           path: |
-            release-artifact/Object_Proximity_Analysis-0.4.0.jar
+            release-artifact/Object_Proximity_Analysis-0.4.1.jar
           if-no-files-found: error
