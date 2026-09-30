@@ -19,6 +19,9 @@ import java.util.Locale;
  */
 public final class OPAPlots {
 
+    private static final Color ENVELOPE_FILL = new Color(215, 215, 215);
+    private static final Color ENVELOPE_LINE = new Color(128, 128, 128);
+
     private OPAPlots() {
     }
 
@@ -67,6 +70,10 @@ public final class OPAPlots {
             }
             legend.append("CSR expectation\nObserved");
             plot.addLegend(legend.toString());
+            // ImageJ takes the axis range from the first data set, the
+            // envelope, so an observed curve outside it (a significant
+            // result) ran off the frame. Fit the range to every data set.
+            plot.setLimitsToFit(false);
             plots.add(plot);
         }
         return plots;
@@ -119,7 +126,10 @@ public final class OPAPlots {
             polygonX[reverse] = x[from + i];
             polygonY[reverse] = upper[from + i];
         }
-        plot.setColor(new Color(215, 215, 215));
+        // Outline and legend text in a mid grey, fill in a light one: the
+        // legend draws a label in its data set's line colour, and the light
+        // fill colour alone made "Monte Carlo envelope" nearly invisible.
+        plot.setColor(ENVELOPE_LINE, ENVELOPE_FILL);
         plot.add("filled", polygonX, polygonY);
     }
 

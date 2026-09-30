@@ -11,6 +11,7 @@ import ij.WindowManager;
 import ij.gui.GenericDialog;
 import ij.gui.Plot;
 import ij.plugin.PlugIn;
+import ij.plugin.frame.Recorder;
 import sc.fiji.opa.core.spatial.EdgeCorrection;
 import sc.fiji.opa.core.spatial.MonteCarloResult;
 import sc.fiji.opa.core.spatial.PatternFunction;
@@ -48,13 +49,17 @@ public final class Object_Proximity_Analysis implements PlugIn {
         if (imageIds == null || imageIds.length == 0) {
             IJ.error("Object Proximity Analysis",
                     "Open at least one label or reference image first.");
+            forgetRecordedCommand();
             return;
         }
         try {
             String[] imageChoices = imageChoices(imageIds);
             GenericDialog dialog = buildDialog(imageIds, imageChoices);
             dialog.showDialog();
-            if (dialog.wasCanceled()) return;
+            if (dialog.wasCanceled()) {
+                forgetRecordedCommand();
+                return;
+            }
             DialogValues values = readDialog(dialog, imageIds, imageChoices);
             // Escape is a sticky global flag in ImageJ. Clearing it here stops
             // a keypress left over from an earlier command cancelling this run
@@ -78,13 +83,30 @@ public final class Object_Proximity_Analysis implements PlugIn {
             IJ.showStatus("Object Proximity Analysis complete");
         } catch (AnalysisCancelledException exception) {
             IJ.resetEscape();
+            forgetRecordedCommand();
+            // The run stopped part-way; without this the status-bar progress
+            // bar stayed drawn part-filled.
+            IJ.showProgress(1.0);
             IJ.log("Object Proximity Analysis cancelled.");
             IJ.showStatus("Object Proximity Analysis cancelled");
         } catch (Exception exception) {
+            forgetRecordedCommand();
+            IJ.showProgress(1.0);
             UserErrors.report(TITLE, exception);
         } catch (OutOfMemoryError error) {
+            forgetRecordedCommand();
+            IJ.showProgress(1.0);
             UserErrors.report(TITLE, error);
         }
+    }
+
+    /**
+     * ImageJ records a menu command when it returns. A run that was
+     * cancelled, rejected or never started must not leave a line in the
+     * Macro Recorder that would replay it.
+     */
+    static void forgetRecordedCommand() {
+        if (Recorder.record) Recorder.setCommand(null);
     }
 
     private static GenericDialog buildDialog(int[] imageIds,
@@ -93,7 +115,7 @@ public final class Object_Proximity_Analysis implements PlugIn {
         // OK button, fits a 1080p laptop screen at 125% scaling. The add
         // order of each field type is unchanged, so every macro key and the
         // read order in readDialog are as before.
-        GenericDialog dialog = new GenericDialog("Object Proximity Analysis");
+        GenericDialog dialog = new FittingDialog("Object Proximity Analysis");
         dialog.addChoice("Input_mode",
                 new String[]{LABEL_INPUT, ROI_INPUT}, LABEL_INPUT);
         dialog.addToSameRow();
@@ -200,6 +222,7 @@ public final class Object_Proximity_Analysis implements PlugIn {
         List<ImagePlus> images = new ArrayList<ImagePlus>();
         List<String> names = new ArrayList<String>();
         if (ROI_INPUT.equals(inputMode)) {
+            checkNoUnusedRoiSets(roiPaths, channelCount);
             ImagePlus reference = selectedImage(
                     referenceChoice, imageIds, imageChoices);
             // Each call builds a fresh ImagePlus, so a repeated path would not
@@ -314,6 +337,23 @@ public final class Object_Proximity_Analysis implements PlugIn {
     }
 
     /**
+     * A ROI set beyond the channel count would be ignored. ROI fields start
+     * empty, so a filled one is the user's choice: with only the reference
+     * image open the channel count defaults to 1, and a second ROI set was
+     * silently left out of the analysis.
+     */
+    static void checkNoUnusedRoiSets(String[] roiPaths, int channelCount) {
+        for (int i = channelCount; i < roiPaths.length; i++) {
+            if (roiPaths[i] != null && !roiPaths[i].trim().isEmpty()) {
+                throw new IllegalArgumentException("ROI set " + (i + 1)
+                        + " is filled in but Channel count is " + channelCount
+                        + ". Set Channel count to " + (i + 1)
+                        + " or clear ROI set " + (i + 1) + ".");
+            }
+        }
+    }
+
+    /**
      * Identity of a path on disk, so the same ROI set written two different
      * ways is still recognised as a repeat.
      */
@@ -327,35 +367,29 @@ public final class Object_Proximity_Analysis implements PlugIn {
 
     private static void show(OPAResult result) {
         // Centroid tables are built and saved for every run, so a
-        // distances-only run displays them too.
-        for (Map.Entry<String, ij.measure.ResultsTable> entry
-                : result.getCentroidTables().entrySet()) {
-            entry.getValue().show("OPA Centroids - " + entry.getKey());
-        }
+        // distances-only run displays them too. Windows get readable titles;
+        // the saved files keep their identity-hashed names.
+        showAll("OPA Centroids - ", result.getCentroidTables());
         result.getProvenanceTable().show("OPA Analysis Provenance");
-        for (Map.Entry<String, ij.measure.ResultsTable> entry
-                : result.getPerObjectTables().entrySet()) {
-            entry.getValue().show("OPA Objects - " + entry.getKey());
-        }
+        showAll("OPA Objects - ", result.getPerObjectTables());
         if (result.getDistanceSummaryTable().size() > 0) {
             result.getDistanceSummaryTable().show("OPA Distance Summary");
         }
         if (result.getPatternSummaryTable().size() > 0) {
             result.getPatternSummaryTable().show("OPA Pattern Summary");
         }
-        for (Map.Entry<String, ij.measure.ResultsTable> entry
-                : result.getHistogramTables().entrySet()) {
-            entry.getValue().show("OPA Histogram - " + entry.getKey());
-        }
-        for (Map.Entry<String, ij.measure.ResultsTable> entry
-                : result.getEcdfTables().entrySet()) {
-            entry.getValue().show("OPA ECDF - " + entry.getKey());
-        }
-        for (Map.Entry<String, ij.measure.ResultsTable> entry
-                : result.getCurveTables().entrySet()) {
-            entry.getValue().show("OPA Curve - " + entry.getKey());
-        }
+        showAll("OPA Histogram - ", result.getHistogramTables());
+        showAll("OPA ECDF - ", result.getEcdfTables());
+        showAll("OPA Curve - ", result.getCurveTables());
         for (Plot plot : OPAPlots.lMinusRPlots(result)) plot.show();
+    }
+
+    private static void showAll(String prefix,
+                                Map<String, ij.measure.ResultsTable> tables) {
+        for (Map.Entry<String, ij.measure.ResultsTable> entry
+                : WindowTitles.titled(prefix, tables).entrySet()) {
+            entry.getValue().show(entry.getKey());
+        }
     }
 
     private static String[] imageChoices(int[] imageIds) {

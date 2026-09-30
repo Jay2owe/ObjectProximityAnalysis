@@ -191,6 +191,42 @@ public class EdgeCaseTest {
     }
 
     @Test
+    public void lMinusRPlotAxesShowTheWholeObservedCurve() {
+        // Regression found by the GUI checks: the y range followed the first
+        // data set, the envelope, so an observed curve far outside it (a
+        // significant result) ran off the plot frame.
+        ImagePlus image = image("clustered", 60, 60, 1, 8);
+        int label = 1;
+        for (int y = 2; y < 8; y += 2) {
+            for (int x = 2; x < 8; x += 2) {
+                set(image, x, y, 0, label++);
+            }
+        }
+        set(image, 55, 55, 0, label);
+        OPAResult result = OPA.run(OPAParameters.builder(image)
+                .runDistances(false)
+                .patternFunctions(EnumSet.of(PatternFunction.L_MINUS_R))
+                .radii(new double[]{1.0, 2.0, 3.0, 4.0, 5.0, 6.0})
+                .simulations(19)
+                .build());
+        double[] observed = result.getPatternResults().get(0)
+                .getStatistics().getObserved();
+        double lowest = Double.POSITIVE_INFINITY;
+        double highest = Double.NEGATIVE_INFINITY;
+        for (double value : observed) {
+            if (!Double.isFinite(value)) continue;
+            lowest = Math.min(lowest, value);
+            highest = Math.max(highest, value);
+        }
+        Plot plot = OPAPlots.lMinusRPlots(result).get(0);
+        plot.getProcessor();
+        double[] limits = plot.getLimits();
+        assertTrue("y axis " + limits[2] + ".." + limits[3] + " must hold "
+                        + lowest + ".." + highest,
+                limits[2] <= lowest && limits[3] >= highest);
+    }
+
+    @Test
     public void lMinusRPlotIsSkippedForASingleObject() {
         // Regression: a one-object channel has no defined L(r)-r, and the
         // plot was built from all-NaN values, including its envelope polygon.

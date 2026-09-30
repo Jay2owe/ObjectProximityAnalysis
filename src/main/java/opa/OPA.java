@@ -327,6 +327,15 @@ public final class OPA {
                 throw new IllegalArgumentException(
                         "Label image " + (i + 1) + " has no image stack.");
             }
+            // Each packed colour would otherwise be read as a label, so a
+            // coloured copy of a label image ran with meaningless objects.
+            if (images.get(i).getType() == ImagePlus.COLOR_RGB) {
+                throw new IllegalArgumentException(
+                        "Label image " + (i + 1) + " (" + images.get(i).getTitle()
+                                + ") is an RGB colour image. Label images must be "
+                                + "8-, 16- or 32-bit greyscale with one whole-number "
+                                + "label per object.");
+            }
         }
     }
 
