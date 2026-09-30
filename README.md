@@ -22,6 +22,8 @@ tested against complete spatial randomness with Ripley's K and its relatives.
    and the URL `https://sites.imagej.net/ObjectProximityAnalysis/`.
 3. Click **Apply and Close**, then **Apply Changes**, and restart Fiji.
 
+The update site is being set up; until it is live, install manually as below.
+
 ### Manually
 
 Download `Object_Proximity_Analysis-<version>.jar` from the
