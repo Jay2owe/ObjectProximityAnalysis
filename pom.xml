@@ -14,7 +14,7 @@
 
 	<groupId>io.github.jay2owe</groupId>
 	<artifactId>Object_Proximity_Analysis</artifactId>
-	<version>0.4.1</version>
+	<version>0.4.2-SNAPSHOT</version>
 
 	<name>Object Proximity Analysis</name>
 	<description>Calibrated inter-object distances and spatial point-pattern statistics for ImageJ/Fiji</description>
