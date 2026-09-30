@@ -38,10 +38,36 @@ The first point-pattern implementation is 2D. A 3D label stack is rejected for
 pattern analysis unless the caller explicitly requests XY centroid projection.
 Distance measurements remain fully 3D.
 
-The distance engine compares every object surface against every other, without a
-spatial index. Runtime grows with the square of the object count and the square
-of the per-object surface size, so a few hundred large 3D objects per channel can
-take minutes to hours per channel pair. Press Escape to stop a run.
+### How long a run takes
+
+Distances are exact, but only the pairs that can still be among the k nearest
+are measured face by face: each object's bounding box gives an exact lower
+bound on its distance, so the search stops as soon as no remaining object can
+compete. Point-pattern K is computed at every radius in one pass over the
+pairs. Pattern analysis still grows with the square of the object count and
+the number of simulations, and is the slow half of a large run. Press Escape
+to stop a run at any time.
+
+Measured on seeded synthetic scenes (default settings: all five distance modes
+with k = 3, or the seven default pattern functions with 119 simulations and 50
+radii), median of three runs, on a laptop with an AMD Ryzen 7 7730U (8 cores,
+16 threads), Java 21 and a 4 GB heap:
+
+| Scene | Objects (both channels) | 0.3.0 | 0.4.0 | Faster by |
+|---|---|---|---|---|
+| 2D discs, radius 4 px, 1024 x 1024 | 200 | 0.5 s | 0.2 s | 2.2x |
+| 2D discs, radius 4 px, 1024 x 1024 | 800 | 4.6 s | 0.4 s | 10x |
+| 2D discs, radius 4 px, 1024 x 1024 | 3,200 | 63 s | 3.1 s | 21x |
+| 3D balls, radius 5 voxels, 256 x 256 x 48 | 100 | 14 s | 2.4 s | 5.7x |
+| 3D balls, radius 5 voxels, 256 x 256 x 48 | 200 | 49 s | 4.6 s | 11x |
+| 3D balls, radius 5 voxels, 256 x 256 x 48 | 400 | 2.8 min | 9.5 s | 18x |
+| 2D points, 2048 x 2048, 7 functions, 119 simulations | 400 | 1.8 s | 0.4 s | 4.7x |
+| 2D points, 2048 x 2048, 7 functions, 119 simulations | 2,000 | 41 s | 5.6 s | 7.3x |
+| 2D points, 2048 x 2048, 7 functions, 119 simulations | 10,000 | not finished at 3.5 h | not finished at 98 min | |
+
+Every output of 0.4.0 is identical, bit for bit, to 0.3.0's on these scenes.
+Setting `opa.parallelism=1` (the serial path) is 4 to 6 times slower for
+pattern analysis. Peak heap stayed under 450 MB in every case above.
 
 Label images are held as one `int` per voxel regardless of input bit depth, plus
 roughly 400 bytes per labelled voxel of extracted geometry. A 2048 x 2048 x 100
@@ -360,7 +386,7 @@ rejects negative, infinite, or materially decreasing K values.
 OPA builds against two core modules, neither of which a user ever installs:
 
 - `oc3d-core` 0.1.0 — shared recursive regular-expression batch discovery.
-- `opa-core` 0.3.0 — OPA's own engine: label geometry, the distance measures,
+- `opa-core` 0.4.0 — OPA's own engine: label geometry, the distance measures,
   and the 2D point-pattern statistics with their Monte Carlo null. It is
   extracted so other plugins can embed the engine without requiring OPA to be
   installed.
@@ -370,7 +396,7 @@ releases into the local Maven repository before building OPA:
 
 ```text
 git clone --branch v0.1.0 https://github.com/Jay2owe/oc3d-core
-git clone --branch v0.3.0 https://github.com/Jay2owe/opa-core
+git clone --branch v0.4.0 https://github.com/Jay2owe/opa-core
 mvn -f oc3d-core/pom.xml clean install
 mvn -f opa-core/pom.xml clean install
 ```

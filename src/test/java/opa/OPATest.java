@@ -259,6 +259,38 @@ public class OPATest {
     }
 
     @Test
+    public void distanceProgressMovesWithinOneDirection() {
+        ImagePlus image = labels("cells", 20, 20, 1);
+        for (int i = 0; i < 6; i++) image.getProcessor().set(1 + 3 * i, 2 + 2 * i, i + 1);
+        final List<Double> fractions = new ArrayList<Double>();
+        final List<String> messages = new ArrayList<String>();
+
+        OPA.run(OPAParameters.builder(image)
+                .runPattern(false)
+                .includeSelfDistances(true)
+                .progressListener(new OPAProgressListener() {
+                    @Override
+                    public void onProgress(double fraction, String message) {
+                        fractions.add(fraction);
+                        messages.add(message);
+                    }
+                })
+                .build());
+
+        List<Double> within = new ArrayList<Double>();
+        for (int i = 0; i < messages.size(); i++) {
+            if (messages.get(i).startsWith("Distances ")) within.add(fractions.get(i));
+        }
+        // One report per source object, so the bar moves while the only
+        // direction is still running rather than jumping once at its end.
+        assertEquals(6, within.size());
+        assertTrue(within.get(0) < within.get(within.size() - 1));
+        for (int i = 1; i < fractions.size(); i++) {
+            assertTrue(fractions.get(i) >= fractions.get(i - 1));
+        }
+    }
+
+    @Test
     public void nonzeroZOriginCalibratesCentroidAndContainmentLookup() {
         ImagePlus image = labels("z-origin", 5, 5, 3);
         image.getStack().getProcessor(2).set(2, 3, 1);

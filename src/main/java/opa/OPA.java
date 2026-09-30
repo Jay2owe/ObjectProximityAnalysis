@@ -116,12 +116,15 @@ public final class OPA {
         for (int source = 0; source < channels.size(); source++) {
             AnalysisCancelledException.check();
             if (parameters.isIncludeSelfDistances()) {
+                // The segment lets the Fiji bar move within one long direction.
                 results.add(ProximityEngine.analyze(
                         channels.get(source),
                         channels.get(source),
                         parameters.getDistanceModes(),
                         parameters.getNeighborCount(),
-                        parameters.getContactDistance()));
+                        parameters.getContactDistance(),
+                        progressSegment(parameters, progressStart, progressEnd,
+                                completed, total)));
                 completed++;
                 reportProgress(parameters,
                         progress(progressStart, progressEnd, completed, total),
@@ -134,7 +137,9 @@ public final class OPA {
                         channels.get(target),
                         parameters.getDistanceModes(),
                         parameters.getNeighborCount(),
-                        parameters.getContactDistance()));
+                        parameters.getContactDistance(),
+                        progressSegment(parameters, progressStart, progressEnd,
+                                completed, total)));
                 completed++;
                 reportProgress(parameters,
                         progress(progressStart, progressEnd, completed, total),

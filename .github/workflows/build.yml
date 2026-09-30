@@ -11,7 +11,7 @@ env:
   OC3D_CORE_REPO: Jay2owe/oc3d-core
   OC3D_CORE_REF: v0.1.0
   OPA_CORE_REPO: Jay2owe/opa-core
-  OPA_CORE_REF: v0.3.0
+  OPA_CORE_REF: v0.4.0
 
 jobs:
   test:

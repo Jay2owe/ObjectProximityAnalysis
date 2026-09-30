@@ -204,7 +204,13 @@ signature at the correct spatial scale; the global test rejects CSR at the
 expected rate as the effect size increases.
 
 ### V6 — Scale benchmark
-*No external dependency. Estimated 0.5 day. Closes a separate audit bullet.*
+***Complete, 2026-09-30. Runtime table in [`README.md`](README.md#how-long-a-run-takes).***
+Seeded synthetic scenes from 200 to 10,000 objects, timed on opa-core 0.3.0
+and 0.4.0 with every case's full output fingerprinted: 0.4.0 is 2 to 21 times
+faster by default (up to 95 times on the serial path) with bit-identical output. 10,000-point pattern analysis
+with 119 simulations finished on neither engine within the time allowed and
+is left for a later version. The benchmark is `ScaleBenchmark` in the test
+sources (`-Dtest=ScaleBenchmark -Dopa.benchmark=true -Djacoco.skip=true`).
 
 Time and memory for 999-simulation envelopes across object counts spanning
 10²–10⁴, plus the O(n²) surface-to-surface distance path flagged in `README.md`.

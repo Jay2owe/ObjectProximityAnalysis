@@ -4,6 +4,7 @@
 
 ### Changed
 
+- **Depends on opa-core 0.4.0** (was 0.3.0).
 - **Dialogs default to 119 Monte Carlo simulations, was 99.** Both the single
   run and the batch dialog now use the same default as the Java API
   (`OPAParameters.DEFAULT_SIMULATIONS`), which gives an exact 5% envelope. A
@@ -19,6 +20,20 @@
   closed the dialog without going back). The output folder starts blank, and
   blank saves into the input folder; auto-save with a blank folder is no
   longer rejected.
+
+### Performance
+
+- **Distances and point-pattern analysis are much faster, with identical
+  results.** On the benchmark scenes (README, *How long a run takes*): 3,200
+  2D objects 63 s -> 3.1 s, 400 3D objects 2.8 min -> 9.5 s, 2,000 points with 119
+  simulations 41 s -> 5.6 s. Every output is bit-identical to the previous release:
+  opa-core carries the previous engine as an oracle and compares millions of
+  values bit for bit, the 672 golden outputs pass unchanged, and every
+  benchmark case's full output has the same SHA-256 before and after.
+- **The progress bar moves within a long distance calculation** instead of
+  only between channel pairs.
+- Pattern analysis of 10,000 points is still too slow to finish in an hour;
+  that is left for a later version.
 
 ### Fixed
 
