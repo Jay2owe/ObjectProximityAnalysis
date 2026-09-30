@@ -240,6 +240,16 @@
 				<configuration>
 					<!-- SCM manifest values change even when classes do not. -->
 					<forceCreation>true</forceCreation>
+					<archive>
+						<manifest>
+							<!--
+							  Both cores are shaded into this jar and Fiji supplies ImageJ;
+							  users install this one file. A Class-Path line would name
+							  jars that do not exist in Fiji.
+							-->
+							<addClasspath>false</addClasspath>
+						</manifest>
+					</archive>
 				</configuration>
 			</plugin>
 			<plugin>

@@ -21,6 +21,7 @@ import java.util.jar.JarFile;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class PackagingIT {
@@ -47,6 +48,12 @@ public class PackagingIT {
             String implementationBuild = attributes.getValue(
                     "Implementation-Build");
             assertEquals(gitHead(project), implementationBuild);
+
+            // 0.4.0 listed ij, oc3d-core and opa-core here. Fiji supplies
+            // ImageJ and both cores are bundled, so the line named jars a
+            // Fiji does not have.
+            assertNull("manifest must not declare a Class-Path",
+                    attributes.getValue("Class-Path"));
 
             // Both cores are present, each under its own relocated root.
             assertNotNull(jar.getJarEntry(

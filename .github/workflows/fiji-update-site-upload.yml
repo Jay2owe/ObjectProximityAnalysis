@@ -169,24 +169,12 @@ jobs:
 
           if f"Implementation-Build: {expected_commit}\r\n" not in manifest:
               raise SystemExit("Canonical release has the wrong source commit")
-          # 0.4.0's manifest still lists its build-time class path. ImageJ is
-          # provided by Fiji and both cores are bundled (relocated, checked
-          # above), so only those names are accepted; anything else would be
-          # a jar the user has to install separately.
-          declared = ""
-          lines = manifest.split("\r\n")
-          for index, line in enumerate(lines):
-              if line.startswith("Class-Path:"):
-                  declared = line[len("Class-Path:"):]
-                  for more in lines[index + 1:]:
-                      if not more.startswith(" "):
-                          break
-                      declared += more[1:]
-          allowed = ("ij-", "oc3d-core-", "opa-core-")
-          external = [jar for jar in declared.split() if not jar.startswith(allowed)]
-          if external:
+          # Since 0.4.1 the manifest has no Class-Path: Fiji provides ImageJ
+          # and both cores are bundled (relocated, checked above). Any
+          # Class-Path line would name a jar the user has to install.
+          if "\nClass-Path:" in manifest:
               raise SystemExit(
-                  f"Canonical release declares external class-path jars: {external}")
+                  "Canonical release declares external class-path jars")
           print(f"Canonical release SHA-256 verified: {actual_hash}")
           PY
 
