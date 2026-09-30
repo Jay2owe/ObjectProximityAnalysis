@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+The first public release. Everything below the next heading was internal.
+
+### Performance
+
+- **Distances and point-pattern analysis are much faster, with identical
+  results.** On the benchmark scenes (README, *How long a run takes*): 3,200
+  2D objects 63 s -> 3.1 s, 400 3D objects 2.8 min -> 9.5 s, 2,000 points with 119
+  simulations 41 s -> 5.6 s. Every output is bit-identical to the previous release:
+  opa-core carries the previous engine as an oracle and compares millions of
+  values bit for bit, the 672 golden outputs pass unchanged, and every
+  benchmark case's full output has the same SHA-256 before and after.
+- **The progress bar moves within a long distance calculation** instead of
+  only between channel pairs.
+- Pattern analysis of 10,000 points is still too slow to finish in an hour;
+  that is left for a later version.
+
 ### Changed
 
 - **Depends on opa-core 0.4.0** (was 0.3.0).
@@ -21,20 +37,6 @@
   blank saves into the input folder; auto-save with a blank folder is no
   longer rejected.
 
-### Performance
-
-- **Distances and point-pattern analysis are much faster, with identical
-  results.** On the benchmark scenes (README, *How long a run takes*): 3,200
-  2D objects 63 s -> 3.1 s, 400 3D objects 2.8 min -> 9.5 s, 2,000 points with 119
-  simulations 41 s -> 5.6 s. Every output is bit-identical to the previous release:
-  opa-core carries the previous engine as an oracle and compares millions of
-  values bit for bit, the 672 golden outputs pass unchanged, and every
-  benchmark case's full output has the same SHA-256 before and after.
-- **The progress bar moves within a long distance calculation** instead of
-  only between channel pairs.
-- Pattern analysis of 10,000 points is still too slow to finish in an hour;
-  that is left for a later version.
-
 ### Fixed
 
 - **A batch survives running out of memory in one group.** The group is
@@ -52,7 +54,6 @@
 - **L(r)-r plots** fill the envelope only where both bounds are defined, and a
   plot is no longer drawn for a curve with no defined value (for example a
   channel with one object).
-
 - **Both commands run in a headless Fiji.** Headless Fiji's dialog ignores
   file and folder fields, so every later text field read its neighbour's value
   and the run failed with a stack trace; `--headless` macros and scripts could
@@ -75,14 +76,14 @@
 
 - **V4 on a real dataset** moves to the methods paper. The comparison with
   DiAna ran on synthetic 3D label images (sphere pairs with analytic truth and
-  irregular blobs, anisotropic voxels) and passed; see `V4_FINDINGS.md`. No
+  irregular blobs, anisotropic voxels) and passed; see [`V4_FINDINGS.md`](docs/validation/V4_FINDINGS.md). No
   real label dataset was available to this release's build environment.
 - **DiAna through its own macro command** was not usable: `DiAna_Analyse`
   produces no readable results table headless or with `-batch`. The recorded
   comparison therefore calls DiAna's distance routine and the same 3D ImageJ
-  Suite methods directly (`validation/v4-diana/README.md`).
+  Suite methods directly ([`validation/v4-diana/README.md`](validation/v4-diana/README.md)).
 
-## [0.3.0] - 2026-08-20
+## [0.3.0] - 2026-08-20 (internal milestone, not released)
 
 ### Fixed
 
@@ -100,7 +101,7 @@
 
   The global maximum-deviation p-value was already correctly calibrated
   (empirical Type I error 0.038-0.048 across five function and correction
-  pairs) and is unchanged. Full record in `V2_FINDINGS.md`.
+  pairs) and is unchanged. Full record in [`V2_FINDINGS.md`](docs/validation/V2_FINDINGS.md).
 
 ### Added
 
@@ -134,9 +135,9 @@
 
 - Depends on `opa-core` 0.3.0, was 0.2.0.
 
-## [0.3.0] - 2026-08-20 (continued): engine extraction
+### Engine extraction (2026-08-12, part of the 0.3.0 milestone)
 
-### Added
+#### Added
 
 - **Cross pair correlation g12(r)** — the A-to-B form of pair correlation,
   completing the cross family alongside cross-K, cross-L and cross-G. Available
@@ -154,7 +155,7 @@
   caller says otherwise. `OPAParameters.defaultPatternFunctions()` and
   `isDefaultPatternFunction(...)` expose that set.
 
-### Changed
+#### Changed
 
 - The analysis engine was extracted into the embeddable `opa-core` module, so
   other plugins can compile in OPA's distance and point-pattern measurements
@@ -183,7 +184,7 @@
   Macro use is entirely unaffected: option names, enum constant names and every
   table column keep their exact text.
 
-### Unchanged, and gated
+#### Unchanged, and gated
 
 - **No output moved.** 546 golden dumps were captured from the pre-extraction
   build — 32 corpus cases x 17 configurations covering every documented input
@@ -193,7 +194,7 @@
   are unchanged after extraction, bit for bit. The goldens are immutable and
   gate every later change.
 
-## [0.2.0] - 2026-08-07
+## [0.2.0] - 2026-08-07 (internal milestone, not released)
 
 - Initial ImageJ/Fiji plugin scaffold.
 - Replaced the private recursive regex folder walker with `oc3d-core`'s shared
@@ -254,4 +255,4 @@
   saturated G curve can no longer force every p-value to 1, and rejection of
   duplicate ROI sets across channels.
 
-[0.2.0]: https://github.com/Jay2owe/ObjectProximityAnalysis/releases/tag/v0.2.0
+[Unreleased]: https://github.com/Jay2owe/ObjectProximityAnalysis/commits/main

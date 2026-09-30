@@ -1,6 +1,6 @@
 # V2 findings — envelope coverage and Type I error
 
-Harness: `opa-core: src/test/java/sc/fiji/opa/core/spatial/EnvelopeCalibrationStudy.java`
+Harness: [`EnvelopeCalibrationStudy.java`](https://github.com/Jay2owe/opa-core/blob/master/src/test/java/sc/fiji/opa/core/spatial/EnvelopeCalibrationStudy.java) in opa-core
 Both runs: 1,000 realisations × 200 points, window 1000×1000, radii 10–100, seed 20260820.
 
 **Outcome: one real defect found and fixed, one claim cleared.** The global
@@ -12,7 +12,7 @@ rank envelope and the measured coverage now lands on nominal.
 
 Same harness, 1,000 realisations, 119 simulations (the count at which a rank
 envelope expresses 5% exactly), same seed and window.
-Raw report: `opa-core: validation/v2-after-fix/v2-report.txt`
+Raw report: `v2-report.txt`, written by the harness (generated, not tracked)
 
 | Case | Pooled escape, before | after | Type I error, after |
 |---|---|---|---|
@@ -50,7 +50,7 @@ anomalies. Recorded in `GoldenMasterTest`'s class documentation.
 ## The original run, 2026-08-20, before the fix
 
 99 simulations, the shipped default at the time.
-Raw report: `opa-core: validation/v2-envelope-calibration/v2-report.txt`
+Raw report: `v2-report.txt`, written by the harness (generated, not tracked)
 
 ### What passed
 

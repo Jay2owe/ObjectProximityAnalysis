@@ -1,6 +1,6 @@
 # V5 findings — behaviour on known non-random patterns
 
-Harness: `src/test/java/opa/validation/NonRandomPatternValidationTest.java`
+Harness: [`NonRandomPatternValidationTest.java`](../../src/test/java/opa/validation/NonRandomPatternValidationTest.java)
 (generators in `PointProcesses.java`).
 Run: 2026-09-29, full mode, `-Dopa.validation=true`.
 

@@ -4,8 +4,8 @@ Run: 2026-09-29. Object Proximity Analysis 0.3.0 against DiAna 1.54
 (mcib3d-core 4.1.7b), both in the same disposable Fiji, on identical 3D label
 images with anisotropic voxels of 0.2 × 0.2 × 0.5 µm (voxel diagonal
 0.574 µm). How it was produced, tool versions and the exact DiAna calls:
-[`validation/v4-diana/README.md`](validation/v4-diana/README.md). Result tables:
-[`validation/v4-diana/results/`](validation/v4-diana/results/).
+[`validation/v4-diana/README.md`](../../validation/v4-diana/README.md). Result tables:
+[`validation/v4-diana/results/`](../../validation/v4-diana/results/).
 
 **Outcome: pass.** Centre-centre agrees with DiAna to floating-point noise and
 centre-edge to within half a voxel diagonal, on both scenes; both tools recover

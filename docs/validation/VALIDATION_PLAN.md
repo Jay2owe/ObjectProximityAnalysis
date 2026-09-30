@@ -68,12 +68,12 @@ analytic value at every radius, for both translation and border corrections.
 *uncorrected* by design, so under CSR the observed Ĝ is biased downward near the
 window edge. Run the G checks with r ≤ 0.1 × min(window side) and report the
 residual bias as a measured number rather than treating it as a defect. This
-matches the limitation already documented in `README.md`.
+matches the limitation already documented in the [README](../../README.md).
 
 ### V2 — Envelope coverage and Type I error
 *No external dependency. **Harness built and running, 2026-08-20.***
 
-Implemented as `opa-core/src/test/java/sc/fiji/opa/core/spatial/EnvelopeCalibrationStudy.java`.
+Implemented as [`EnvelopeCalibrationStudy.java`](https://github.com/Jay2owe/opa-core/blob/master/src/test/java/sc/fiji/opa/core/spatial/EnvelopeCalibrationStudy.java) in opa-core.
 Skipped in a normal build; enable with `-Dopa.calibration=true`, and tune with
 `-Dopa.calibration.realisations`, `.simulations`, `.points`, `.seed` and `.out`.
 Covers K/translation, K/border, L/translation, G/border and pair
@@ -140,7 +140,7 @@ actually simulates, OPA's is roughly 2.5× less biased. No code change; it needs
 a README note so nobody comparing the two tools thinks one is broken.
 **Open thread closed 2026-09-29:** the remaining cross-K border difference is
 entirely spatstat's binned `Kmulti` construction; on a grid refined 200× it
-falls to 2e-16 (`validation/v3-border-thread/`).
+falls to 2e-16 ([`validation/v3-border-thread/`](../../validation/v3-border-thread/)).
 
 `spatstat` (Baddeley, Rubak & Turner) is the reference implementation reviewers
 will name. It provides a 1:1 match for every function OPA implements: `Kest`,
@@ -204,7 +204,7 @@ signature at the correct spatial scale; the global test rejects CSR at the
 expected rate as the effect size increases.
 
 ### V6 — Scale benchmark
-***Complete, 2026-09-30. Runtime table in [`README.md`](README.md#how-long-a-run-takes).***
+***Complete, 2026-09-30. Runtime table in [`README.md`](../../README.md#how-long-a-run-takes).***
 Seeded synthetic scenes from 200 to 10,000 objects, timed on opa-core 0.3.0
 and 0.4.0 with every case's full output fingerprinted: 0.4.0 is 2 to 21 times
 faster by default (up to 95 times on the serial path) with bit-identical output. 10,000-point pattern analysis

@@ -1,6 +1,6 @@
 # V1 findings — convergence to analytic Poisson expectations
 
-Harness: `src/test/java/opa/validation/PoissonConvergenceValidationTest.java`
+Harness: [`PoissonConvergenceValidationTest.java`](../../src/test/java/opa/validation/PoissonConvergenceValidationTest.java)
 (generators in `PointProcesses.java`, shared statistics in `ValidationSupport.java`).
 Run: 2026-09-29, full mode, `-Dopa.validation=true`.
 

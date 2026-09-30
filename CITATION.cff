@@ -2,12 +2,28 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "Object Proximity Analysis"
 type: software
+abstract: >-
+  ImageJ/Fiji plugin for calibrated distances between segmented objects in
+  2D and 3D label images or ROI sets (centre to centre, centre to edge, edge
+  to centre, edge to edge and surface contact, for every directed pair of up
+  to five channels), with 2D spatial point-pattern statistics (Ripley's K
+  and L, nearest-neighbour G, pair correlation and their cross-type forms)
+  and reproducible Monte Carlo tests against complete spatial randomness.
 authors:
   - family-names: Malcolm
     given-names: Jamie
     orcid: "https://orcid.org/0009-0008-3862-2776"
+    affiliation: "UK Dementia Research Institute at Imperial College London"
+    email: jamiemalcolm12@gmail.com
 version: 0.3.0
 date-released: "2026-08-20"
 url: "https://github.com/Jay2owe/ObjectProximityAnalysis"
 repository-code: "https://github.com/Jay2owe/ObjectProximityAnalysis"
 license: BSD-3-Clause
+keywords:
+  - imagej
+  - fiji
+  - microscopy
+  - spatial-statistics
+  - point-pattern
+  - image-analysis

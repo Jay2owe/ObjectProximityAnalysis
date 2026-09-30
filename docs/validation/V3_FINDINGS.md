@@ -1,9 +1,9 @@
 # V3 findings — agreement with spatstat
 
 Run: 2026-08-20. R 4.6.1, spatstat.explore 3.8.2.
-Export: `opa-core: src/test/java/sc/fiji/opa/core/spatial/SpatstatExport.java`
-Comparison: `opa-core: src/test/resources/spatstat/compare-spatstat.R`
-Raw report: `opa-core: validation/v3-spatstat/v3-report.txt`
+Export: [`SpatstatExport.java`](https://github.com/Jay2owe/opa-core/blob/master/src/test/java/sc/fiji/opa/core/spatial/SpatstatExport.java) in opa-core
+Comparison: [`compare-spatstat.R`](https://github.com/Jay2owe/opa-core/blob/master/src/test/resources/spatstat/compare-spatstat.R) in opa-core
+Raw report: `v3-report.txt`, written by the comparison script (generated, not tracked)
 
 12 fixed patterns — complete spatial randomness at three densities, a cluster
 process, a jittered grid, an elongated window, a window whose origin is not at
@@ -99,7 +99,7 @@ Re-run with R 4.6.1 and spatstat.explore 3.8.2 on the same exported patterns,
 evaluating spatstat's border K on radius grids that start at 0 and are refined
 so that the original 20 radii are every 1st, 2nd, 5th, 10th, 50th and 200th
 break. Script and full table:
-[`validation/v3-border-thread/`](validation/v3-border-thread/). Maximum relative
+[`validation/v3-border-thread/`](../../validation/v3-border-thread/). Maximum relative
 difference from OPA over the original radii, univariate curves rescaled by
 (n−1)/n to remove the intensity convention:
 

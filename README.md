@@ -1,158 +1,58 @@
 # Object Proximity Analysis
 
-Object Proximity Analysis is an ImageJ/Fiji plugin for calibrated inter-object
-distances and 2D spatial point-pattern statistics. It accepts label images or
-ImageJ ROI sets from any segmentation workflow. Segmentation is deliberately
-separate from analysis.
+[![Build](https://github.com/Jay2owe/ObjectProximityAnalysis/actions/workflows/build.yml/badge.svg)](https://github.com/Jay2owe/ObjectProximityAnalysis/actions/workflows/build.yml)
+[![Licence: BSD-3-Clause](https://img.shields.io/badge/licence-BSD--3--Clause-blue.svg)](LICENSE)
+<!-- DOI badge: add once a release is archived on Zenodo. -->
 
-Version `0.2.0` is the current software release.
+Calibrated distances between segmented objects, and 2D spatial point-pattern
+statistics with Monte Carlo significance tests, for ImageJ and Fiji.
 
-## Current scope
+It accepts label images or ImageJ ROI sets from any segmentation workflow;
+segmentation is deliberately separate from analysis. Every directed pair of up
+to five channels is measured centre to centre, centre to edge, edge to centre,
+edge to edge and by surface contact, and each channel's centroids can be
+tested against complete spatial randomness with Ripley's K and its relatives.
 
-- 1-5 channels, every directed channel pair, and optional self-channel analysis.
-- Centre-centre, centre-edge, edge-centre, edge-edge, and surface-contact modes.
-- First through k-th neighbours, partner labels, contact-threshold flags, and
-  edge-object flags.
-- Exact shared-face contact and thresholded surface apposition are separate
-  outputs. In 2D these are lengths; in 3D they are areas.
-- Ripley K, L, L(r)-r, nearest-neighbour G, pair correlation g(r), cross-K,
-  cross-L, cross-G, and cross pair correlation g12(r).
-  Cross pair correlation is **not selected by default**: it is another full
-  pass per Monte Carlo simulation, so an existing run does not silently get
-  slower. Tick `Function_CROSS_PAIR_CORRELATION`, or request it through the
-  API, to include it.
-- Translation or border edge correction for K and its derived curves. G and
-  cross-G are uncorrected, so their `CSR_Expectation` column is the theoretical
-  curve rather than an edge-corrected one; compare an observed G against the
-  simulated envelope rather than against that column.
-- Reproducible complete-spatial-randomness Monte Carlo envelopes with recorded
-  seed, pointwise 95% bounds, and an exchangeable global maximum-deviation
-  Monte Carlo p-value.
-- Per-object, summary, histogram, empirical cumulative distribution (ECDF), and
-  curve tables.
-- Folder batch grouping by regular expression, with preview, recursive scanning,
-  mean curves, and mean ECDFs with between-group spread.
-- Dialog-free Java API and ImageJ macro operation.
+## Installation
 
-The first point-pattern implementation is 2D. A 3D label stack is rejected for
-pattern analysis unless the caller explicitly requests XY centroid projection.
-Distance measurements remain fully 3D.
+### From the Fiji update site (recommended)
 
-### How long a run takes
+1. In Fiji, open `Help > Update...` and click **Manage Update Sites**.
+2. Tick **ObjectProximityAnalysis**, or add it with **Add Unlisted Site**
+   and the URL `https://sites.imagej.net/ObjectProximityAnalysis/`.
+3. Click **Apply and Close**, then **Apply Changes**, and restart Fiji.
 
-Distances are exact, but only the pairs that can still be among the k nearest
-are measured face by face: each object's bounding box gives an exact lower
-bound on its distance, so the search stops as soon as no remaining object can
-compete. Point-pattern K is computed at every radius in one pass over the
-pairs. Pattern analysis still grows with the square of the object count and
-the number of simulations, and is the slow half of a large run. Press Escape
-to stop a run at any time.
+### Manually
 
-Measured on seeded synthetic scenes (default settings: all five distance modes
-with k = 3, or the seven default pattern functions with 119 simulations and 50
-radii), median of three runs, on a laptop with an AMD Ryzen 7 7730U (8 cores,
-16 threads), Java 21 and a 4 GB heap:
+Download `Object_Proximity_Analysis-<version>.jar` from the
+[latest release](https://github.com/Jay2owe/ObjectProximityAnalysis/releases/latest),
+copy it into Fiji's `plugins/` folder and restart Fiji. The jar is
+self-contained: its engine is bundled inside it, so nothing else needs
+installing.
 
-| Scene | Objects (both channels) | 0.3.0 | 0.4.0 | Faster by |
-|---|---|---|---|---|
-| 2D discs, radius 4 px, 1024 x 1024 | 200 | 0.5 s | 0.2 s | 2.2x |
-| 2D discs, radius 4 px, 1024 x 1024 | 800 | 4.6 s | 0.4 s | 10x |
-| 2D discs, radius 4 px, 1024 x 1024 | 3,200 | 63 s | 3.1 s | 21x |
-| 3D balls, radius 5 voxels, 256 x 256 x 48 | 100 | 14 s | 2.4 s | 5.7x |
-| 3D balls, radius 5 voxels, 256 x 256 x 48 | 200 | 49 s | 4.6 s | 11x |
-| 3D balls, radius 5 voxels, 256 x 256 x 48 | 400 | 2.8 min | 9.5 s | 18x |
-| 2D points, 2048 x 2048, 7 functions, 119 simulations | 400 | 1.8 s | 0.4 s | 4.7x |
-| 2D points, 2048 x 2048, 7 functions, 119 simulations | 2,000 | 41 s | 5.6 s | 7.3x |
-| 2D points, 2048 x 2048, 7 functions, 119 simulations | 10,000 | not finished at 3.5 h | not finished at 98 min | |
+## Requirements
 
-Every output of 0.4.0 is identical, bit for bit, to 0.3.0's on these scenes.
-Setting `opa.parallelism=1` (the serial path) is 4 to 6 times slower for
-pattern analysis. Peak heap stayed under 450 MB in every case above.
+- Fiji, or ImageJ 1.54 or later.
+- Java 8 or later (Fiji's bundled Java is fine).
+- No other plugins. Segment your images with any tool first.
 
-Label images are held as one `int` per voxel regardless of input bit depth, plus
-roughly 400 bytes per labelled voxel of extracted geometry. A 2048 x 2048 x 100
-stack with five per cent of voxels labelled therefore needs several gigabytes;
-raise Fiji's memory in `Edit > Options > Memory & Threads` or crop first. Inputs
-above 2,147,483,647 voxels are rejected outright.
+## Usage
 
-## Measurement definitions
+```text
+Plugins > Object Proximity Analysis
+Plugins > Object Proximity Analysis Batch...
+```
 
-- Centre-edge is zero when the source centre lies inside the target object.
-- Edge-centre is the directed reverse of centre-edge.
-- Edge-edge is the exact minimum distance between calibrated voxel faces and is
-  zero for touching or overlapping objects.
-- Exact contact counts source boundary faces directly adjacent to the selected
-  target label.
-- Apposed surface counts source boundary faces within the chosen contact
-  distance of an oppositely facing target surface. A face is counted whole once
-  any part of it is within range, so two objects meeting only at a corner still
-  contribute their full adjacent faces even at contact distance zero, where
-  exact contact is correctly zero. Compare the two columns rather than reading
-  apposed surface alone.
-- Surface-contact partners are ranked by apposed surface measure, largest first.
-  Distance modes are ranked smallest first.
+![The Object Proximity Analysis dialog](docs/images/opa-dialog.png)
 
-Label images must contain positive integer object labels on a zero background.
-Each input must contain one ImageJ channel and one time frame; split
-multichannel or time-series data into separate label images first. All inputs
-must have identical dimensions and voxel calibration. Duplicate image or API
-channel names receive distinct effective names in every output. Multi-channel
-analyses also require identical ImageJ X/Y/Z spatial origins; differing origins
-are rejected rather than treating physically shifted channels as registered.
-Centroids, inverse pixel lookups, default windows, and ROI-derived windows all
-use `(pixel coordinate - spatial origin) × voxel size`.
+The main dialog supports either open label images or `.zip`/`.roi` sets. ROI
+input needs an open reference image for dimensions and calibration. Object ROIs
+must not overlap; conversion reports both ROI labels and the first conflicting
+pixel instead of overwriting an object. Each object ROI must be an area
+selection, use an in-range Z position (or Z=0 for an unpositioned ROI), and
+cover at least one in-bounds pixel.
 
-## Validation, and how the numbers compare with spatstat
-
-Every point-pattern function here has been checked against
-[spatstat](https://spatstat.org/), the reference implementation in R, on twelve
-fixed patterns covering complete spatial randomness at three densities, a
-cluster process, a jittered grid, an elongated window, a window whose origin is
-not at the pixel origin, and four bivariate pairs.
-
-Ripley K, L, L(r)−r, cross-K and cross-L agree to within 1e-15 relative under
-both translation correction and no correction. Nearest-neighbour G and cross-G
-agree exactly, bit for bit. The pointwise Monte Carlo envelope and the global
-p-value have been separately calibrated over 1,000 randomised patterns.
-
-### The border correction differs from spatstat, deliberately
-
-If you cross-check this plugin against spatstat you will find border-corrected
-K larger by a factor of n/(n−1) — about 2% at 50 objects, 0.2% at 500. Neither
-tool is wrong; they estimate the density term differently.
-
-A point cannot be its own neighbour. When the number of objects is fixed, which
-is exactly what this plugin's randomisation does in every simulation, an
-interior object expects (n−1)·πr²/|W| neighbours. Dividing by (n−1), as this
-plugin does, is then unbiased. spatstat divides by n, which is the standard
-choice when the number of points is itself random.
-
-Measured over 3,000 randomised patterns against the analytic πr², this plugin's
-mean absolute bias is 1.06% at 50 objects and 0.36% at 200, against 2.99% and
-0.86% for the other convention. The choice here is the one matched to the null
-model the plugin actually simulates.
-
-Translation correction is the default and is unaffected. Use it unless you have
-a specific reason not to.
-
-### Nearest-neighbour radii can saturate
-
-G and cross-G are cumulative distributions: they climb to 1 and stop. Once
-almost every object already has a neighbour within r, every randomised curve
-takes the same value there, the envelope collapses to a point, and nothing can
-fall outside it. Those radii are not evidence of randomness — they are empty.
-
-The plugin warns when requested radii pass the point at which the expected
-curve reaches 99% of its maximum, reports `Saturation_Radius`,
-`Saturated_Radii` and `Saturation_Status` in the pattern summary, and flags
-individual radii with a `Saturated` column in the curve tables.
-
-**It warns rather than silently capping the radius range**, because quietly
-changing what you asked for is worse than telling you it will not help. If you
-see the warning, either shorten the radius range or read those radii as
-carrying no information.
-
-## Calibration and observation window
+### Calibration and observation window
 
 The plugin displays detected voxel size in the dialog. An uncalibrated image is
 reported in `pixel`, never silently in micrometres. The Java API can require
@@ -166,21 +66,67 @@ Objects are included when their centroid lies
 inside that window; objects crossing either the acquisition boundary or the
 effective observation-window boundary are marked as edge objects.
 
-## Fiji use
+## Macro
 
-Build the JAR, copy it into Fiji's `plugins/` folder, restart Fiji, then use:
+ImageJ's `GenericDialog` makes the command recordable:
 
 ```text
-Plugins > Object Proximity Analysis
-Plugins > Object Proximity Analysis Batch...
+run("Object Proximity Analysis",
+    "input_mode=[Open label images] channel_count=2 "
+  + "label_image_1=A label_image_2=B "
+  + "run_distances include_self_distances k_nearest_neighbours=1 "
+  + "contact_distance=2 run_pattern_analysis "
+  + "monte_carlo_simulations=119 random_seed=777 "
+  + "edge_correction=TRANSLATION hide_display");
 ```
 
-The main dialog supports either open label images or `.zip`/`.roi` sets. ROI
-input needs an open reference image for dimensions and calibration. Object ROIs
-must not overlap; conversion reports both ROI labels and the first conflicting
-pixel instead of overwriting an object. Each object ROI must be an area
-selection, use an in-range Z position (or Z=0 for an unpositioned ROI), and
-cover at least one in-bounds pixel.
+Important option names are:
+
+| Group | Options |
+|---|---|
+| Input | `input_mode`, `channel_count`, `roi_reference_image`, `label_image_1`...`label_image_5`, `roi_set_1`...`roi_set_5`, `observation_region_roi` |
+| Distances | `run_distances`, `include_self_distances`, `k_nearest_neighbours`, `contact_distance`, `centre_centre`, `centre_edge`, `edge_centre`, `edge_edge`, `surface_contact` |
+| Pattern | `run_pattern_analysis`, `function_k`, `function_l`, `function_l_minus_r`, `function_g`, `function_pair_correlation`, `function_cross_k`, `function_cross_l`, `function_cross_g`, `function_cross_pair_correlation` (off by default), `maximum_radius_0_is_auto`, `radius_bins`, `monte_carlo_simulations`, `random_seed`, `edge_correction`, `project_3d_centroids_to_xy` |
+| Output | `histogram_bins`, `auto_save`, `output_directory`, `output_prefix`, `hide_display` |
+
+The smallest attainable Monte Carlo p-value is `1/(simulations+1)`. For example,
+99 simulations cannot report a p-value below 0.01. The default of 119 gives an
+exact 5% envelope; a recorded macro that omits `monte_carlo_simulations` uses it.
+Pointwise envelopes are emitted only when all requested simulations contribute
+at that radius. Curve tables record `Envelope_N` and `Envelope_Status` for each
+radius; incomplete bounds are `NaN` without invalidating an otherwise complete
+global rank test.
+The cross-function null randomises both patterns independently, so a significant
+cross-K, cross-L, or cross-G rejects "both patterns are complete spatial
+randomness and independent of each other". It does not isolate dependence: a
+clustered but genuinely independent pair can reject. Conditioning on the
+observed marginal patterns, by random labelling or toroidal shifts, is not
+implemented.
+
+A radius where fewer than two of the observed and simulated curves are estimable
+carries no comparative information and is excluded from the global
+maximum-deviation statistic for every curve alike. A radius where every
+estimable curve took the same value is excluded for the same reason: the
+observed curve is exactly typical of the null there, however far the shared
+value sits from the theoretical expectation. Nearest-neighbour G does this at
+every radius past saturation at 1, and K and its derived curves do it at a
+smallest radius closer than any pair in the pattern. Under border correction this
+is what happens at radii larger than almost every point's distance to the window
+boundary. `Radius_At_Maximum_Deviation` is therefore the radius at which the
+ranked standardised statistic peaks, and `Maximum_Absolute_Deviation` is the raw
+departure from the theoretical expectation at that same radius.
+
+Pair correlation supports translation edge correction (or no edge correction).
+Border correction is rejected because its risk-set weighting is not valid for
+this pair-correlation estimator and can otherwise produce negative estimates.
+Cross pair correlation carries the identical restriction: a rule that held for
+g(r) but not for its A-to-B form would be worse than the restriction. It is the
+ring-normalised derivative of cross-K, the same estimator family as the
+univariate form, so the two can be read side by side.
+Radii must be strictly increasing. The public K-to-pair-correlation helper also
+rejects negative, infinite, or materially decreasing K values.
+
+## Outputs
 
 Auto-save writes:
 
@@ -221,6 +167,180 @@ instead of returning empty output.
 Distance settings are validated only when distance analysis runs, and pattern
 settings only when pattern analysis runs, so either half remains independently
 usable.
+
+## What it measures
+
+- 1-5 channels, every directed channel pair, and optional self-channel analysis.
+- Centre-centre, centre-edge, edge-centre, edge-edge, and surface-contact modes.
+- First through k-th neighbours, partner labels, contact-threshold flags, and
+  edge-object flags.
+- Exact shared-face contact and thresholded surface apposition are separate
+  outputs. In 2D these are lengths; in 3D they are areas.
+- Ripley K, L, L(r)-r, nearest-neighbour G, pair correlation g(r), cross-K,
+  cross-L, cross-G, and cross pair correlation g12(r).
+  Cross pair correlation is **not selected by default**: it is another full
+  pass per Monte Carlo simulation, so an existing run does not silently get
+  slower. Tick `Function_CROSS_PAIR_CORRELATION`, or request it through the
+  API, to include it.
+- Translation or border edge correction for K and its derived curves. G and
+  cross-G are uncorrected, so their `CSR_Expectation` column is the theoretical
+  curve rather than an edge-corrected one; compare an observed G against the
+  simulated envelope rather than against that column.
+- Reproducible complete-spatial-randomness Monte Carlo envelopes with recorded
+  seed, pointwise rank envelopes whose delivered level is reported (exactly 5%
+  at the default 119 simulations), and an exchangeable global
+  maximum-deviation Monte Carlo p-value.
+- Per-object, summary, histogram, empirical cumulative distribution (ECDF), and
+  curve tables.
+- Folder batch grouping by regular expression, with preview, recursive scanning,
+  mean curves, and mean ECDFs with between-group spread.
+- Dialog-free Java API and ImageJ macro operation.
+
+The first point-pattern implementation is 2D. A 3D label stack is rejected for
+pattern analysis unless the caller explicitly requests XY centroid projection.
+Distance measurements remain fully 3D.
+
+## How it works
+
+Each label image is read once into calibrated geometry: every object's
+centroid, its voxels, and every exposed voxel face as a calibrated rectangle
+(a line segment in 2D). Distances are measured between those faces and
+centroids in physical units, so anisotropic voxels are handled exactly, and
+for every source object the k nearest partners are kept in each requested
+mode.
+
+Point-pattern analysis works on the object centroids inside the observation
+window. The observed curve is compared with curves from simulated patterns
+that keep each channel's object count but place the objects uniformly at
+random (independently per channel for cross functions). The pointwise
+envelope is a rank envelope over those simulations, and the global p-value
+ranks the observed curve's largest standardised departure among all of them.
+
+### Measurement definitions
+
+- Centre-edge is zero when the source centre lies inside the target object.
+- Edge-centre is the directed reverse of centre-edge.
+- Edge-edge is the exact minimum distance between calibrated voxel faces and is
+  zero for touching or overlapping objects.
+- Exact contact counts source boundary faces directly adjacent to the selected
+  target label.
+- Apposed surface counts source boundary faces within the chosen contact
+  distance of an oppositely facing target surface. A face is counted whole once
+  any part of it is within range, so two objects meeting only at a corner still
+  contribute their full adjacent faces even at contact distance zero, where
+  exact contact is correctly zero. Compare the two columns rather than reading
+  apposed surface alone.
+- Surface-contact partners are ranked by apposed surface measure, largest first.
+  Distance modes are ranked smallest first.
+
+Label images must contain positive integer object labels on a zero background.
+Each input must contain one ImageJ channel and one time frame; split
+multichannel or time-series data into separate label images first. All inputs
+must have identical dimensions and voxel calibration. Duplicate image or API
+channel names receive distinct effective names in every output. Multi-channel
+analyses also require identical ImageJ X/Y/Z spatial origins; differing origins
+are rejected rather than treating physically shifted channels as registered.
+Centroids, inverse pixel lookups, default windows, and ROI-derived windows all
+use `(pixel coordinate - spatial origin) × voxel size`.
+
+### How long a run takes
+
+Distances are exact, but only the pairs that can still be among the k nearest
+are measured face by face: each object's bounding box gives an exact lower
+bound on its distance, so the search stops as soon as no remaining object can
+compete. Point-pattern K is computed at every radius in one pass over the
+pairs. Pattern analysis still grows with the square of the object count and
+the number of simulations, and is the slow half of a large run. Press Escape
+to stop a run at any time.
+
+Measured on seeded synthetic scenes (default settings: all five distance modes
+with k = 3, or the seven default pattern functions with 119 simulations and 50
+radii), median of three runs, on a laptop with an AMD Ryzen 7 7730U (8 cores,
+16 threads), Java 21 and a 4 GB heap:
+
+| Scene | Objects (both channels) | 0.3.0 | 0.4.0 | Faster by |
+|---|---|---|---|---|
+| 2D discs, radius 4 px, 1024 x 1024 | 200 | 0.5 s | 0.2 s | 2.2x |
+| 2D discs, radius 4 px, 1024 x 1024 | 800 | 4.6 s | 0.4 s | 10x |
+| 2D discs, radius 4 px, 1024 x 1024 | 3,200 | 63 s | 3.1 s | 21x |
+| 3D balls, radius 5 voxels, 256 x 256 x 48 | 100 | 14 s | 2.4 s | 5.7x |
+| 3D balls, radius 5 voxels, 256 x 256 x 48 | 200 | 49 s | 4.6 s | 11x |
+| 3D balls, radius 5 voxels, 256 x 256 x 48 | 400 | 2.8 min | 9.5 s | 18x |
+| 2D points, 2048 x 2048, 7 functions, 119 simulations | 400 | 1.8 s | 0.4 s | 4.7x |
+| 2D points, 2048 x 2048, 7 functions, 119 simulations | 2,000 | 41 s | 5.6 s | 7.3x |
+| 2D points, 2048 x 2048, 7 functions, 119 simulations | 10,000 | not finished at 3.5 h | not finished at 98 min | |
+
+Every output of 0.4.0 is identical, bit for bit, to 0.3.0's on these scenes.
+Setting `opa.parallelism=1` (the serial path) is 4 to 6 times slower for
+pattern analysis. Peak heap stayed under 450 MB in every case above.
+
+Label images are held as one `int` per voxel regardless of input bit depth, plus
+roughly 400 bytes per labelled voxel of extracted geometry. A 2048 x 2048 x 100
+stack with five per cent of voxels labelled therefore needs several gigabytes;
+raise Fiji's memory in `Edit > Options > Memory & Threads` or crop first. Inputs
+above 2,147,483,647 voxels are rejected outright.
+
+### Parallel execution
+
+Independent source-object distance calculations and Monte Carlo simulations
+run in parallel, with a default cap of eight workers. Monte Carlo point
+patterns are still generated from the original seeded random stream on the
+coordinator, so worker completion order cannot change scientific results.
+Set the JVM system property `opa.parallelism` to a positive integer to
+override the cap, or to `1` to use the serial reference path.
+
+## Validation
+
+Every point-pattern function here has been checked against
+[spatstat](https://spatstat.org/), the reference implementation in R, on twelve
+fixed patterns covering complete spatial randomness at three densities, a
+cluster process, a jittered grid, an elongated window, a window whose origin is
+not at the pixel origin, and four bivariate pairs.
+
+Ripley K, L, L(r)−r, cross-K and cross-L agree to within 1e-15 relative under
+both translation correction and no correction. Nearest-neighbour G and cross-G
+agree exactly, bit for bit. The pointwise Monte Carlo envelope and the global
+p-value have been separately calibrated over 1,000 randomised patterns.
+
+A one-page summary of every validation stage, with links to the full
+findings, is in [`docs/VALIDATION.md`](docs/VALIDATION.md).
+
+### The border correction differs from spatstat, deliberately
+
+If you cross-check this plugin against spatstat you will find border-corrected
+K larger by a factor of n/(n−1) — about 2% at 50 objects, 0.2% at 500. Neither
+tool is wrong; they estimate the density term differently.
+
+A point cannot be its own neighbour. When the number of objects is fixed, which
+is exactly what this plugin's randomisation does in every simulation, an
+interior object expects (n−1)·πr²/|W| neighbours. Dividing by (n−1), as this
+plugin does, is then unbiased. spatstat divides by n, which is the standard
+choice when the number of points is itself random.
+
+Measured over 3,000 randomised patterns against the analytic πr², this plugin's
+mean absolute bias is 1.06% at 50 objects and 0.36% at 200, against 2.99% and
+0.86% for the other convention. The choice here is the one matched to the null
+model the plugin actually simulates.
+
+Translation correction is the default and is unaffected. Use it unless you have
+a specific reason not to.
+
+### Nearest-neighbour radii can saturate
+
+G and cross-G are cumulative distributions: they climb to 1 and stop. Once
+almost every object already has a neighbour within r, every randomised curve
+takes the same value there, the envelope collapses to a point, and nothing can
+fall outside it. Those radii are not evidence of randomness — they are empty.
+
+The plugin warns when requested radii pass the point at which the expected
+curve reaches 99% of its maximum, reports `Saturation_Radius`,
+`Saturated_Radii` and `Saturation_Status` in the pattern summary, and flags
+individual radii with a `Saturated` column in the curve tables.
+
+**It warns rather than silently capping the radius range**, because quietly
+changing what you asked for is worse than telling you it will not help. If you
+see the warning, either shorten the radius range or read those radii as
+carrying no information.
 
 ## Java API
 
@@ -321,66 +441,6 @@ in `Analysis_Warnings`. A complete table set is staged before publication, and
 each final CSV or README replaces its predecessor with a same-directory atomic
 move, so a failed write does not truncate the prior valid file.
 
-## Macro use
-
-ImageJ's `GenericDialog` makes the command recordable:
-
-```text
-run("Object Proximity Analysis",
-    "input_mode=[Open label images] channel_count=2 "
-  + "label_image_1=A label_image_2=B "
-  + "run_distances include_self_distances k_nearest_neighbours=1 "
-  + "contact_distance=2 run_pattern_analysis "
-  + "monte_carlo_simulations=119 random_seed=777 "
-  + "edge_correction=TRANSLATION hide_display");
-```
-
-Important option names are:
-
-| Group | Options |
-|---|---|
-| Input | `input_mode`, `channel_count`, `roi_reference_image`, `label_image_1`...`label_image_5`, `roi_set_1`...`roi_set_5`, `observation_region_roi` |
-| Distances | `run_distances`, `include_self_distances`, `k_nearest_neighbours`, `contact_distance`, `centre_centre`, `centre_edge`, `edge_centre`, `edge_edge`, `surface_contact` |
-| Pattern | `run_pattern_analysis`, `function_k`, `function_l`, `function_l_minus_r`, `function_g`, `function_pair_correlation`, `function_cross_k`, `function_cross_l`, `function_cross_g`, `function_cross_pair_correlation` (off by default), `maximum_radius_0_is_auto`, `radius_bins`, `monte_carlo_simulations`, `random_seed`, `edge_correction`, `project_3d_centroids_to_xy` |
-| Output | `histogram_bins`, `auto_save`, `output_directory`, `output_prefix`, `hide_display` |
-
-The smallest attainable Monte Carlo p-value is `1/(simulations+1)`. For example,
-99 simulations cannot report a p-value below 0.01. The default of 119 gives an
-exact 5% envelope; a recorded macro that omits `monte_carlo_simulations` uses it.
-Pointwise envelopes are emitted only when all requested simulations contribute
-at that radius. Curve tables record `Envelope_N` and `Envelope_Status` for each
-radius; incomplete bounds are `NaN` without invalidating an otherwise complete
-global rank test.
-The cross-function null randomises both patterns independently, so a significant
-cross-K, cross-L, or cross-G rejects "both patterns are complete spatial
-randomness and independent of each other". It does not isolate dependence: a
-clustered but genuinely independent pair can reject. Conditioning on the
-observed marginal patterns, by random labelling or toroidal shifts, is not
-implemented.
-
-A radius where fewer than two of the observed and simulated curves are estimable
-carries no comparative information and is excluded from the global
-maximum-deviation statistic for every curve alike. A radius where every
-estimable curve took the same value is excluded for the same reason: the
-observed curve is exactly typical of the null there, however far the shared
-value sits from the theoretical expectation. Nearest-neighbour G does this at
-every radius past saturation at 1, and K and its derived curves do it at a
-smallest radius closer than any pair in the pattern. Under border correction this
-is what happens at radii larger than almost every point's distance to the window
-boundary. `Radius_At_Maximum_Deviation` is therefore the radius at which the
-ranked standardised statistic peaks, and `Maximum_Absolute_Deviation` is the raw
-departure from the theoretical expectation at that same radius.
-
-Pair correlation supports translation edge correction (or no edge correction).
-Border correction is rejected because its risk-set weighting is not valid for
-this pair-correlation estimator and can otherwise produce negative estimates.
-Cross pair correlation carries the identical restriction: a rule that held for
-g(r) but not for its A-to-B form would be worse than the restriction. It is the
-ring-normalised derivative of cross-K, the same estimator family as the
-univariate form, so the two can be read side by side.
-Radii must be strictly increasing. The public K-to-pair-correlation helper also
-rejects negative, infinite, or materially decreasing K values.
-
 ## Build
 
 OPA builds against two core modules, neither of which a user ever installs:
@@ -427,14 +487,35 @@ BSD 3-Clause licence at `META-INF/LICENSE`. The post-package integration test
 byte-compares that entry with `LICENSE` and checks the manifest commit against
 Git HEAD; continuous integration runs the full `clean verify` lifecycle.
 
+## Citing
+
+If you use Object Proximity Analysis in published work, please cite the
+software release you used. GitHub's **Cite this repository** button gives the
+citation from [`CITATION.cff`](CITATION.cff):
+
+> Malcolm, J. (2026). *Object Proximity Analysis* (Version 0.4.0) [Computer
+> software]. https://github.com/Jay2owe/ObjectProximityAnalysis
+
+If you compare point patterns, please also cite the reference implementation
+the estimators were validated against:
+
+> Baddeley, A., Rubak, E. and Turner, R. (2015). *Spatial Point Patterns:
+> Methodology and Applications with R*. Chapman and Hall/CRC.
+
+## Acknowledgements
+
+Developed by Jamie Malcolm in the [Brancaccio Lab](https://www.ukdri.ac.uk/labs/brancaccio-lab)
+at the [UK Dementia Research Institute](https://ukdri.ac.uk/centres/imperial),
+Imperial College London.
+
+This work was supported by the UK Dementia Research Institute,
+which receives its core funding from the UK Medical Research Council,
+the Alzheimer's Society, and Alzheimer's Research UK.
+
+Built on the [Fiji](https://fiji.sc/) / [ImageJ](https://imagej.net/)
+ecosystem; we thank the SciJava community for the platform.
+
 ## Licence
 
-BSD 3-Clause. See `LICENSE`; attribution is in `NOTICE`. Both ship inside the
-jar under `META-INF/`.
-## Parallel execution
-
-Independent source-object distance calculations and Monte Carlo simulations run in parallel, with a
-default cap of eight workers. Monte Carlo point patterns are still generated from the original seeded
-random stream on the coordinator, so worker completion order cannot change scientific results. Set
-the JVM system property `opa.parallelism` to a positive integer to override the cap, or to `1` to use
-the serial reference path.
+BSD 3-Clause; see [`LICENSE`](LICENSE), with attribution in [`NOTICE`](NOTICE).
+Both ship inside the jar under `META-INF/`.
