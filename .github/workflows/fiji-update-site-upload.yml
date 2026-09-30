@@ -14,7 +14,7 @@ on:
         type: boolean
         default: false
       confirm_live_upload:
-        description: "Required when dry_run=false: type UPLOAD ObjectProximityAnalysis"
+        description: "Required when dry_run=false: type UPLOAD ObjectProximities"
         required: false
         type: string
         default: ""
@@ -34,8 +34,8 @@ jobs:
 
     env:
       FIJI_DOWNLOAD_URL: "https://downloads.imagej.net/fiji/latest/fiji-latest-linux64-jdk.zip"
-      IMAGEJ_UPDATE_SITE_NAME: "ObjectProximityAnalysis"
-      IMAGEJ_UPDATE_SITE_URL: "https://sites.imagej.net/ObjectProximityAnalysis/"
+      IMAGEJ_UPDATE_SITE_NAME: "ObjectProximities"
+      IMAGEJ_UPDATE_SITE_URL: "https://sites.imagej.net/ObjectProximities/"
       GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: "v0.4.1"
       RELEASE_COMMIT: "de639ddf81cc615ed3d865fc18636b1a68ee8812"
@@ -52,7 +52,7 @@ jobs:
       ARTIFACT_NAME: ""
       REPLACE_GLOB: "plugins/Object_Proximity_Analysis-*.jar"
       UPLOAD_MODE: "single-file"
-      LIVE_UPLOAD_CONFIRMATION: "UPLOAD ObjectProximityAnalysis"
+      LIVE_UPLOAD_CONFIRMATION: "UPLOAD ObjectProximities"
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
       CLEAR_STALE_LOCK: ${{ github.event_name == 'workflow_dispatch' && inputs.clear_stale_lock || 'false' }}
 
