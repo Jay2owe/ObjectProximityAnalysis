@@ -18,8 +18,8 @@ tested against complete spatial randomness with Ripley's K and its relatives.
 ### From the Fiji update site (recommended)
 
 1. In Fiji, open `Help > Update...` and click **Manage Update Sites**.
-2. Tick **ObjectProximities**, or add it with **Add Unlisted Site**
-   and the URL `https://sites.imagej.net/ObjectProximities/`.
+2. Tick **Object-Proximities**, or add it with **Add Unlisted Site**
+   and the URL `https://sites.imagej.net/Object-Proximities/`.
 3. Click **Apply and Close**, then **Apply Changes**, and restart Fiji.
 
 The update site is being set up; until it is live, install manually as below.
