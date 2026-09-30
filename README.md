@@ -487,7 +487,56 @@ The JAR is forced to rebuild during `package`/`verify` so its manifest cannot
 retain stale source-control commit metadata after a new commit. It includes the
 BSD 3-Clause licence at `META-INF/LICENSE`. The post-package integration test
 byte-compares that entry with `LICENSE` and checks the manifest commit against
-Git HEAD; continuous integration runs the full `clean verify` lifecycle.
+Git HEAD; continuous integration runs the full `clean verify` lifecycle. It
+also checks that the manifest has no `Class-Path` line.
+
+### GUI checks (need a screen)
+
+These cannot run headless. They are automated by the maintainers' GUI
+harness, which is kept outside this repository (`_gui/run-gui.sh opa` in the
+release workspace). It starts a non-headless Fiji with the built jar on a
+1536 x 864 screen, drives the real dialogs from a Groovy script (menu commands,
+field values, button presses, the Macro Recorder, Escape key events), saves a
+screenshot of every dialog and writes PASS/FAIL per check. Last run: 0.4.1,
+2026-09-30, all 14 pass (0.4.0 passed 2 of 14; its failures are the 0.4.1
+fixes in the changelog). Run it, or tick by hand in a GUI Fiji, before a
+release:
+
+- [x] With no image open, `Plugins > Object Proximity Analysis` asks for a
+      label image and records nothing.
+- [x] The dialog lists `[None]` and every open image, shows the calibration
+      and the Monte Carlo hint, fits a 1536 x 864 screen, and Cancel or Escape
+      leave no window and no Recorder line.
+- [x] At ImageJ GUI scale 1.5 both dialogs fit the screen with OK reachable.
+- [x] With `Plugins > Macros > Record...` open, a 2D run (distances, all
+      pattern functions, observation region), a 3D distances run and an ROI-set
+      run each record one `run("Object Proximity Analysis", "...")` line that
+      replays to byte-identical CSVs.
+- [x] Result windows: every saved table is shown with a readable title, and
+      each L(r)-r plot draws the envelope, the CSR line and the observed curve
+      with micron axes, a y axis that holds the whole observed curve, and a
+      readable envelope label in the legend.
+- [x] Chance envelope: the pattern summary reports the simulation count,
+      `Minimum_Achievable_P` = 1/(n+1), and global p-values no smaller than it.
+- [x] 3D pattern analysis without XY projection gives a message; with
+      projection it runs.
+- [x] Wrong input gives a one-line message, no exception window and no
+      Recorder line: RGB, non-integer float, two-channel image, size
+      mismatch, the same image twice, `[None]`, a missing or absent ROI set, a
+      ROI set beyond the channel count, a non-numeric seed, pair correlation
+      with border correction.
+- [x] Escape during the Monte Carlo simulations stops the run within 2 s with
+      the status `Object Proximity Analysis cancelled`, the progress bar
+      cleared, no result windows or files and no Recorder line; the next run
+      is not cancelled.
+- [x] `Plugins > Object Proximity Analysis Batch...` previews every sample
+      (`.tif` and `.TIF`); Back returns to the settings with the values
+      entered; Run batch shows the manifest and summary tables; the recorded
+      line replays to identical output.
+- [x] Cancel in the batch preview, or a folder that does not exist, stops
+      cleanly with no files and no Recorder line.
+- [x] Escape during a batch stops it within 3 s, marks the remaining groups
+      `CANCELLED` and logs the cancel once.
 
 ## Citing
 
@@ -495,7 +544,7 @@ If you use Object Proximity Analysis in published work, please cite the
 software release you used. GitHub's **Cite this repository** button gives the
 citation from [`CITATION.cff`](CITATION.cff):
 
-> Malcolm, J. (2026). *Object Proximity Analysis* (Version 0.4.0) [Computer
+> Malcolm, J. (2026). *Object Proximity Analysis* (Version 0.4.1) [Computer
 > software]. https://github.com/Jay2owe/ObjectProximityAnalysis
 
 If you compare point patterns, please also cite the reference implementation

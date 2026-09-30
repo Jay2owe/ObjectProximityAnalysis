@@ -1,5 +1,59 @@
 # Changelog
 
+## [0.4.1] - 2026-09-30
+
+Fixes found by running both commands' real dialogs in a non-headless Fiji
+(1536 x 864 screen, and ImageJ GUI scale 1.5). Every measurement is unchanged:
+the 672 golden outputs pass bit for bit.
+
+### Fixed
+
+- **The Macro Recorder is left clean when a run does not complete.** A
+  cancelled dialog (Cancel or Escape), the "open an image first" message, any
+  rejected setting or input, a run stopped with Escape, a batch cancelled at
+  its preview and a batch that failed each left a `run("Object Proximity
+  Analysis...")` line that would replay it. Only completed runs are recorded.
+- **The main dialog fits the screen at larger ImageJ GUI scales.** At scale
+  1.5 on a 1920 x 1080 laptop at 125% it was 884 px tall, so Windows clamped it
+  and the OK button was off screen. A dialog that does not fit now scrolls,
+  with OK and Cancel fixed underneath. The batch dialog does the same.
+- **A filled-in ROI set beyond the channel count is refused** with a message
+  (`ROI set 2 is filled in but Channel count is 1. ...`). With only the
+  reference image open the channel count defaults to 1, and a second ROI set
+  was silently left out, giving a one-channel analysis. A recorded macro that
+  names such an unused `roi_set_N` now stops with this message.
+- **Escape clears the progress bar.** A run stopped part-way left the
+  status-bar progress bar drawn part-filled.
+- **RGB images are refused as label images** with a message saying so. Each
+  packed colour was read as a label, so a coloured copy of a label image ran
+  with meaningless objects.
+- **Batch: Back returns to the settings.** The preview offers Run batch, Back
+  and Cancel; Back reopens the settings with every value as entered, including
+  numbers typed with more decimals than the field shows.
+- **Batch: the default filename pattern is case-insensitive**, so `.TIF` and
+  `.TIFF` files, as many microscopes write them, are grouped. Recorded macros
+  keep the pattern they recorded; a macro that omits `filename_regex` now also
+  finds upper-case extensions.
+- **Batch: a cancelled batch** reports the cancel once in the Log (it was
+  logged twice) and shows only the group manifest, which marks the groups that
+  did not run, instead of a window per partial aggregate.
+- **L(r)-r plots show the whole observed curve.** The y axis followed the
+  envelope only, so an observed curve outside it, which is a significant
+  result, ran off the frame. The axes now fit every curve.
+- **The plot legend's envelope label is readable.** It was drawn in the
+  envelope's light-grey fill colour; the envelope now has a mid-grey outline
+  and its label uses it.
+- **Result windows have readable titles**, for example
+  `OPA Histogram - A.tif to B.tif, Centre-Centre, NN1`. They carried the
+  64-character identity hash of the saved file name. Saved file names are
+  unchanged.
+
+### Changed
+
+- **The jar manifest no longer has a `Class-Path` line.** It named
+  `ij-1.54p.jar`, `oc3d-core-0.1.0.jar` and `opa-core-0.4.0.jar`; Fiji supplies
+  ImageJ and both cores are bundled inside this jar, so none of them is needed.
+
 ## [0.4.0] - 2026-09-30
 
 The first public release. Everything below the next heading was internal.
@@ -255,4 +309,5 @@ The first public release. Everything below the next heading was internal.
   saturated G curve can no longer force every p-value to 1, and rejection of
   duplicate ROI sets across channels.
 
+[0.4.1]: https://github.com/Jay2owe/ObjectProximityAnalysis/releases/tag/v0.4.1
 [0.4.0]: https://github.com/Jay2owe/ObjectProximityAnalysis/releases/tag/v0.4.0
