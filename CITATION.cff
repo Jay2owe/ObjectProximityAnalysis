@@ -15,8 +15,8 @@ authors:
     orcid: "https://orcid.org/0009-0008-3862-2776"
     affiliation: "UK Dementia Research Institute at Imperial College London"
     email: jamiemalcolm12@gmail.com
-version: 0.3.0
-date-released: "2026-08-20"
+version: 0.4.0
+date-released: "2026-09-30"
 url: "https://github.com/Jay2owe/ObjectProximityAnalysis"
 repository-code: "https://github.com/Jay2owe/ObjectProximityAnalysis"
 license: BSD-3-Clause

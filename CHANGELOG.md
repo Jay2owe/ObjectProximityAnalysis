@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.4.0] - 2026-09-30
 
 The first public release. Everything below the next heading was internal.
 
@@ -255,4 +255,4 @@ The first public release. Everything below the next heading was internal.
   saturated G curve can no longer force every p-value to 1, and rejection of
   duplicate ROI sets across channels.
 
-[Unreleased]: https://github.com/Jay2owe/ObjectProximityAnalysis/commits/main
+[0.4.0]: https://github.com/Jay2owe/ObjectProximityAnalysis/releases/tag/v0.4.0
